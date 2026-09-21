@@ -1,0 +1,11 @@
+# Referenzkonfiguration.
+#
+# Alle Werte hier entsprechen den Defaults im Code - die Datei dient als Vorlage zum
+# Nachjustieren und als Dokumentation der verfuegbaren Schluessel. Unbekannte Schluessel
+# fuehren bewusst zu einem Fehler, damit ein Tippfehler nicht stillschweigend den
+# Default stehen laesst.
+#
+# Profile unter config/profiles/ enthalten nur die Abweichungen von dieser Datei.
+# Reihenfolge der Aufloesung: default.yaml -> Profil -> Lauf-Overrides (CLI/GUI).
+#
+# Wird in Phase P0 zusammen mit config/schema.py befuellt.

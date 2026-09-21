@@ -1,0 +1,1 @@
+"""Protokoll der Vorverarbeitungsschritte."""

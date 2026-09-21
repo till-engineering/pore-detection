@@ -1,0 +1,5832 @@
+[
+  {
+    "image": "3834409011_ffd8880e65.tif",
+    "width": 500,
+    "height": 405,
+    "seed": 1,
+    "um_per_px": 1.7241374999999999,
+    "specimen_area_px": 198072,
+    "pore_count": 18,
+    "pore_area_px": 9304,
+    "porosity_pct": 4.697281796518438,
+    "pores": [
+      {
+        "label": 1,
+        "kind": "gas",
+        "area_px": 544,
+        "centroid_px": [
+          475.09007352941177,
+          58.32720588235294
+        ],
+        "equivalent_diameter_px": 26.318098569918163,
+        "equivalent_diameter_um": 45.37602067309228,
+        "floor_gray": 21.604936684419545,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 2,
+        "kind": "gas",
+        "area_px": 86,
+        "centroid_px": [
+          159.13953488372093,
+          363.5
+        ],
+        "equivalent_diameter_px": 10.464157913908982,
+        "equivalent_diameter_um": 18.041647065292246,
+        "floor_gray": 13.287535836862997,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 3,
+        "kind": "shrinkage",
+        "area_px": 1500,
+        "centroid_px": [
+          371.00266666666664,
+          145.92066666666665
+        ],
+        "equivalent_diameter_px": 43.70193722368317,
+        "equivalent_diameter_um": 75.34814878999804,
+        "floor_gray": 29.87593944561538,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 4,
+        "kind": "gas",
+        "area_px": 100,
+        "centroid_px": [
+          197.35,
+          135.25
+        ],
+        "equivalent_diameter_px": 11.283791670955125,
+        "equivalent_diameter_um": 19.45480836208139,
+        "floor_gray": 65.88575803596363,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 5,
+        "kind": "micro",
+        "area_px": 99,
+        "centroid_px": [
+          192.77777777777777,
+          212.8080808080808
+        ],
+        "equivalent_diameter_px": 11.227230955528665,
+        "equivalent_diameter_um": 19.357289911587802,
+        "floor_gray": 15.62950628684516,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 6,
+        "kind": "gas",
+        "area_px": 553,
+        "centroid_px": [
+          228.73417721518987,
+          160.9475587703436
+        ],
+        "equivalent_diameter_px": 26.534910368014152,
+        "equivalent_diameter_um": 45.749834024631994,
+        "floor_gray": 11.369352648516044,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 7,
+        "kind": "gas",
+        "area_px": 254,
+        "centroid_px": [
+          400.7007874015748,
+          74.70866141732283
+        ],
+        "equivalent_diameter_px": 17.983404693292407,
+        "equivalent_diameter_um": 31.005862409381436,
+        "floor_gray": 10.376147977778977,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 8,
+        "kind": "shrinkage",
+        "area_px": 188,
+        "centroid_px": [
+          461.8191489361702,
+          19.5
+        ],
+        "equivalent_diameter_px": 15.471555655790098,
+        "equivalent_diameter_um": 26.6750892894848,
+        "floor_gray": 19.072959064167076,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 9,
+        "kind": "gas",
+        "area_px": 673,
+        "centroid_px": [
+          287.16196136701336,
+          238.02526002971769
+        ],
+        "equivalent_diameter_px": 29.2726871606753,
+        "equivalent_diameter_um": 50.470137659488806,
+        "floor_gray": 26.72501567608341,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 10,
+        "kind": "micro",
+        "area_px": 334,
+        "centroid_px": [
+          428.41616766467064,
+          176.2994011976048
+        ],
+        "equivalent_diameter_px": 20.62188177498708,
+        "equivalent_diameter_um": 35.55495968882179,
+        "floor_gray": 18.870054160682415,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 11,
+        "kind": "gas",
+        "area_px": 637,
+        "centroid_px": [
+          351.5337519623234,
+          258.1664050235479
+        ],
+        "equivalent_diameter_px": 28.479002615897535,
+        "equivalent_diameter_um": 49.101716372667035,
+        "floor_gray": 69.28422822427015,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 12,
+        "kind": "gas",
+        "area_px": 521,
+        "centroid_px": [
+          297.62763915547026,
+          363.90786948176583
+        ],
+        "equivalent_diameter_px": 25.75573339679963,
+        "equivalent_diameter_um": 44.40642578942462,
+        "floor_gray": 33.903155217119306,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 13,
+        "kind": "shrinkage",
+        "area_px": 396,
+        "centroid_px": [
+          26.333333333333332,
+          147.31313131313132
+        ],
+        "equivalent_diameter_px": 22.45446191105733,
+        "equivalent_diameter_um": 38.714579823175605,
+        "floor_gray": 22.919925537235034,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 14,
+        "kind": "gas",
+        "area_px": 389,
+        "centroid_px": [
+          329.7249357326478,
+          125.20565552699229
+        ],
+        "equivalent_diameter_px": 22.255115881567058,
+        "equivalent_diameter_um": 38.37087985825532,
+        "floor_gray": 13.653411942141602,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 15,
+        "kind": "micro",
+        "area_px": 851,
+        "centroid_px": [
+          423.26909518213864,
+          215.62397179788485
+        ],
+        "equivalent_diameter_px": 32.91696906717907,
+        "equivalent_diameter_um": 56.753380755063446,
+        "floor_gray": 33.807037799895795,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 16,
+        "kind": "gas",
+        "area_px": 249,
+        "centroid_px": [
+          365.80321285140565,
+          55.12449799196787
+        ],
+        "equivalent_diameter_px": 17.805522925178455,
+        "equivalent_diameter_um": 30.699169782409864,
+        "floor_gray": 25.852421134036078,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 17,
+        "kind": "gas",
+        "area_px": 840,
+        "centroid_px": [
+          462.13214285714287,
+          183.11785714285713
+        ],
+        "equivalent_diameter_px": 32.703535245865034,
+        "equivalent_diameter_um": 56.38539149996762,
+        "floor_gray": 17.9360212889445,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 18,
+        "kind": "shrinkage",
+        "area_px": 1090,
+        "centroid_px": [
+          49.022935779816514,
+          339.39908256880733
+        ],
+        "equivalent_diameter_px": 37.253605245148115,
+        "equivalent_diameter_um": 64.23033781335656,
+        "floor_gray": 18.461341216565145,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      }
+    ]
+  },
+  {
+    "image": "3839093331_484794dc0f_c.tif",
+    "width": 800,
+    "height": 453,
+    "seed": 2,
+    "um_per_px": 15.873015873015873,
+    "specimen_area_px": 355650,
+    "pore_count": 18,
+    "pore_area_px": 14894,
+    "porosity_pct": 4.187825108955434,
+    "pores": [
+      {
+        "label": 1,
+        "kind": "gas",
+        "area_px": 218,
+        "centroid_px": [
+          238.8165137614679,
+          368.7477064220183
+        ],
+        "equivalent_diameter_px": 16.66031874701878,
+        "equivalent_diameter_um": 264.44950392093307,
+        "floor_gray": 26.995531978223493,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 2,
+        "kind": "gas",
+        "area_px": 181,
+        "centroid_px": [
+          375.2209944751381,
+          233.75138121546962
+        ],
+        "equivalent_diameter_px": 15.180789096653193,
+        "equivalent_diameter_um": 240.96490629608243,
+        "floor_gray": 33.97432385399242,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 3,
+        "kind": "shrinkage",
+        "area_px": 2640,
+        "centroid_px": [
+          549.9174242424242,
+          389.0924242424243
+        ],
+        "equivalent_diameter_px": 57.97717135304921,
+        "equivalent_diameter_um": 920.2725611595113,
+        "floor_gray": 9.255079272200968,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 4,
+        "kind": "gas",
+        "area_px": 1368,
+        "centroid_px": [
+          481.99342105263156,
+          74.71418128654972
+        ],
+        "equivalent_diameter_px": 41.73477802981229,
+        "equivalent_diameter_um": 662.4567941240047,
+        "floor_gray": 9.73900786195852,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 5,
+        "kind": "micro",
+        "area_px": 942,
+        "centroid_px": [
+          421.69426751592357,
+          353.1348195329087
+        ],
+        "equivalent_diameter_px": 34.63223427878316,
+        "equivalent_diameter_um": 549.7180044251295,
+        "floor_gray": 15.677815463473973,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 6,
+        "kind": "gas",
+        "area_px": 69,
+        "centroid_px": [
+          24.3768115942029,
+          449.4347826086956
+        ],
+        "equivalent_diameter_px": 9.373021315815206,
+        "equivalent_diameter_um": 148.7781161240509,
+        "floor_gray": 10.261569785209957,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 7,
+        "kind": "gas",
+        "area_px": 400,
+        "centroid_px": [
+          182.95,
+          444.3725
+        ],
+        "equivalent_diameter_px": 22.56758334191025,
+        "equivalent_diameter_um": 358.21560860175003,
+        "floor_gray": 11.12940123259919,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 8,
+        "kind": "shrinkage",
+        "area_px": 445,
+        "centroid_px": [
+          697.1550561797753,
+          125.57078651685393
+        ],
+        "equivalent_diameter_px": 23.803184606416586,
+        "equivalent_diameter_um": 377.82832708597755,
+        "floor_gray": 13.074584699934338,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 9,
+        "kind": "gas",
+        "area_px": 888,
+        "centroid_px": [
+          616.8558558558559,
+          311.7668918918919
+        ],
+        "equivalent_diameter_px": 33.62494186946387,
+        "equivalent_diameter_um": 533.729236023236,
+        "floor_gray": 17.517246882019336,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 10,
+        "kind": "micro",
+        "area_px": 277,
+        "centroid_px": [
+          4.9891696750902526,
+          246.5306859205776
+        ],
+        "equivalent_diameter_px": 18.77997214831907,
+        "equivalent_diameter_um": 298.0947960050646,
+        "floor_gray": 26.535446704122936,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 11,
+        "kind": "gas",
+        "area_px": 913,
+        "centroid_px": [
+          58.378970427163196,
+          180.63745892661555
+        ],
+        "equivalent_diameter_px": 34.09498063268556,
+        "equivalent_diameter_um": 541.1901687727867,
+        "floor_gray": 9.258564214682224,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 12,
+        "kind": "gas",
+        "area_px": 1450,
+        "centroid_px": [
+          607.308275862069,
+          75.14344827586207
+        ],
+        "equivalent_diameter_px": 42.96739856991561,
+        "equivalent_diameter_um": 682.02219952247,
+        "floor_gray": 15.984371939515146,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 13,
+        "kind": "shrinkage",
+        "area_px": 960,
+        "centroid_px": [
+          105.41666666666667,
+          6.820833333333334
+        ],
+        "equivalent_diameter_px": 34.961549778946534,
+        "equivalent_diameter_um": 554.9452345864529,
+        "floor_gray": 60.01318082084053,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 14,
+        "kind": "gas",
+        "area_px": 966,
+        "centroid_px": [
+          659.9565217391304,
+          67.51345755693582
+        ],
+        "equivalent_diameter_px": 35.070634442709576,
+        "equivalent_diameter_um": 556.6767371858663,
+        "floor_gray": 23.206524860301943,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 15,
+        "kind": "micro",
+        "area_px": 388,
+        "centroid_px": [
+          650.3865979381443,
+          264.42783505154637
+        ],
+        "equivalent_diameter_px": 22.22649192646566,
+        "equivalent_diameter_um": 352.80145915024855,
+        "floor_gray": 57.70825360085834,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 16,
+        "kind": "gas",
+        "area_px": 194,
+        "centroid_px": [
+          92.81958762886597,
+          324.19072164948454
+        ],
+        "equivalent_diameter_px": 15.716503163191918,
+        "equivalent_diameter_um": 249.46830417764951,
+        "floor_gray": 30.189138881988555,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 17,
+        "kind": "gas",
+        "area_px": 930,
+        "centroid_px": [
+          386.5870967741935,
+          186.11397849462367
+        ],
+        "equivalent_diameter_px": 34.41093978088511,
+        "equivalent_diameter_um": 546.2053933473827,
+        "floor_gray": 27.632679160461585,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 18,
+        "kind": "shrinkage",
+        "area_px": 1665,
+        "centroid_px": [
+          665.4600600600601,
+          329.18078078078076
+        ],
+        "equivalent_diameter_px": 46.04284789176323,
+        "equivalent_diameter_um": 730.8388554248132,
+        "floor_gray": 29.21430286913012,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      }
+    ]
+  },
+  {
+    "image": "3839253563_08aaf104a2_c.tif",
+    "width": 800,
+    "height": 441,
+    "seed": 3,
+    "um_per_px": 1.0813333333333333,
+    "specimen_area_px": 341784,
+    "pore_count": 18,
+    "pore_area_px": 10973,
+    "porosity_pct": 3.2105072209348595,
+    "pores": [
+      {
+        "label": 1,
+        "kind": "gas",
+        "area_px": 143,
+        "centroid_px": [
+          189.35664335664336,
+          353.3006993006993
+        ],
+        "equivalent_diameter_px": 13.493452297211721,
+        "equivalent_diameter_um": 14.590919750718275,
+        "floor_gray": 36.68801764508295,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 2,
+        "kind": "gas",
+        "area_px": 211,
+        "centroid_px": [
+          100.58293838862559,
+          13.322274881516588
+        ],
+        "equivalent_diameter_px": 16.39065416446578,
+        "equivalent_diameter_um": 17.72376070317566,
+        "floor_gray": 61.05811121786427,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 3,
+        "kind": "shrinkage",
+        "area_px": 2033,
+        "centroid_px": [
+          60.88194786030497,
+          305.67683226758487
+        ],
+        "equivalent_diameter_px": 50.87726402280872,
+        "equivalent_diameter_um": 55.015281496663825,
+        "floor_gray": 10.729134590793219,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 4,
+        "kind": "gas",
+        "area_px": 1001,
+        "centroid_px": [
+          348.0679320679321,
+          294.4975024975025
+        ],
+        "equivalent_diameter_px": 35.700319106135424,
+        "equivalent_diameter_um": 38.603945060101104,
+        "floor_gray": 20.897214318910166,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 5,
+        "kind": "micro",
+        "area_px": 591,
+        "centroid_px": [
+          593.3824027072758,
+          144.57021996615904
+        ],
+        "equivalent_diameter_px": 27.431452220735256,
+        "equivalent_diameter_um": 29.662543668021723,
+        "floor_gray": 30.031410884675356,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 6,
+        "kind": "gas",
+        "area_px": 215,
+        "centroid_px": [
+          193.2372093023256,
+          274.0837209302326
+        ],
+        "equivalent_diameter_px": 16.545286401814263,
+        "equivalent_diameter_um": 17.89096969582849,
+        "floor_gray": 32.256202879788454,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 7,
+        "kind": "gas",
+        "area_px": 262,
+        "centroid_px": [
+          738.1488549618321,
+          345.5763358778626
+        ],
+        "equivalent_diameter_px": 18.26441241104166,
+        "equivalent_diameter_um": 19.74991795380638,
+        "floor_gray": 17.916080793239463,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 8,
+        "kind": "shrinkage",
+        "area_px": 527,
+        "centroid_px": [
+          163.73244781783683,
+          378.8026565464896
+        ],
+        "equivalent_diameter_px": 25.903614421069328,
+        "equivalent_diameter_um": 28.010441727316298,
+        "floor_gray": 31.360677238162697,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 9,
+        "kind": "gas",
+        "area_px": 271,
+        "centroid_px": [
+          608.760147601476,
+          8.51660516605166
+        ],
+        "equivalent_diameter_px": 18.575465448360347,
+        "equivalent_diameter_um": 20.086269971493653,
+        "floor_gray": 13.77462247151563,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 10,
+        "kind": "micro",
+        "area_px": 1337,
+        "centroid_px": [
+          295.08825729244575,
+          361.56993268511593
+        ],
+        "equivalent_diameter_px": 41.25919620291836,
+        "equivalent_diameter_um": 44.61494416075572,
+        "floor_gray": 35.46097545745232,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 11,
+        "kind": "gas",
+        "area_px": 78,
+        "centroid_px": [
+          88.15384615384616,
+          176.26923076923077
+        ],
+        "equivalent_diameter_px": 9.965574970333758,
+        "equivalent_diameter_um": 10.776108401254236,
+        "floor_gray": 23.644882968303907,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 12,
+        "kind": "gas",
+        "area_px": 1017,
+        "centroid_px": [
+          488.4237954768928,
+          112.06588003933138
+        ],
+        "equivalent_diameter_px": 35.98450523483212,
+        "equivalent_diameter_um": 38.911244993931795,
+        "floor_gray": 13.38397160135385,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 13,
+        "kind": "shrinkage",
+        "area_px": 456,
+        "centroid_px": [
+          259.92105263157896,
+          45.07017543859649
+        ],
+        "equivalent_diameter_px": 24.095585330081406,
+        "equivalent_diameter_um": 26.05535960359469,
+        "floor_gray": 13.62877846716201,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 14,
+        "kind": "gas",
+        "area_px": 227,
+        "centroid_px": [
+          616.5638766519824,
+          201.84140969162996
+        ],
+        "equivalent_diameter_px": 17.000746355818674,
+        "equivalent_diameter_um": 18.383473726091925,
+        "floor_gray": 36.21286871562597,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 15,
+        "kind": "micro",
+        "area_px": 989,
+        "centroid_px": [
+          34.22952477249747,
+          268.0889787664307
+        ],
+        "equivalent_diameter_px": 35.485685983831225,
+        "equivalent_diameter_um": 38.37185511051616,
+        "floor_gray": 75.52378230148722,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 16,
+        "kind": "gas",
+        "area_px": 81,
+        "centroid_px": [
+          148.09876543209876,
+          87.4320987654321
+        ],
+        "equivalent_diameter_px": 10.155412503859614,
+        "equivalent_diameter_um": 10.981386054173528,
+        "floor_gray": 74.65176298161428,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 17,
+        "kind": "gas",
+        "area_px": 802,
+        "centroid_px": [
+          329.0224438902743,
+          229.5648379052369
+        ],
+        "equivalent_diameter_px": 31.955251757380985,
+        "equivalent_diameter_um": 34.554278900314635,
+        "floor_gray": 18.052578160364057,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 18,
+        "kind": "shrinkage",
+        "area_px": 732,
+        "centroid_px": [
+          391.73497267759564,
+          101.28688524590164
+        ],
+        "equivalent_diameter_px": 30.52886088189566,
+        "equivalent_diameter_um": 33.01187490028984,
+        "floor_gray": 49.47632339617028,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      }
+    ]
+  },
+  {
+    "image": "3839343136_2f5f513e3b.tif",
+    "width": 455,
+    "height": 339,
+    "seed": 4,
+    "um_per_px": 0.030303030303030304,
+    "specimen_area_px": 152383,
+    "pore_count": 18,
+    "pore_area_px": 6574,
+    "porosity_pct": 4.314129528884456,
+    "pores": [
+      {
+        "label": 1,
+        "kind": "gas",
+        "area_px": 448,
+        "centroid_px": [
+          232.75223214285714,
+          328.9575892857143
+        ],
+        "equivalent_diameter_px": 23.883285285767386,
+        "equivalent_diameter_um": 0.7237359177505268,
+        "floor_gray": 19.09177377957286,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 2,
+        "kind": "gas",
+        "area_px": 611,
+        "centroid_px": [
+          83.81178396072013,
+          311.84124386252046
+        ],
+        "equivalent_diameter_px": 27.891743614073043,
+        "equivalent_diameter_um": 0.8452043519416074,
+        "floor_gray": 25.293981882014684,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 3,
+        "kind": "shrinkage",
+        "area_px": 1448,
+        "centroid_px": [
+          69.74102209944752,
+          200.38950276243094
+        ],
+        "equivalent_diameter_px": 42.937755656025104,
+        "equivalent_diameter_um": 1.3011441107886395,
+        "floor_gray": 29.293444143790968,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 4,
+        "kind": "gas",
+        "area_px": 429,
+        "centroid_px": [
+          244.65734265734267,
+          236.66200466200468
+        ],
+        "equivalent_diameter_px": 23.371344948277684,
+        "equivalent_diameter_um": 0.7082225741902329,
+        "floor_gray": 9.19837665889292,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 5,
+        "kind": "micro",
+        "area_px": 86,
+        "centroid_px": [
+          66.47674418604652,
+          156.32558139534885
+        ],
+        "equivalent_diameter_px": 10.464157913908982,
+        "equivalent_diameter_um": 0.31709569436087826,
+        "floor_gray": 30.5259200323872,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 6,
+        "kind": "gas",
+        "area_px": 214,
+        "centroid_px": [
+          121.35514018691589,
+          111.42523364485982
+        ],
+        "equivalent_diameter_px": 16.50676414605009,
+        "equivalent_diameter_um": 0.50020497412273,
+        "floor_gray": 14.019931538472402,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 7,
+        "kind": "gas",
+        "area_px": 177,
+        "centroid_px": [
+          333.8135593220339,
+          108.49717514124293
+        ],
+        "equivalent_diameter_px": 15.012108426804138,
+        "equivalent_diameter_um": 0.45491237656982236,
+        "floor_gray": 64.38706480993622,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 8,
+        "kind": "shrinkage",
+        "area_px": 176,
+        "centroid_px": [
+          103.7159090909091,
+          6.505681818181818
+        ],
+        "equivalent_diameter_px": 14.96964127403822,
+        "equivalent_diameter_um": 0.45362549315267336,
+        "floor_gray": 65.79727111291173,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 9,
+        "kind": "gas",
+        "area_px": 123,
+        "centroid_px": [
+          263.1788617886179,
+          44.7479674796748
+        ],
+        "equivalent_diameter_px": 12.514330345744634,
+        "equivalent_diameter_um": 0.37922213168923136,
+        "floor_gray": 8.882724526336316,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 10,
+        "kind": "micro",
+        "area_px": 416,
+        "centroid_px": [
+          119.91826923076923,
+          56.96153846153846
+        ],
+        "equivalent_diameter_px": 23.014509567006368,
+        "equivalent_diameter_um": 0.6974093808183748,
+        "floor_gray": 15.266150484753851,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 11,
+        "kind": "gas",
+        "area_px": 685,
+        "centroid_px": [
+          379.40875912408757,
+          91.06569343065694
+        ],
+        "equivalent_diameter_px": 29.53250900522315,
+        "equivalent_diameter_um": 0.8949245153097924,
+        "floor_gray": 35.592693754969964,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 12,
+        "kind": "gas",
+        "area_px": 116,
+        "centroid_px": [
+          19.28448275862069,
+          136.72413793103448
+        ],
+        "equivalent_diameter_px": 12.153015559492998,
+        "equivalent_diameter_um": 0.3682731987725151,
+        "floor_gray": 11.398238321407572,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 13,
+        "kind": "shrinkage",
+        "area_px": 616,
+        "centroid_px": [
+          444.1542207792208,
+          267.42045454545456
+        ],
+        "equivalent_diameter_px": 28.00563442518059,
+        "equivalent_diameter_um": 0.8486555886418361,
+        "floor_gray": 29.054650552613552,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 14,
+        "kind": "gas",
+        "area_px": 338,
+        "centroid_px": [
+          208.26923076923077,
+          156.46449704142012
+        ],
+        "equivalent_diameter_px": 20.7449985808745,
+        "equivalent_diameter_um": 0.6286363206325607,
+        "floor_gray": 51.60593194682865,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 15,
+        "kind": "micro",
+        "area_px": 96,
+        "centroid_px": [
+          424.4791666666667,
+          241.92708333333334
+        ],
+        "equivalent_diameter_px": 11.055812783082736,
+        "equivalent_diameter_um": 0.33502462979038594,
+        "floor_gray": 65.63333155140694,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 16,
+        "kind": "gas",
+        "area_px": 69,
+        "centroid_px": [
+          412.92753623188406,
+          100.4927536231884
+        ],
+        "equivalent_diameter_px": 9.373021315815206,
+        "equivalent_diameter_um": 0.2840309489640972,
+        "floor_gray": 15.910174985215498,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 17,
+        "kind": "gas",
+        "area_px": 114,
+        "centroid_px": [
+          152.05263157894737,
+          311.4122807017544
+        ],
+        "equivalent_diameter_px": 12.047792665040703,
+        "equivalent_diameter_um": 0.36508462621335463,
+        "floor_gray": 37.400233177262365,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 18,
+        "kind": "shrinkage",
+        "area_px": 412,
+        "centroid_px": [
+          46.05339805825243,
+          7.298543689320389
+        ],
+        "equivalent_diameter_px": 22.903595622322865,
+        "equivalent_diameter_um": 0.694048352191602,
+        "floor_gray": 10.340206892288766,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      }
+    ]
+  },
+  {
+    "image": "3839393498_ab9fe62c06_c.tif",
+    "width": 800,
+    "height": 445,
+    "seed": 5,
+    "um_per_px": 10349.999999999998,
+    "specimen_area_px": 349574,
+    "pore_count": 18,
+    "pore_area_px": 8927,
+    "porosity_pct": 2.553679621482147,
+    "pores": [
+      {
+        "label": 1,
+        "kind": "gas",
+        "area_px": 840,
+        "centroid_px": [
+          646.4119047619048,
+          229.31071428571428
+        ],
+        "equivalent_diameter_px": 32.703535245865034,
+        "equivalent_diameter_um": 338481.58979470306,
+        "floor_gray": 33.32693112826223,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 2,
+        "kind": "gas",
+        "area_px": 824,
+        "centroid_px": [
+          475.3907766990291,
+          431.997572815534
+        ],
+        "equivalent_diameter_px": 32.390575556198044,
+        "equivalent_diameter_um": 335242.4570066497,
+        "floor_gray": 28.966584808054886,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 3,
+        "kind": "shrinkage",
+        "area_px": 1016,
+        "centroid_px": [
+          500.86122047244095,
+          31.37204724409449
+        ],
+        "equivalent_diameter_px": 35.96680938658481,
+        "equivalent_diameter_um": 372256.47715115274,
+        "floor_gray": 24.818323467565936,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 4,
+        "kind": "gas",
+        "area_px": 134,
+        "centroid_px": [
+          277.35820895522386,
+          300.32835820895525
+        ],
+        "equivalent_diameter_px": 13.061933202803933,
+        "equivalent_diameter_um": 135191.0086490207,
+        "floor_gray": 11.266226953632588,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 5,
+        "kind": "micro",
+        "area_px": 93,
+        "centroid_px": [
+          796.505376344086,
+          98.76344086021506
+        ],
+        "equivalent_diameter_px": 10.881694613449236,
+        "equivalent_diameter_um": 112625.53924919957,
+        "floor_gray": 19.891782541842236,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 6,
+        "kind": "gas",
+        "area_px": 729,
+        "centroid_px": [
+          694.1056241426612,
+          398.96296296296293
+        ],
+        "equivalent_diameter_px": 30.46623751157884,
+        "equivalent_diameter_um": 315325.55824484094,
+        "floor_gray": 35.04645659751321,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 7,
+        "kind": "gas",
+        "area_px": 136,
+        "centroid_px": [
+          201.50735294117646,
+          439.08088235294116
+        ],
+        "equivalent_diameter_px": 13.159049284959082,
+        "equivalent_diameter_um": 136196.16009932646,
+        "floor_gray": 23.48253601082201,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 8,
+        "kind": "shrinkage",
+        "area_px": 1326,
+        "centroid_px": [
+          129.51809954751133,
+          111.97737556561086
+        ],
+        "equivalent_diameter_px": 41.08911822269767,
+        "equivalent_diameter_um": 425272.3736049208,
+        "floor_gray": 22.620347733499628,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 9,
+        "kind": "gas",
+        "area_px": 764,
+        "centroid_px": [
+          732.7251308900524,
+          251.31675392670158
+        ],
+        "equivalent_diameter_px": 31.18902069924069,
+        "equivalent_diameter_um": 322806.3642371411,
+        "floor_gray": 11.423856236891005,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 10,
+        "kind": "micro",
+        "area_px": 115,
+        "centroid_px": [
+          703.1739130434783,
+          173.28695652173914
+        ],
+        "equivalent_diameter_px": 12.100518486599809,
+        "equivalent_diameter_um": 125240.366336308,
+        "floor_gray": 18.504637651532953,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 11,
+        "kind": "gas",
+        "area_px": 101,
+        "centroid_px": [
+          635.039603960396,
+          131.22772277227722
+        ],
+        "equivalent_diameter_px": 11.340070282773887,
+        "equivalent_diameter_um": 117369.72742670971,
+        "floor_gray": 34.618506589453915,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 12,
+        "kind": "gas",
+        "area_px": 247,
+        "centroid_px": [
+          364.0931174089069,
+          252.63967611336034
+        ],
+        "equivalent_diameter_px": 17.733870630789692,
+        "equivalent_diameter_um": 183545.56102867328,
+        "floor_gray": 27.520520827302867,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 13,
+        "kind": "shrinkage",
+        "area_px": 744,
+        "centroid_px": [
+          716.0604838709678,
+          435.2002688172043
+        ],
+        "equivalent_diameter_px": 30.77808020788433,
+        "equivalent_diameter_um": 318553.13015160273,
+        "floor_gray": 29.02598272756879,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 14,
+        "kind": "gas",
+        "area_px": 586,
+        "centroid_px": [
+          402.098976109215,
+          335.15017064846415
+        ],
+        "equivalent_diameter_px": 27.315167457198672,
+        "equivalent_diameter_um": 282711.9831820062,
+        "floor_gray": 25.2818245610823,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 15,
+        "kind": "micro",
+        "area_px": 392,
+        "centroid_px": [
+          340.73979591836735,
+          273.84438775510205
+        ],
+        "equivalent_diameter_px": 22.34076770248023,
+        "equivalent_diameter_um": 231226.9457206703,
+        "floor_gray": 25.658816263508825,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 16,
+        "kind": "gas",
+        "area_px": 213,
+        "centroid_px": [
+          519.8356807511738,
+          415.25821596244134
+        ],
+        "equivalent_diameter_px": 16.46815177937675,
+        "equivalent_diameter_um": 170445.37091654935,
+        "floor_gray": 18.37961070551011,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 17,
+        "kind": "gas",
+        "area_px": 210,
+        "centroid_px": [
+          177.26190476190476,
+          358.6
+        ],
+        "equivalent_diameter_px": 16.351767622932517,
+        "equivalent_diameter_um": 169240.79489735153,
+        "floor_gray": 29.349916297715406,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 18,
+        "kind": "shrinkage",
+        "area_px": 457,
+        "centroid_px": [
+          613.5492341356673,
+          103.36980306345733
+        ],
+        "equivalent_diameter_px": 24.121991458915023,
+        "equivalent_diameter_um": 249662.61159977043,
+        "floor_gray": 27.089562580769524,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      }
+    ]
+  },
+  {
+    "image": "3839405264_1369f500d3_c.tif",
+    "width": 800,
+    "height": 448,
+    "seed": 6,
+    "um_per_px": 1.4563105769230769,
+    "specimen_area_px": 352982,
+    "pore_count": 18,
+    "pore_area_px": 10877,
+    "porosity_pct": 3.0814602444317276,
+    "pores": [
+      {
+        "label": 1,
+        "kind": "gas",
+        "area_px": 531,
+        "centroid_px": [
+          274.5743879472693,
+          165.34463276836158
+        ],
+        "equivalent_diameter_px": 26.001734523957655,
+        "equivalent_diameter_um": 37.86660100558546,
+        "floor_gray": 31.556328779791144,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 2,
+        "kind": "gas",
+        "area_px": 302,
+        "centroid_px": [
+          457.3046357615894,
+          340.05298013245033
+        ],
+        "equivalent_diameter_px": 19.60913925979463,
+        "equivalent_diameter_um": 28.556996908396474,
+        "floor_gray": 21.27762603428441,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 3,
+        "kind": "shrinkage",
+        "area_px": 875,
+        "centroid_px": [
+          375.41942857142857,
+          403.18742857142854
+        ],
+        "equivalent_diameter_px": 33.37790589062273,
+        "equivalent_diameter_um": 48.60859738405695,
+        "floor_gray": 72.96263445213978,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 4,
+        "kind": "gas",
+        "area_px": 145,
+        "centroid_px": [
+          265.63448275862066,
+          315.84137931034485
+        ],
+        "equivalent_diameter_px": 13.58748446131949,
+        "equivalent_diameter_um": 19.78759733479753,
+        "floor_gray": 13.227424943576558,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 5,
+        "kind": "micro",
+        "area_px": 808,
+        "centroid_px": [
+          621.8279702970297,
+          183.7858910891089
+        ],
+        "equivalent_diameter_px": 32.07456238432586,
+        "equivalent_diameter_um": 46.71052445047281,
+        "floor_gray": 24.36328243842161,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 6,
+        "kind": "gas",
+        "area_px": 1095,
+        "centroid_px": [
+          42.144292237442926,
+          238.9041095890411
+        ],
+        "equivalent_diameter_px": 37.338951531678056,
+        "equivalent_diameter_um": 54.37711004680087,
+        "floor_gray": 22.94502974682097,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 7,
+        "kind": "gas",
+        "area_px": 1092,
+        "centroid_px": [
+          608.1712454212454,
+          269.6062271062271
+        ],
+        "equivalent_diameter_px": 37.28776720119881,
+        "equivalent_diameter_um": 54.30256976495122,
+        "floor_gray": 74.16291265648465,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 8,
+        "kind": "shrinkage",
+        "area_px": 455,
+        "centroid_px": [
+          12.382417582417583,
+          375.35604395604395
+        ],
+        "equivalent_diameter_px": 24.069150231250354,
+        "equivalent_diameter_um": 35.05215805932041,
+        "floor_gray": 8.270637158486945,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 9,
+        "kind": "gas",
+        "area_px": 342,
+        "centroid_px": [
+          33.87426900584795,
+          177.6169590643275
+        ],
+        "equivalent_diameter_px": 20.867389014906145,
+        "equivalent_diameter_um": 30.389399335176243,
+        "floor_gray": 72.66715011882468,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 10,
+        "kind": "micro",
+        "area_px": 188,
+        "centroid_px": [
+          562.1382978723404,
+          209.41489361702128
+        ],
+        "equivalent_diameter_px": 15.471555655790098,
+        "equivalent_diameter_um": 22.53139014298117,
+        "floor_gray": 25.851617885551235,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 11,
+        "kind": "gas",
+        "area_px": 402,
+        "centroid_px": [
+          498.0422885572139,
+          7.634328358208955
+        ],
+        "equivalent_diameter_px": 22.623931952327283,
+        "equivalent_diameter_um": 32.94747139376218,
+        "floor_gray": 46.26028618427514,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 12,
+        "kind": "gas",
+        "area_px": 412,
+        "centroid_px": [
+          786.8567961165048,
+          415.6116504854369
+        ],
+        "equivalent_diameter_px": 22.903595622322865,
+        "equivalent_diameter_um": 33.35474855435787,
+        "floor_gray": 25.04057655355695,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 13,
+        "kind": "shrinkage",
+        "area_px": 1494,
+        "centroid_px": [
+          438.3219544846051,
+          90.55488621151272
+        ],
+        "equivalent_diameter_px": 43.61444577011535,
+        "equivalent_diameter_um": 63.51617868165694,
+        "floor_gray": 57.430637112344684,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 14,
+        "kind": "gas",
+        "area_px": 269,
+        "centroid_px": [
+          517.4163568773234,
+          366.9368029739777
+        ],
+        "equivalent_diameter_px": 18.5067943613625,
+        "equivalent_diameter_um": 26.951640373392564,
+        "floor_gray": 51.53304141036598,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 15,
+        "kind": "micro",
+        "area_px": 1055,
+        "centroid_px": [
+          105.76398104265402,
+          291.62369668246447
+        ],
+        "equivalent_diameter_px": 36.6506169074355,
+        "equivalent_diameter_um": 53.37468105305407,
+        "floor_gray": 31.62229210255598,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 16,
+        "kind": "gas",
+        "area_px": 387,
+        "centroid_px": [
+          358.6744186046512,
+          231.85271317829458
+        ],
+        "equivalent_diameter_px": 22.197831060995757,
+        "equivalent_diameter_um": 32.326936158879725,
+        "floor_gray": 13.718838362556404,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 17,
+        "kind": "gas",
+        "area_px": 191,
+        "centroid_px": [
+          336.40314136125653,
+          6.476439790575916
+        ],
+        "equivalent_diameter_px": 15.594510349620345,
+        "equivalent_diameter_um": 22.710450364088498,
+        "floor_gray": 56.68184051025533,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 18,
+        "kind": "shrinkage",
+        "area_px": 834,
+        "centroid_px": [
+          321.1462829736211,
+          51.1378896882494
+        ],
+        "equivalent_diameter_px": 32.586527589007176,
+        "equivalent_diameter_um": 47.4561047930668,
+        "floor_gray": 34.09357140316744,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      }
+    ]
+  },
+  {
+    "image": "3839530665_a803e35a65_c.tif",
+    "width": 800,
+    "height": 434,
+    "seed": 7,
+    "um_per_px": 229885.05747126436,
+    "specimen_area_px": 342813,
+    "pore_count": 18,
+    "pore_area_px": 13131,
+    "porosity_pct": 3.830368159900587,
+    "pores": [
+      {
+        "label": 1,
+        "kind": "gas",
+        "area_px": 553,
+        "centroid_px": [
+          717.7215189873418,
+          336.6618444846293
+        ],
+        "equivalent_diameter_px": 26.534910368014152,
+        "equivalent_diameter_um": 6099979.394945782,
+        "floor_gray": 24.604920562234774,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 2,
+        "kind": "gas",
+        "area_px": 476,
+        "centroid_px": [
+          515.8655462184875,
+          140.01260504201682
+        ],
+        "equivalent_diameter_px": 24.61832697999475,
+        "equivalent_diameter_um": 5659385.512642471,
+        "floor_gray": 25.98926510102497,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 3,
+        "kind": "shrinkage",
+        "area_px": 1046,
+        "centroid_px": [
+          756.7217973231358,
+          76.96749521988528
+        ],
+        "equivalent_diameter_px": 36.493952427669164,
+        "equivalent_diameter_um": 8389414.351188313,
+        "floor_gray": 15.126201267230762,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 4,
+        "kind": "gas",
+        "area_px": 542,
+        "centroid_px": [
+          448.64760147601476,
+          324.5848708487085
+        ],
+        "equivalent_diameter_px": 26.26967516446403,
+        "equivalent_diameter_um": 6039005.784934259,
+        "floor_gray": 26.307864101446533,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 5,
+        "kind": "micro",
+        "area_px": 319,
+        "centroid_px": [
+          44.68652037617555,
+          334.576802507837
+        ],
+        "equivalent_diameter_px": 20.153496341094687,
+        "equivalent_diameter_um": 4632987.664619468,
+        "floor_gray": 65.45233917390837,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 6,
+        "kind": "gas",
+        "area_px": 579,
+        "centroid_px": [
+          106.3747841105354,
+          155.84455958549222
+        ],
+        "equivalent_diameter_px": 27.151532118863187,
+        "equivalent_diameter_um": 6241731.521577744,
+        "floor_gray": 74.60402863546466,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 7,
+        "kind": "gas",
+        "area_px": 373,
+        "centroid_px": [
+          748.1528150134048,
+          136.1662198391421
+        ],
+        "equivalent_diameter_px": 21.792621462004423,
+        "equivalent_diameter_um": 5009798.037242396,
+        "floor_gray": 36.99042789284459,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 8,
+        "kind": "shrinkage",
+        "area_px": 3230,
+        "centroid_px": [
+          367.4517027863777,
+          374.13498452012385
+        ],
+        "equivalent_diameter_px": 64.1292735768508,
+        "equivalent_diameter_um": 14742361.741804782,
+        "floor_gray": 23.289066456159844,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 9,
+        "kind": "gas",
+        "area_px": 459,
+        "centroid_px": [
+          650.322440087146,
+          393.0087145969499
+        ],
+        "equivalent_diameter_px": 24.17471718621419,
+        "equivalent_diameter_um": 5557406.249704411,
+        "floor_gray": 64.67888137709777,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 10,
+        "kind": "micro",
+        "area_px": 993,
+        "centroid_px": [
+          74.75427995971802,
+          128.1681772406848
+        ],
+        "equivalent_diameter_px": 35.55737431141417,
+        "equivalent_diameter_um": 8174109.037106706,
+        "floor_gray": 9.350963121893344,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 11,
+        "kind": "gas",
+        "area_px": 232,
+        "centroid_px": [
+          494.4094827586207,
+          166.9439655172414
+        ],
+        "equivalent_diameter_px": 17.186959427966244,
+        "equivalent_diameter_um": 3951025.1558543085,
+        "floor_gray": 27.128136088890518,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 12,
+        "kind": "gas",
+        "area_px": 277,
+        "centroid_px": [
+          476.72563176895306,
+          259.84115523465704
+        ],
+        "equivalent_diameter_px": 18.77997214831907,
+        "equivalent_diameter_um": 4317234.976625074,
+        "floor_gray": 26.809888567995515,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 13,
+        "kind": "shrinkage",
+        "area_px": 781,
+        "centroid_px": [
+          545.483994878361,
+          222.16773367477592
+        ],
+        "equivalent_diameter_px": 31.534109856442154,
+        "equivalent_diameter_um": 7249220.656653368,
+        "floor_gray": 11.250938872423632,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 14,
+        "kind": "gas",
+        "area_px": 267,
+        "centroid_px": [
+          528.8239700374531,
+          350.46816479400746
+        ],
+        "equivalent_diameter_px": 18.437867513470433,
+        "equivalent_diameter_um": 4238590.232981709,
+        "floor_gray": 27.260393419339376,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 15,
+        "kind": "micro",
+        "area_px": 620,
+        "centroid_px": [
+          251.1741935483871,
+          216.33064516129033
+        ],
+        "equivalent_diameter_px": 28.096414677602564,
+        "equivalent_diameter_um": 6458945.902897141,
+        "floor_gray": 24.07558350190919,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 16,
+        "kind": "gas",
+        "area_px": 493,
+        "centroid_px": [
+          751.314401622718,
+          336.81744421906694
+        ],
+        "equivalent_diameter_px": 25.05408341078227,
+        "equivalent_diameter_um": 5759559.404777532,
+        "floor_gray": 27.604969128617498,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 17,
+        "kind": "gas",
+        "area_px": 638,
+        "centroid_px": [
+          151.77899686520377,
+          329.72727272727275
+        ],
+        "equivalent_diameter_px": 28.501347854812654,
+        "equivalent_diameter_um": 6552033.989612104,
+        "floor_gray": 15.500730975204188,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 18,
+        "kind": "shrinkage",
+        "area_px": 1253,
+        "centroid_px": [
+          379.3455706304868,
+          91.41101356743815
+        ],
+        "equivalent_diameter_px": 39.94207242436425,
+        "equivalent_diameter_um": 9182085.614796378,
+        "floor_gray": 28.133739484425572,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      }
+    ]
+  },
+  {
+    "image": "3839609003_15a3980e24_c.tif",
+    "width": 800,
+    "height": 448,
+    "seed": 8,
+    "um_per_px": 1042.1686746987953,
+    "specimen_area_px": 354177,
+    "pore_count": 18,
+    "pore_area_px": 13154,
+    "porosity_pct": 3.713962227925585,
+    "pores": [
+      {
+        "label": 1,
+        "kind": "gas",
+        "area_px": 383,
+        "centroid_px": [
+          789.6344647519583,
+          142.80678851174935
+        ],
+        "equivalent_diameter_px": 22.082815618339236,
+        "equivalent_diameter_um": 23014.018686582458,
+        "floor_gray": 20.689525644326793,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 2,
+        "kind": "gas",
+        "area_px": 192,
+        "centroid_px": [
+          646.5416666666666,
+          80.70833333333333
+        ],
+        "equivalent_diameter_px": 15.635280380893438,
+        "equivalent_diameter_um": 16294.59943309979,
+        "floor_gray": 21.333405250758354,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 3,
+        "kind": "shrinkage",
+        "area_px": 260,
+        "centroid_px": [
+          315.13076923076926,
+          430.49615384615385
+        ],
+        "equivalent_diameter_px": 18.19456736586892,
+        "equivalent_diameter_um": 18961.80815840556,
+        "floor_gray": 33.596812989316376,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 4,
+        "kind": "gas",
+        "area_px": 1028,
+        "centroid_px": [
+          723.6760700389106,
+          252.01167315175098
+        ],
+        "equivalent_diameter_px": 36.17858830838687,
+        "equivalent_diameter_um": 37704.191429824874,
+        "floor_gray": 28.714349201743634,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 5,
+        "kind": "micro",
+        "area_px": 712,
+        "centroid_px": [
+          498.4241573033708,
+          419.55477528089887
+        ],
+        "equivalent_diameter_px": 30.10891156869401,
+        "equivalent_diameter_um": 31378.56446616906,
+        "floor_gray": 36.218724159829605,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 6,
+        "kind": "gas",
+        "area_px": 900,
+        "centroid_px": [
+          332.67333333333335,
+          320.94
+        ],
+        "equivalent_diameter_px": 33.851375012865375,
+        "equivalent_diameter_um": 35278.84263388982,
+        "floor_gray": 21.6683201829575,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 7,
+        "kind": "gas",
+        "area_px": 785,
+        "centroid_px": [
+          27.55923566878981,
+          139.33630573248408
+        ],
+        "equivalent_diameter_px": 31.614759885488656,
+        "equivalent_diameter_um": 32947.91241078035,
+        "floor_gray": 20.37629069823472,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 8,
+        "kind": "shrinkage",
+        "area_px": 1676,
+        "centroid_px": [
+          460.07816229116946,
+          68.63066825775655
+        ],
+        "equivalent_diameter_px": 46.19469100422832,
+        "equivalent_diameter_um": 48142.65990199699,
+        "floor_gray": 34.93093349741671,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 9,
+        "kind": "gas",
+        "area_px": 108,
+        "centroid_px": [
+          294.3240740740741,
+          311.50925925925924
+        ],
+        "equivalent_diameter_px": 11.726460285670077,
+        "equivalent_diameter_um": 12220.949574824841,
+        "floor_gray": 27.89727955958876,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 10,
+        "kind": "micro",
+        "area_px": 1139,
+        "centroid_px": [
+          288.9078138718174,
+          137.45741878841088
+        ],
+        "equivalent_diameter_px": 38.08175207961617,
+        "equivalent_diameter_um": 39687.609095021675,
+        "floor_gray": 57.02169862842446,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 11,
+        "kind": "gas",
+        "area_px": 1144,
+        "centroid_px": [
+          387.2167832167832,
+          52.983391608391614
+        ],
+        "equivalent_diameter_px": 38.16524648390242,
+        "equivalent_diameter_um": 39774.62434768144,
+        "floor_gray": 25.777149547685653,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 12,
+        "kind": "gas",
+        "area_px": 815,
+        "centroid_px": [
+          517.8736196319019,
+          389.06503067484664
+        ],
+        "equivalent_diameter_px": 32.21319960760119,
+        "equivalent_diameter_um": 33571.58754286148,
+        "floor_gray": 71.65530525509972,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 13,
+        "kind": "shrinkage",
+        "area_px": 1193,
+        "centroid_px": [
+          184.72590108968984,
+          13.893545683151718
+        ],
+        "equivalent_diameter_px": 38.97402695217738,
+        "equivalent_diameter_um": 40617.51001642583,
+        "floor_gray": 18.488789233877853,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 14,
+        "kind": "gas",
+        "area_px": 417,
+        "centroid_px": [
+          218.65947242206235,
+          321.1007194244604
+        ],
+        "equivalent_diameter_px": 23.04215463350949,
+        "equivalent_diameter_um": 24013.81175660929,
+        "floor_gray": 14.697970137366415,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 15,
+        "kind": "micro",
+        "area_px": 439,
+        "centroid_px": [
+          547.5375854214124,
+          145.44646924829158
+        ],
+        "equivalent_diameter_px": 23.642169108157916,
+        "equivalent_diameter_um": 24639.128046453734,
+        "floor_gray": 21.29043916707337,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 16,
+        "kind": "gas",
+        "area_px": 817,
+        "centroid_px": [
+          111.35985312117504,
+          280.0685434516524
+        ],
+        "equivalent_diameter_px": 32.252700786889584,
+        "equivalent_diameter_um": 33612.75443452951,
+        "floor_gray": 13.538005078850963,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 17,
+        "kind": "gas",
+        "area_px": 807,
+        "centroid_px": [
+          60.075588599752166,
+          337.68649318463446
+        ],
+        "equivalent_diameter_px": 32.05470811910906,
+        "equivalent_diameter_um": 33406.4126783486,
+        "floor_gray": 37.34085894559739,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 18,
+        "kind": "shrinkage",
+        "area_px": 339,
+        "centroid_px": [
+          694.1209439528023,
+          7.0265486725663715
+        ],
+        "equivalent_diameter_px": 20.775663783985824,
+        "equivalent_diameter_um": 21651.745991744265,
+        "floor_gray": 12.001477913191664,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      }
+    ]
+  },
+  {
+    "image": "3839903822_4fafe7d5f9_c.tif",
+    "width": 800,
+    "height": 434,
+    "seed": 9,
+    "um_per_px": 1.0,
+    "specimen_area_px": 341610,
+    "pore_count": 18,
+    "pore_area_px": 10350,
+    "porosity_pct": 3.0297707912531835,
+    "pores": [
+      {
+        "label": 1,
+        "kind": "gas",
+        "area_px": 1157,
+        "centroid_px": [
+          229.42178046672427,
+          261.7502160760588
+        ],
+        "equivalent_diameter_px": 38.381481905452574,
+        "equivalent_diameter_um": 38.381481905452574,
+        "floor_gray": 31.53829558018039,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 2,
+        "kind": "gas",
+        "area_px": 549,
+        "centroid_px": [
+          152.5191256830601,
+          222.19854280510017
+        ],
+        "equivalent_diameter_px": 26.438769072322643,
+        "equivalent_diameter_um": 26.438769072322643,
+        "floor_gray": 9.801890922177703,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 3,
+        "kind": "shrinkage",
+        "area_px": 637,
+        "centroid_px": [
+          669.6954474097331,
+          378.3249607535322
+        ],
+        "equivalent_diameter_px": 28.479002615897535,
+        "equivalent_diameter_um": 28.479002615897535,
+        "floor_gray": 59.876337175987125,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 4,
+        "kind": "gas",
+        "area_px": 274,
+        "centroid_px": [
+          485.48175182481754,
+          354.1678832116788
+        ],
+        "equivalent_diameter_px": 18.677998695187732,
+        "equivalent_diameter_um": 18.677998695187732,
+        "floor_gray": 19.066202405196517,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 5,
+        "kind": "micro",
+        "area_px": 1035,
+        "centroid_px": [
+          70.35458937198068,
+          107.95072463768116
+        ],
+        "equivalent_diameter_px": 36.301555459799424,
+        "equivalent_diameter_um": 36.301555459799424,
+        "floor_gray": 12.660838444249523,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 6,
+        "kind": "gas",
+        "area_px": 178,
+        "centroid_px": [
+          178.2696629213483,
+          416.35955056179773
+        ],
+        "equivalent_diameter_px": 15.054455784347004,
+        "equivalent_diameter_um": 15.054455784347004,
+        "floor_gray": 20.71612075798331,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 7,
+        "kind": "gas",
+        "area_px": 360,
+        "centroid_px": [
+          359.5,
+          376.8
+        ],
+        "equivalent_diameter_px": 21.409489393833255,
+        "equivalent_diameter_um": 21.409489393833255,
+        "floor_gray": 25.862235700507842,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 8,
+        "kind": "shrinkage",
+        "area_px": 1541,
+        "centroid_px": [
+          561.44970798183,
+          359.8890330953926
+        ],
+        "equivalent_diameter_px": 44.29517059947829,
+        "equivalent_diameter_um": 44.29517059947829,
+        "floor_gray": 13.832869154524037,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 9,
+        "kind": "gas",
+        "area_px": 150,
+        "centroid_px": [
+          352.8666666666667,
+          157.13333333333333
+        ],
+        "equivalent_diameter_px": 13.81976597885342,
+        "equivalent_diameter_um": 13.81976597885342,
+        "floor_gray": 37.265386147282236,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 10,
+        "kind": "micro",
+        "area_px": 342,
+        "centroid_px": [
+          763.9356725146199,
+          55.23391812865497
+        ],
+        "equivalent_diameter_px": 20.867389014906145,
+        "equivalent_diameter_um": 20.867389014906145,
+        "floor_gray": 75.05635231173467,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 11,
+        "kind": "gas",
+        "area_px": 723,
+        "centroid_px": [
+          327.9875518672199,
+          125.08298755186722
+        ],
+        "equivalent_diameter_px": 30.340603007249587,
+        "equivalent_diameter_um": 30.340603007249587,
+        "floor_gray": 27.59120271556293,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 12,
+        "kind": "gas",
+        "area_px": 1308,
+        "centroid_px": [
+          46.845565749235476,
+          194.7981651376147
+        ],
+        "equivalent_diameter_px": 40.809279882320794,
+        "equivalent_diameter_um": 40.809279882320794,
+        "floor_gray": 13.670453089347276,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 13,
+        "kind": "shrinkage",
+        "area_px": 194,
+        "centroid_px": [
+          490.2061855670103,
+          132.12886597938143
+        ],
+        "equivalent_diameter_px": 15.716503163191918,
+        "equivalent_diameter_um": 15.716503163191918,
+        "floor_gray": 35.18723137812668,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 14,
+        "kind": "gas",
+        "area_px": 93,
+        "centroid_px": [
+          223.78494623655914,
+          25.0
+        ],
+        "equivalent_diameter_px": 10.881694613449236,
+        "equivalent_diameter_um": 10.881694613449236,
+        "floor_gray": 32.67590496237946,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 15,
+        "kind": "micro",
+        "area_px": 400,
+        "centroid_px": [
+          212.5875,
+          305.325
+        ],
+        "equivalent_diameter_px": 22.56758334191025,
+        "equivalent_diameter_um": 22.56758334191025,
+        "floor_gray": 58.92915169055878,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 16,
+        "kind": "gas",
+        "area_px": 195,
+        "centroid_px": [
+          161.4,
+          200.35897435897436
+        ],
+        "equivalent_diameter_px": 15.756957549709801,
+        "equivalent_diameter_um": 15.756957549709801,
+        "floor_gray": 60.063388308171035,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 17,
+        "kind": "gas",
+        "area_px": 498,
+        "centroid_px": [
+          358.50803212851406,
+          424.8413654618474
+        ],
+        "equivalent_diameter_px": 25.180812005932435,
+        "equivalent_diameter_um": 25.180812005932435,
+        "floor_gray": 17.684152100513533,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 18,
+        "kind": "shrinkage",
+        "area_px": 716,
+        "centroid_px": [
+          744.1508379888268,
+          87.16340782122904
+        ],
+        "equivalent_diameter_px": 30.19336870954244,
+        "equivalent_diameter_um": 30.19336870954244,
+        "floor_gray": 31.60776467559714,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      }
+    ]
+  },
+  {
+    "image": "3840390857_835937bebe_w.tif",
+    "width": 368,
+    "height": 252,
+    "seed": 10,
+    "um_per_px": 1000000000.0,
+    "specimen_area_px": 90216,
+    "pore_count": 18,
+    "pore_area_px": 4883,
+    "porosity_pct": 5.412565398598918,
+    "pores": [
+      {
+        "label": 1,
+        "kind": "gas",
+        "area_px": 318,
+        "centroid_px": [
+          76.5251572327044,
+          208.72012578616352
+        ],
+        "equivalent_diameter_px": 20.12188299403865,
+        "equivalent_diameter_um": 20121882994.03865,
+        "floor_gray": 36.00315412554744,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 2,
+        "kind": "gas",
+        "area_px": 220,
+        "centroid_px": [
+          157.33636363636364,
+          33.413636363636364
+        ],
+        "equivalent_diameter_px": 16.73656774376801,
+        "equivalent_diameter_um": 16736567743.76801,
+        "floor_gray": 35.556408744310595,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 3,
+        "kind": "shrinkage",
+        "area_px": 628,
+        "centroid_px": [
+          226.20382165605096,
+          232.17834394904457
+        ],
+        "equivalent_diameter_px": 28.277100878514442,
+        "equivalent_diameter_um": 28277100878.514442,
+        "floor_gray": 51.14290050255384,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 4,
+        "kind": "gas",
+        "area_px": 57,
+        "centroid_px": [
+          360.9298245614035,
+          228.64912280701753
+        ],
+        "equivalent_diameter_px": 8.51907589177983,
+        "equivalent_diameter_um": 8519075891.779829,
+        "floor_gray": 12.855722793806818,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 5,
+        "kind": "micro",
+        "area_px": 115,
+        "centroid_px": [
+          260.7304347826087,
+          199.4695652173913
+        ],
+        "equivalent_diameter_px": 12.100518486599809,
+        "equivalent_diameter_um": 12100518486.599808,
+        "floor_gray": 27.585581839262176,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 6,
+        "kind": "gas",
+        "area_px": 149,
+        "centroid_px": [
+          202.46308724832215,
+          180.6711409395973
+        ],
+        "equivalent_diameter_px": 13.773623058786647,
+        "equivalent_diameter_um": 13773623058.786648,
+        "floor_gray": 11.557866907484517,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 7,
+        "kind": "gas",
+        "area_px": 158,
+        "centroid_px": [
+          220.3354430379747,
+          134.86708860759495
+        ],
+        "equivalent_diameter_px": 14.183506197980657,
+        "equivalent_diameter_um": 14183506197.980658,
+        "floor_gray": 27.084970708697895,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 8,
+        "kind": "shrinkage",
+        "area_px": 657,
+        "centroid_px": [
+          189.44596651445966,
+          83.07001522070016
+        ],
+        "equivalent_diameter_px": 28.92262748940701,
+        "equivalent_diameter_um": 28922627489.40701,
+        "floor_gray": 10.328347987987929,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 9,
+        "kind": "gas",
+        "area_px": 285,
+        "centroid_px": [
+          110.96842105263158,
+          68.13684210526316
+        ],
+        "equivalent_diameter_px": 19.04923279949934,
+        "equivalent_diameter_um": 19049232799.49934,
+        "floor_gray": 17.942106272548656,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 10,
+        "kind": "micro",
+        "area_px": 164,
+        "centroid_px": [
+          219.53048780487805,
+          198.8780487804878
+        ],
+        "equivalent_diameter_px": 14.450303987687134,
+        "equivalent_diameter_um": 14450303987.687134,
+        "floor_gray": 15.09001512661457,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 11,
+        "kind": "gas",
+        "area_px": 217,
+        "centroid_px": [
+          169.82027649769586,
+          226.05990783410138
+        ],
+        "equivalent_diameter_px": 16.622063085174787,
+        "equivalent_diameter_um": 16622063085.174788,
+        "floor_gray": 9.594099453764379,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 12,
+        "kind": "gas",
+        "area_px": 162,
+        "centroid_px": [
+          342.0925925925926,
+          20.425925925925927
+        ],
+        "equivalent_diameter_px": 14.361922094451577,
+        "equivalent_diameter_um": 14361922094.451576,
+        "floor_gray": 37.07897230356379,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 13,
+        "kind": "shrinkage",
+        "area_px": 345,
+        "centroid_px": [
+          296.64927536231886,
+          169.03478260869565
+        ],
+        "equivalent_diameter_px": 20.958712816717327,
+        "equivalent_diameter_um": 20958712816.717327,
+        "floor_gray": 71.98889769309682,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 14,
+        "kind": "gas",
+        "area_px": 355,
+        "centroid_px": [
+          289.49577464788734,
+          36.87323943661972
+        ],
+        "equivalent_diameter_px": 21.260292528114064,
+        "equivalent_diameter_um": 21260292528.114063,
+        "floor_gray": 73.41077367110118,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 15,
+        "kind": "micro",
+        "area_px": 31,
+        "centroid_px": [
+          89.06451612903226,
+          26.451612903225808
+        ],
+        "equivalent_diameter_px": 6.282549314314218,
+        "equivalent_diameter_um": 6282549314.314218,
+        "floor_gray": 22.40625229699901,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 16,
+        "kind": "gas",
+        "area_px": 207,
+        "centroid_px": [
+          336.31400966183577,
+          36.32850241545894
+        ],
+        "equivalent_diameter_px": 16.23454913941803,
+        "equivalent_diameter_um": 16234549139.418028,
+        "floor_gray": 66.92073658388695,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 17,
+        "kind": "gas",
+        "area_px": 200,
+        "centroid_px": [
+          178.655,
+          163.015
+        ],
+        "equivalent_diameter_px": 15.957691216057308,
+        "equivalent_diameter_um": 15957691216.057308,
+        "floor_gray": 26.854653428672478,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 18,
+        "kind": "shrinkage",
+        "area_px": 615,
+        "centroid_px": [
+          315.8731707317073,
+          125.83089430894309
+        ],
+        "equivalent_diameter_px": 27.982893345973448,
+        "equivalent_diameter_um": 27982893345.97345,
+        "floor_gray": 16.363140541474777,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      }
+    ]
+  },
+  {
+    "image": "3840391885_54a6e18c7f_w.tif",
+    "width": 368,
+    "height": 256,
+    "seed": 11,
+    "um_per_px": 1.0,
+    "specimen_area_px": 91928,
+    "pore_count": 18,
+    "pore_area_px": 3504,
+    "porosity_pct": 3.8116787050735357,
+    "pores": [
+      {
+        "label": 1,
+        "kind": "gas",
+        "area_px": 42,
+        "centroid_px": [
+          183.73809523809524,
+          154.02380952380952
+        ],
+        "equivalent_diameter_px": 7.312732791431452,
+        "equivalent_diameter_um": 7.312732791431452,
+        "floor_gray": 69.64118783511975,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 2,
+        "kind": "gas",
+        "area_px": 534,
+        "centroid_px": [
+          17.353932584269664,
+          83.18352059925094
+        ],
+        "equivalent_diameter_px": 26.075082298788182,
+        "equivalent_diameter_um": 26.075082298788182,
+        "floor_gray": 16.997374623438823,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 3,
+        "kind": "shrinkage",
+        "area_px": 94,
+        "centroid_px": [
+          237.19148936170214,
+          57.765957446808514
+        ],
+        "equivalent_diameter_px": 10.940041919714261,
+        "equivalent_diameter_um": 10.940041919714261,
+        "floor_gray": 33.609160648824584,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 4,
+        "kind": "gas",
+        "area_px": 27,
+        "centroid_px": [
+          42.77777777777778,
+          93.11111111111111
+        ],
+        "equivalent_diameter_px": 5.863230142835039,
+        "equivalent_diameter_um": 5.863230142835039,
+        "floor_gray": 11.784695752962525,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 5,
+        "kind": "micro",
+        "area_px": 101,
+        "centroid_px": [
+          362.6039603960396,
+          4.306930693069307
+        ],
+        "equivalent_diameter_px": 11.340070282773887,
+        "equivalent_diameter_um": 11.340070282773887,
+        "floor_gray": 72.86748741449732,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 6,
+        "kind": "gas",
+        "area_px": 62,
+        "centroid_px": [
+          2.6774193548387095,
+          155.46774193548387
+        ],
+        "equivalent_diameter_px": 8.884866446580956,
+        "equivalent_diameter_um": 8.884866446580956,
+        "floor_gray": 8.955324927897596,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 7,
+        "kind": "gas",
+        "area_px": 176,
+        "centroid_px": [
+          279.51704545454544,
+          185.2784090909091
+        ],
+        "equivalent_diameter_px": 14.96964127403822,
+        "equivalent_diameter_um": 14.96964127403822,
+        "floor_gray": 20.010455324944992,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 8,
+        "kind": "shrinkage",
+        "area_px": 508,
+        "centroid_px": [
+          355.25,
+          190.74212598425197
+        ],
+        "equivalent_diameter_px": 25.43237481489809,
+        "equivalent_diameter_um": 25.43237481489809,
+        "floor_gray": 35.483215847592305,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 9,
+        "kind": "gas",
+        "area_px": 353,
+        "centroid_px": [
+          188.6657223796034,
+          56.06515580736544
+        ],
+        "equivalent_diameter_px": 21.200319792199185,
+        "equivalent_diameter_um": 21.200319792199185,
+        "floor_gray": 28.06220263529776,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 10,
+        "kind": "micro",
+        "area_px": 44,
+        "centroid_px": [
+          118.0909090909091,
+          19.363636363636363
+        ],
+        "equivalent_diameter_px": 7.48482063701911,
+        "equivalent_diameter_um": 7.48482063701911,
+        "floor_gray": 67.96036369056566,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 11,
+        "kind": "gas",
+        "area_px": 204,
+        "centroid_px": [
+          223.97058823529412,
+          70.41666666666667
+        ],
+        "equivalent_diameter_px": 16.11647812414279,
+        "equivalent_diameter_um": 16.11647812414279,
+        "floor_gray": 14.278381890544235,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 12,
+        "kind": "gas",
+        "area_px": 323,
+        "centroid_px": [
+          318.8513931888545,
+          105.89473684210526
+        ],
+        "equivalent_diameter_px": 20.279456919490165,
+        "equivalent_diameter_um": 20.279456919490165,
+        "floor_gray": 21.984273262379865,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 13,
+        "kind": "shrinkage",
+        "area_px": 493,
+        "centroid_px": [
+          211.93509127789048,
+          121.47667342799188
+        ],
+        "equivalent_diameter_px": 25.05408341078227,
+        "equivalent_diameter_um": 25.05408341078227,
+        "floor_gray": 26.52973527954125,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 14,
+        "kind": "gas",
+        "area_px": 65,
+        "centroid_px": [
+          82.03076923076924,
+          252.81538461538463
+        ],
+        "equivalent_diameter_px": 9.09728368293446,
+        "equivalent_diameter_um": 9.09728368293446,
+        "floor_gray": 15.373388487395005,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 15,
+        "kind": "micro",
+        "area_px": 133,
+        "centroid_px": [
+          266.8496240601504,
+          164.06766917293234
+        ],
+        "equivalent_diameter_px": 13.013103375051497,
+        "equivalent_diameter_um": 13.013103375051497,
+        "floor_gray": 14.252790159006956,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 16,
+        "kind": "gas",
+        "area_px": 120,
+        "centroid_px": [
+          132.175,
+          59.575
+        ],
+        "equivalent_diameter_px": 12.360774464742066,
+        "equivalent_diameter_um": 12.360774464742066,
+        "floor_gray": 46.340840117171545,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 17,
+        "kind": "gas",
+        "area_px": 130,
+        "centroid_px": [
+          39.669230769230765,
+          237.2076923076923
+        ],
+        "equivalent_diameter_px": 12.865501965161373,
+        "equivalent_diameter_um": 12.865501965161373,
+        "floor_gray": 24.679665911988543,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 18,
+        "kind": "shrinkage",
+        "area_px": 95,
+        "centroid_px": [
+          178.0421052631579,
+          8.526315789473685
+        ],
+        "equivalent_diameter_px": 10.998079684646791,
+        "equivalent_diameter_um": 10.998079684646791,
+        "floor_gray": 20.532950481114554,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      }
+    ]
+  },
+  {
+    "image": "3840437072_b5bfbbcc6e_c.tif",
+    "width": 800,
+    "height": 445,
+    "seed": 12,
+    "um_per_px": 1.0,
+    "specimen_area_px": 352685,
+    "pore_count": 18,
+    "pore_area_px": 12056,
+    "porosity_pct": 3.4183478174575046,
+    "pores": [
+      {
+        "label": 1,
+        "kind": "gas",
+        "area_px": 518,
+        "centroid_px": [
+          362.9343629343629,
+          208.3899613899614
+        ],
+        "equivalent_diameter_px": 25.68147355921802,
+        "equivalent_diameter_um": 25.68147355921802,
+        "floor_gray": 20.24295404167953,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 2,
+        "kind": "gas",
+        "area_px": 1268,
+        "centroid_px": [
+          631.1522082018928,
+          269.12776025236593
+        ],
+        "equivalent_diameter_px": 40.180439802523146,
+        "equivalent_diameter_um": 40.180439802523146,
+        "floor_gray": 22.80648920333461,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 3,
+        "kind": "shrinkage",
+        "area_px": 325,
+        "centroid_px": [
+          421.6676923076923,
+          112.08
+        ],
+        "equivalent_diameter_px": 20.342144725641095,
+        "equivalent_diameter_um": 20.342144725641095,
+        "floor_gray": 8.124554543848653,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 4,
+        "kind": "gas",
+        "area_px": 509,
+        "centroid_px": [
+          112.16895874263261,
+          78.87033398821218
+        ],
+        "equivalent_diameter_px": 25.45739437315213,
+        "equivalent_diameter_um": 25.45739437315213,
+        "floor_gray": 32.70328271654223,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 5,
+        "kind": "micro",
+        "area_px": 580,
+        "centroid_px": [
+          526.5741379310344,
+          128.56724137931036
+        ],
+        "equivalent_diameter_px": 27.17496892263898,
+        "equivalent_diameter_um": 27.17496892263898,
+        "floor_gray": 9.62769446992846,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 6,
+        "kind": "gas",
+        "area_px": 183,
+        "centroid_px": [
+          4.224043715846994,
+          387.7049180327869
+        ],
+        "equivalent_diameter_px": 15.26443044094783,
+        "equivalent_diameter_um": 15.26443044094783,
+        "floor_gray": 29.304183607021084,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 7,
+        "kind": "gas",
+        "area_px": 749,
+        "centroid_px": [
+          517.8558077436583,
+          388.0694259012016
+        ],
+        "equivalent_diameter_px": 30.881327999401787,
+        "equivalent_diameter_um": 30.881327999401787,
+        "floor_gray": 30.716237082664968,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 8,
+        "kind": "shrinkage",
+        "area_px": 963,
+        "centroid_px": [
+          447.9688473520249,
+          308.34890965732086
+        ],
+        "equivalent_diameter_px": 35.01613458935697,
+        "equivalent_diameter_um": 35.01613458935697,
+        "floor_gray": 15.44741649958141,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 9,
+        "kind": "gas",
+        "area_px": 435,
+        "centroid_px": [
+          611.8919540229886,
+          377.2344827586207
+        ],
+        "equivalent_diameter_px": 23.534213434057992,
+        "equivalent_diameter_um": 23.534213434057992,
+        "floor_gray": 69.05460071172594,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 10,
+        "kind": "micro",
+        "area_px": 330,
+        "centroid_px": [
+          462.05151515151516,
+          270.1151515151515
+        ],
+        "equivalent_diameter_px": 20.49802550887777,
+        "equivalent_diameter_um": 20.49802550887777,
+        "floor_gray": 35.47255933972907,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 11,
+        "kind": "gas",
+        "area_px": 269,
+        "centroid_px": [
+          368.92936802973975,
+          313.82156133828994
+        ],
+        "equivalent_diameter_px": 18.5067943613625,
+        "equivalent_diameter_um": 18.5067943613625,
+        "floor_gray": 25.141357447095647,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 12,
+        "kind": "gas",
+        "area_px": 1017,
+        "centroid_px": [
+          372.89577187807276,
+          126.85644051130777
+        ],
+        "equivalent_diameter_px": 35.98450523483212,
+        "equivalent_diameter_um": 35.98450523483212,
+        "floor_gray": 29.698425014417612,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 13,
+        "kind": "shrinkage",
+        "area_px": 2435,
+        "centroid_px": [
+          135.6069815195072,
+          279.2694045174538
+        ],
+        "equivalent_diameter_px": 55.68068149214879,
+        "equivalent_diameter_um": 55.68068149214879,
+        "floor_gray": 37.29657831168421,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 14,
+        "kind": "gas",
+        "area_px": 197,
+        "centroid_px": [
+          178.0507614213198,
+          7.741116751269035
+        ],
+        "equivalent_diameter_px": 15.837556323903858,
+        "equivalent_diameter_um": 15.837556323903858,
+        "floor_gray": 20.550990526928594,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 15,
+        "kind": "micro",
+        "area_px": 1010,
+        "centroid_px": [
+          711.0851485148514,
+          214.42475247524752
+        ],
+        "equivalent_diameter_px": 35.86045091995518,
+        "equivalent_diameter_um": 35.86045091995518,
+        "floor_gray": 36.15085212305546,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 16,
+        "kind": "gas",
+        "area_px": 771,
+        "centroid_px": [
+          74.41763942931257,
+          140.3865110246433
+        ],
+        "equivalent_diameter_px": 31.331576548121713,
+        "equivalent_diameter_um": 31.331576548121713,
+        "floor_gray": 14.163082152747089,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 17,
+        "kind": "gas",
+        "area_px": 160,
+        "centroid_px": [
+          173.8625,
+          314.7375
+        ],
+        "equivalent_diameter_px": 14.27299292922217,
+        "equivalent_diameter_um": 14.27299292922217,
+        "floor_gray": 14.83236232967897,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 18,
+        "kind": "shrinkage",
+        "area_px": 337,
+        "centroid_px": [
+          776.8813056379822,
+          34.246290801186944
+        ],
+        "equivalent_diameter_px": 20.71428798138497,
+        "equivalent_diameter_um": 20.71428798138497,
+        "floor_gray": 22.005760088480418,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      }
+    ]
+  },
+  {
+    "image": "3841291388_307f21c237_z.tif",
+    "width": 600,
+    "height": 396,
+    "seed": 13,
+    "um_per_px": 1.0,
+    "specimen_area_px": 235168,
+    "pore_count": 18,
+    "pore_area_px": 11916,
+    "porosity_pct": 5.0670159205334055,
+    "pores": [
+      {
+        "label": 1,
+        "kind": "gas",
+        "area_px": 724,
+        "centroid_px": [
+          513.2099447513813,
+          321.1353591160221
+        ],
+        "equivalent_diameter_px": 30.361578193306386,
+        "equivalent_diameter_um": 30.361578193306386,
+        "floor_gray": 20.26199998069321,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 2,
+        "kind": "gas",
+        "area_px": 494,
+        "centroid_px": [
+          590.7267206477733,
+          318.5404858299595
+        ],
+        "equivalent_diameter_px": 25.079480359432697,
+        "equivalent_diameter_um": 25.079480359432697,
+        "floor_gray": 16.743553954274702,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 3,
+        "kind": "shrinkage",
+        "area_px": 1301,
+        "centroid_px": [
+          556.4089162182936,
+          245.87624903920062
+        ],
+        "equivalent_diameter_px": 40.69993424688112,
+        "equivalent_diameter_um": 40.69993424688112,
+        "floor_gray": 14.705011814906644,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 4,
+        "kind": "gas",
+        "area_px": 100,
+        "centroid_px": [
+          120.15,
+          384.77
+        ],
+        "equivalent_diameter_px": 11.283791670955125,
+        "equivalent_diameter_um": 11.283791670955125,
+        "floor_gray": 32.99732427217545,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 5,
+        "kind": "micro",
+        "area_px": 70,
+        "centroid_px": [
+          197.17142857142858,
+          101.87142857142857
+        ],
+        "equivalent_diameter_px": 9.440697438826296,
+        "equivalent_diameter_um": 9.440697438826296,
+        "floor_gray": 16.878345193647235,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 6,
+        "kind": "gas",
+        "area_px": 1022,
+        "centroid_px": [
+          75.6399217221135,
+          372.9109589041096
+        ],
+        "equivalent_diameter_px": 36.07285426355026,
+        "equivalent_diameter_um": 36.07285426355026,
+        "floor_gray": 30.777583543049357,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 7,
+        "kind": "gas",
+        "area_px": 657,
+        "centroid_px": [
+          231.93911719939118,
+          121.28158295281582
+        ],
+        "equivalent_diameter_px": 28.92262748940701,
+        "equivalent_diameter_um": 28.92262748940701,
+        "floor_gray": 8.209209845055296,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 8,
+        "kind": "shrinkage",
+        "area_px": 1331,
+        "centroid_px": [
+          410.44402704733284,
+          286.3275732531931
+        ],
+        "equivalent_diameter_px": 41.16651350360511,
+        "equivalent_diameter_um": 41.16651350360511,
+        "floor_gray": 11.192767319396985,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 9,
+        "kind": "gas",
+        "area_px": 597,
+        "centroid_px": [
+          188.63149078726968,
+          314.63316582914575
+        ],
+        "equivalent_diameter_px": 27.570346537664197,
+        "equivalent_diameter_um": 27.570346537664197,
+        "floor_gray": 26.343197674693705,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 10,
+        "kind": "micro",
+        "area_px": 572,
+        "centroid_px": [
+          388.9195804195804,
+          363.30944055944053
+        ],
+        "equivalent_diameter_px": 26.986904594423443,
+        "equivalent_diameter_um": 26.986904594423443,
+        "floor_gray": 19.12936822387362,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 11,
+        "kind": "gas",
+        "area_px": 508,
+        "centroid_px": [
+          174.79133858267716,
+          225.248031496063
+        ],
+        "equivalent_diameter_px": 25.43237481489809,
+        "equivalent_diameter_um": 25.43237481489809,
+        "floor_gray": 27.208009857709676,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 12,
+        "kind": "gas",
+        "area_px": 490,
+        "centroid_px": [
+          384.7959183673469,
+          226.00408163265305
+        ],
+        "equivalent_diameter_px": 24.977737626138797,
+        "equivalent_diameter_um": 24.977737626138797,
+        "floor_gray": 34.774575511996936,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 13,
+        "kind": "shrinkage",
+        "area_px": 1584,
+        "centroid_px": [
+          536.385101010101,
+          119.98421717171718
+        ],
+        "equivalent_diameter_px": 44.90892382211466,
+        "equivalent_diameter_um": 44.90892382211466,
+        "floor_gray": 20.329867880137066,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 14,
+        "kind": "gas",
+        "area_px": 554,
+        "centroid_px": [
+          134.17148014440434,
+          137.9837545126354
+        ],
+        "equivalent_diameter_px": 26.558891313141824,
+        "equivalent_diameter_um": 26.558891313141824,
+        "floor_gray": 9.455129195935319,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 15,
+        "kind": "micro",
+        "area_px": 153,
+        "centroid_px": [
+          432.8235294117647,
+          373.6143790849673
+        ],
+        "equivalent_diameter_px": 13.957279475043833,
+        "equivalent_diameter_um": 13.957279475043833,
+        "floor_gray": 32.330153737413866,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 16,
+        "kind": "gas",
+        "area_px": 244,
+        "centroid_px": [
+          151.70081967213116,
+          293.04918032786884
+        ],
+        "equivalent_diameter_px": 17.625846048215095,
+        "equivalent_diameter_um": 17.625846048215095,
+        "floor_gray": 36.31268538820157,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 17,
+        "kind": "gas",
+        "area_px": 319,
+        "centroid_px": [
+          484.83385579937305,
+          74.21943573667711
+        ],
+        "equivalent_diameter_px": 20.153496341094687,
+        "equivalent_diameter_um": 20.153496341094687,
+        "floor_gray": 23.778753728899957,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 18,
+        "kind": "shrinkage",
+        "area_px": 1196,
+        "centroid_px": [
+          589.4707357859531,
+          165.0752508361204
+        ],
+        "equivalent_diameter_px": 39.022999570807656,
+        "equivalent_diameter_um": 39.022999570807656,
+        "floor_gray": 55.78119108731753,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      }
+    ]
+  },
+  {
+    "image": "asdasd.jpg",
+    "width": 1772,
+    "height": 1194,
+    "seed": 14,
+    "um_per_px": null,
+    "specimen_area_px": 1082370,
+    "pore_count": 18,
+    "pore_area_px": 81205,
+    "porosity_pct": 7.502517623363545,
+    "pores": [
+      {
+        "label": 1,
+        "kind": "gas",
+        "area_px": 8534,
+        "centroid_px": [
+          639.6149519568784,
+          838.9927349425826
+        ],
+        "equivalent_diameter_px": 104.23927414736673,
+        "equivalent_diameter_um": null,
+        "floor_gray": 23.215475909663702,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 2,
+        "kind": "gas",
+        "area_px": 5139,
+        "centroid_px": [
+          1139.0276318349875,
+          1157.4294609846274
+        ],
+        "equivalent_diameter_px": 80.88991297061706,
+        "equivalent_diameter_um": null,
+        "floor_gray": 11.354634103993464,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 3,
+        "kind": "shrinkage",
+        "area_px": 2072,
+        "centroid_px": [
+          1062.453667953668,
+          591.6259652509652
+        ],
+        "equivalent_diameter_px": 51.36294711843604,
+        "equivalent_diameter_um": null,
+        "floor_gray": 24.14300723640206,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 4,
+        "kind": "gas",
+        "area_px": 1462,
+        "centroid_px": [
+          423.94117647058823,
+          735.3775649794802
+        ],
+        "equivalent_diameter_px": 43.14482836218969,
+        "equivalent_diameter_um": null,
+        "floor_gray": 72.98441656274105,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 5,
+        "kind": "micro",
+        "area_px": 5143,
+        "centroid_px": [
+          1520.8909196966752,
+          1014.5708730313047
+        ],
+        "equivalent_diameter_px": 80.92138764611579,
+        "equivalent_diameter_um": null,
+        "floor_gray": 37.6621701660346,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 6,
+        "kind": "gas",
+        "area_px": 2102,
+        "centroid_px": [
+          940.5418648905804,
+          597.6636536631779
+        ],
+        "equivalent_diameter_px": 51.733446850498105,
+        "equivalent_diameter_um": null,
+        "floor_gray": 75.66152470288934,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 7,
+        "kind": "gas",
+        "area_px": 3941,
+        "centroid_px": [
+          479.6297893935549,
+          88.1743212382644
+        ],
+        "equivalent_diameter_px": 70.83669279265709,
+        "equivalent_diameter_um": null,
+        "floor_gray": 8.960746142100144,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 8,
+        "kind": "shrinkage",
+        "area_px": 13644,
+        "centroid_px": [
+          853.0250659630607,
+          856.8193345060099
+        ],
+        "equivalent_diameter_px": 131.80318792945243,
+        "equivalent_diameter_um": null,
+        "floor_gray": 30.34281701949408,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 9,
+        "kind": "gas",
+        "area_px": 624,
+        "centroid_px": [
+          750.4919871794872,
+          686.9663461538462
+        ],
+        "equivalent_diameter_px": 28.18690255978371,
+        "equivalent_diameter_um": null,
+        "floor_gray": 33.952962284440645,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 10,
+        "kind": "micro",
+        "area_px": 1040,
+        "centroid_px": [
+          948.2432692307692,
+          1056.3586538461539
+        ],
+        "equivalent_diameter_px": 36.38913473173784,
+        "equivalent_diameter_um": null,
+        "floor_gray": 28.346662512072015,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 11,
+        "kind": "gas",
+        "area_px": 2284,
+        "centroid_px": [
+          747.2438704028021,
+          936.4868651488616
+        ],
+        "equivalent_diameter_px": 53.926608647078034,
+        "equivalent_diameter_um": null,
+        "floor_gray": 9.397046117173629,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 12,
+        "kind": "gas",
+        "area_px": 4316,
+        "centroid_px": [
+          1304.1740037071363,
+          1172.0252548656163
+        ],
+        "equivalent_diameter_px": 74.1303033521175,
+        "equivalent_diameter_um": null,
+        "floor_gray": 36.82968886754859,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 13,
+        "kind": "shrinkage",
+        "area_px": 2489,
+        "centroid_px": [
+          967.2969063881077,
+          722.193652069104
+        ],
+        "equivalent_diameter_px": 56.29469981131279,
+        "equivalent_diameter_um": null,
+        "floor_gray": 32.18874535933499,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 14,
+        "kind": "gas",
+        "area_px": 7572,
+        "centroid_px": [
+          318.5338087691495,
+          1000.8819334389857
+        ],
+        "equivalent_diameter_px": 98.18844042317126,
+        "equivalent_diameter_um": null,
+        "floor_gray": 17.886992263750127,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 15,
+        "kind": "micro",
+        "area_px": 2486,
+        "centroid_px": [
+          936.5796460176991,
+          1119.358407079646
+        ],
+        "equivalent_diameter_px": 56.260763487635096,
+        "equivalent_diameter_um": null,
+        "floor_gray": 8.09478981571429,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 16,
+        "kind": "gas",
+        "area_px": 5944,
+        "centroid_px": [
+          471.25555181695825,
+          294.0336473755047
+        ],
+        "equivalent_diameter_px": 86.99503350137758,
+        "equivalent_diameter_um": null,
+        "floor_gray": 34.20361901943006,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 17,
+        "kind": "gas",
+        "area_px": 6065,
+        "centroid_px": [
+          646.9835119538335,
+          464.2
+        ],
+        "equivalent_diameter_px": 87.87603677236908,
+        "equivalent_diameter_um": null,
+        "floor_gray": 33.634231903342,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 18,
+        "kind": "shrinkage",
+        "area_px": 6348,
+        "centroid_px": [
+          635.0441083805923,
+          584.2306238185255
+        ],
+        "equivalent_diameter_px": 89.90286219013727,
+        "equivalent_diameter_um": null,
+        "floor_gray": 37.5149264529025,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      }
+    ]
+  },
+  {
+    "image": "bsp_maßbalken.png",
+    "width": 1020,
+    "height": 760,
+    "seed": 15,
+    "um_per_px": null,
+    "specimen_area_px": 457055,
+    "pore_count": 18,
+    "pore_area_px": 40854,
+    "porosity_pct": 8.938530373806216,
+    "pores": [
+      {
+        "label": 1,
+        "kind": "gas",
+        "area_px": 1706,
+        "centroid_px": [
+          832.130715123095,
+          261.7942555685815
+        ],
+        "equivalent_diameter_px": 46.60629424571522,
+        "equivalent_diameter_um": null,
+        "floor_gray": 72.67551717675583,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 2,
+        "kind": "gas",
+        "area_px": 2603,
+        "centroid_px": [
+          881.4087591240876,
+          514.2654629273915
+        ],
+        "equivalent_diameter_px": 57.56945835202576,
+        "equivalent_diameter_um": null,
+        "floor_gray": 12.213037719764378,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 3,
+        "kind": "shrinkage",
+        "area_px": 3980,
+        "centroid_px": [
+          547.5140703517588,
+          263.02638190954775
+        ],
+        "equivalent_diameter_px": 71.18632865969383,
+        "equivalent_diameter_um": null,
+        "floor_gray": 72.28100848763187,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 4,
+        "kind": "gas",
+        "area_px": 3049,
+        "centroid_px": [
+          273.3565103312561,
+          432.2646769432601
+        ],
+        "equivalent_diameter_px": 62.30655962174056,
+        "equivalent_diameter_um": null,
+        "floor_gray": 12.655490732287353,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 5,
+        "kind": "micro",
+        "area_px": 2178,
+        "centroid_px": [
+          784.4357208448117,
+          440.7690541781451
+        ],
+        "equivalent_diameter_px": 52.66038101298911,
+        "equivalent_diameter_um": null,
+        "floor_gray": 47.28314995633821,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 6,
+        "kind": "gas",
+        "area_px": 2424,
+        "centroid_px": [
+          574.9319306930693,
+          392.67285478547853
+        ],
+        "equivalent_diameter_px": 55.554771680189944,
+        "equivalent_diameter_um": null,
+        "floor_gray": 17.748863872108476,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 7,
+        "kind": "gas",
+        "area_px": 1452,
+        "centroid_px": [
+          129.23140495867767,
+          356.46349862258955
+        ],
+        "equivalent_diameter_px": 42.997021047456954,
+        "equivalent_diameter_um": null,
+        "floor_gray": 26.03663716693179,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 8,
+        "kind": "shrinkage",
+        "area_px": 2503,
+        "centroid_px": [
+          532.033559728326,
+          329.81981622053536
+        ],
+        "equivalent_diameter_px": 56.45279958046467,
+        "equivalent_diameter_um": null,
+        "floor_gray": 31.832055891944773,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 9,
+        "kind": "gas",
+        "area_px": 1842,
+        "centroid_px": [
+          649.9256243213898,
+          477.2247557003257
+        ],
+        "equivalent_diameter_px": 48.42837227702548,
+        "equivalent_diameter_um": null,
+        "floor_gray": 28.93860622343022,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 10,
+        "kind": "micro",
+        "area_px": 3007,
+        "centroid_px": [
+          686.2540738277353,
+          231.2963086132358
+        ],
+        "equivalent_diameter_px": 61.87593482945235,
+        "equivalent_diameter_um": null,
+        "floor_gray": 51.99695740016939,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 11,
+        "kind": "gas",
+        "area_px": 730,
+        "centroid_px": [
+          647.2164383561644,
+          375.9931506849315
+        ],
+        "equivalent_diameter_px": 30.487126261041215,
+        "equivalent_diameter_um": null,
+        "floor_gray": 21.380540522833662,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 12,
+        "kind": "gas",
+        "area_px": 1431,
+        "centroid_px": [
+          466.9622641509434,
+          167.7498252969951
+        ],
+        "equivalent_diameter_px": 42.684959745981,
+        "equivalent_diameter_um": null,
+        "floor_gray": 11.335711609188325,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 13,
+        "kind": "shrinkage",
+        "area_px": 3380,
+        "centroid_px": [
+          850.9035502958579,
+          407.97633136094674
+        ],
+        "equivalent_diameter_px": 65.60144557252416,
+        "equivalent_diameter_um": null,
+        "floor_gray": 20.19450680602214,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 14,
+        "kind": "gas",
+        "area_px": 250,
+        "centroid_px": [
+          416.508,
+          284.9
+        ],
+        "equivalent_diameter_px": 17.841241161527712,
+        "equivalent_diameter_um": null,
+        "floor_gray": 11.274708779228634,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 15,
+        "kind": "micro",
+        "area_px": 3348,
+        "centroid_px": [
+          26.387395459976105,
+          552.9602747909199
+        ],
+        "equivalent_diameter_px": 65.29016768069542,
+        "equivalent_diameter_um": null,
+        "floor_gray": 27.44611086201486,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 16,
+        "kind": "gas",
+        "area_px": 2038,
+        "centroid_px": [
+          91.53336604514229,
+          540.8096172718351
+        ],
+        "equivalent_diameter_px": 50.93978987167361,
+        "equivalent_diameter_um": null,
+        "floor_gray": 20.21742050088477,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 17,
+        "kind": "gas",
+        "area_px": 733,
+        "centroid_px": [
+          401.62073669849934,
+          356.0341064120055
+        ],
+        "equivalent_diameter_px": 30.549706811864404,
+        "equivalent_diameter_um": null,
+        "floor_gray": 8.51077208124327,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 18,
+        "kind": "shrinkage",
+        "area_px": 4200,
+        "centroid_px": [
+          748.0838095238096,
+          232.9345238095238
+        ],
+        "equivalent_diameter_px": 73.12732791431452,
+        "equivalent_diameter_um": null,
+        "floor_gray": 16.47752478734867,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      }
+    ]
+  },
+  {
+    "image": "metallographyofsteels-img07.jpg",
+    "width": 700,
+    "height": 525,
+    "seed": 16,
+    "um_per_px": 1.0,
+    "specimen_area_px": 236929,
+    "pore_count": 18,
+    "pore_area_px": 14580,
+    "porosity_pct": 6.1537422603395955,
+    "pores": [
+      {
+        "label": 1,
+        "kind": "gas",
+        "area_px": 1114,
+        "centroid_px": [
+          686.1247755834829,
+          348.02603231597845
+        ],
+        "equivalent_diameter_px": 37.66150359232848,
+        "equivalent_diameter_um": 37.66150359232848,
+        "floor_gray": 28.379437617745584,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 2,
+        "kind": "gas",
+        "area_px": 1296,
+        "centroid_px": [
+          496.4112654320988,
+          480.8063271604938
+        ],
+        "equivalent_diameter_px": 40.621650015438455,
+        "equivalent_diameter_um": 40.621650015438455,
+        "floor_gray": 13.501301703714653,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 3,
+        "kind": "shrinkage",
+        "area_px": 1952,
+        "centroid_px": [
+          130.72899590163934,
+          357.05225409836066
+        ],
+        "equivalent_diameter_px": 49.853421059372025,
+        "equivalent_diameter_um": 49.853421059372025,
+        "floor_gray": 34.604674673506395,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 4,
+        "kind": "gas",
+        "area_px": 647,
+        "centroid_px": [
+          96.57959814528593,
+          180.24111282843896
+        ],
+        "equivalent_diameter_px": 28.701672171559103,
+        "equivalent_diameter_um": 28.701672171559103,
+        "floor_gray": 37.9386647224752,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 5,
+        "kind": "micro",
+        "area_px": 886,
+        "centroid_px": [
+          274.3905191873589,
+          449.74943566591423
+        ],
+        "equivalent_diameter_px": 33.5870545989873,
+        "equivalent_diameter_um": 33.5870545989873,
+        "floor_gray": 70.0429128132992,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 6,
+        "kind": "gas",
+        "area_px": 241,
+        "centroid_px": [
+          510.63485477178426,
+          508.2033195020747
+        ],
+        "equivalent_diameter_px": 17.517155313611116,
+        "equivalent_diameter_um": 17.517155313611116,
+        "floor_gray": 33.32744837375442,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 7,
+        "kind": "gas",
+        "area_px": 418,
+        "centroid_px": [
+          260.7607655502392,
+          416.4473684210526
+        ],
+        "equivalent_diameter_px": 23.06976657227589,
+        "equivalent_diameter_um": 23.06976657227589,
+        "floor_gray": 36.95119856403947,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 8,
+        "kind": "shrinkage",
+        "area_px": 658,
+        "centroid_px": [
+          389.1534954407295,
+          317.68237082066867
+        ],
+        "equivalent_diameter_px": 28.944630252185586,
+        "equivalent_diameter_um": 28.944630252185586,
+        "floor_gray": 21.505669905385957,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 9,
+        "kind": "gas",
+        "area_px": 270,
+        "centroid_px": [
+          345.8259259259259,
+          484.1222222222222
+        ],
+        "equivalent_diameter_px": 18.5411616971131,
+        "equivalent_diameter_um": 18.5411616971131,
+        "floor_gray": 35.232551133790196,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 10,
+        "kind": "micro",
+        "area_px": 124,
+        "centroid_px": [
+          449.1774193548387,
+          278.19354838709677
+        ],
+        "equivalent_diameter_px": 12.565098628628435,
+        "equivalent_diameter_um": 12.565098628628435,
+        "floor_gray": 19.881242778515457,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 11,
+        "kind": "gas",
+        "area_px": 346,
+        "centroid_px": [
+          106.59248554913295,
+          291.73988439306356
+        ],
+        "equivalent_diameter_px": 20.98906578384008,
+        "equivalent_diameter_um": 20.98906578384008,
+        "floor_gray": 19.076311305091327,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 12,
+        "kind": "gas",
+        "area_px": 479,
+        "centroid_px": [
+          179.8267223382046,
+          491.28601252609604
+        ],
+        "equivalent_diameter_px": 24.695783889727878,
+        "equivalent_diameter_um": 24.695783889727878,
+        "floor_gray": 17.8451729649056,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 13,
+        "kind": "shrinkage",
+        "area_px": 1034,
+        "centroid_px": [
+          71.0531914893617,
+          468.8075435203095
+        ],
+        "equivalent_diameter_px": 36.2840142384516,
+        "equivalent_diameter_um": 36.2840142384516,
+        "floor_gray": 35.78803206353305,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 14,
+        "kind": "gas",
+        "area_px": 1669,
+        "centroid_px": [
+          55.3966446974236,
+          249.28759736369085
+        ],
+        "equivalent_diameter_px": 46.09812143854657,
+        "equivalent_diameter_um": 46.09812143854657,
+        "floor_gray": 14.978716569281312,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 15,
+        "kind": "micro",
+        "area_px": 547,
+        "centroid_px": [
+          7.670932358318098,
+          316.3290676416819
+        ],
+        "equivalent_diameter_px": 26.390567083147985,
+        "equivalent_diameter_um": 26.390567083147985,
+        "floor_gray": 20.38383012826918,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 16,
+        "kind": "gas",
+        "area_px": 1263,
+        "centroid_px": [
+          227.41488519398257,
+          456.9271575613618
+        ],
+        "equivalent_diameter_px": 40.1011414426137,
+        "equivalent_diameter_um": 40.1011414426137,
+        "floor_gray": 30.12660449310288,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 17,
+        "kind": "gas",
+        "area_px": 436,
+        "centroid_px": [
+          648.9747706422019,
+          393.0298165137615
+        ],
+        "equivalent_diameter_px": 23.56124872549269,
+        "equivalent_diameter_um": 23.56124872549269,
+        "floor_gray": 66.95205880969853,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 18,
+        "kind": "shrinkage",
+        "area_px": 1200,
+        "centroid_px": [
+          380.71416666666664,
+          265.9008333333333
+        ],
+        "equivalent_diameter_px": 39.08820095223359,
+        "equivalent_diameter_um": 39.08820095223359,
+        "floor_gray": 30.77966651063182,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      }
+    ]
+  },
+  {
+    "image": "Mitte_Nital_4s_10sssx.png",
+    "width": 1111,
+    "height": 1794,
+    "seed": 17,
+    "um_per_px": null,
+    "specimen_area_px": 1578235,
+    "pore_count": 18,
+    "pore_area_px": 74263,
+    "porosity_pct": 4.705446273843883,
+    "pores": [
+      {
+        "label": 1,
+        "kind": "gas",
+        "area_px": 3083,
+        "centroid_px": [
+          560.4187479727539,
+          39.52870580603309
+        ],
+        "equivalent_diameter_px": 62.65299287678528,
+        "equivalent_diameter_um": null,
+        "floor_gray": 13.967751573025406,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 2,
+        "kind": "gas",
+        "area_px": 3249,
+        "centroid_px": [
+          748.1354262850108,
+          758.9599876885195
+        ],
+        "equivalent_diameter_px": 64.31761252444421,
+        "equivalent_diameter_um": null,
+        "floor_gray": 16.045148234560955,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 3,
+        "kind": "shrinkage",
+        "area_px": 11745,
+        "centroid_px": [
+          654.7957428693061,
+          1500.1674755214985
+        ],
+        "equivalent_diameter_px": 122.28736015187542,
+        "equivalent_diameter_um": null,
+        "floor_gray": 25.47278704224481,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 4,
+        "kind": "gas",
+        "area_px": 1442,
+        "centroid_px": [
+          471.08113730929267,
+          528.5665742024966
+        ],
+        "equivalent_diameter_px": 42.848703871973825,
+        "equivalent_diameter_um": null,
+        "floor_gray": 21.20949691555451,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 5,
+        "kind": "micro",
+        "area_px": 1891,
+        "centroid_px": [
+          994.0819672131147,
+          770.7689053410894
+        ],
+        "equivalent_diameter_px": 49.06827874599019,
+        "equivalent_diameter_um": null,
+        "floor_gray": 26.52356628694014,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 6,
+        "kind": "gas",
+        "area_px": 4523,
+        "centroid_px": [
+          852.365244306876,
+          56.12734910457661
+        ],
+        "equivalent_diameter_px": 75.88716927674362,
+        "equivalent_diameter_um": null,
+        "floor_gray": 20.599850110199004,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 7,
+        "kind": "gas",
+        "area_px": 4732,
+        "centroid_px": [
+          345.9693575655114,
+          982.4814032121724
+        ],
+        "equivalent_diameter_px": 77.620677178744,
+        "equivalent_diameter_um": null,
+        "floor_gray": 37.00549084843013,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 8,
+        "kind": "shrinkage",
+        "area_px": 5716,
+        "centroid_px": [
+          1070.5026242127362,
+          1605.6581525542338
+        ],
+        "equivalent_diameter_px": 85.31024110683424,
+        "equivalent_diameter_um": null,
+        "floor_gray": 8.900621879632624,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 9,
+        "kind": "gas",
+        "area_px": 4114,
+        "centroid_px": [
+          243.746475449684,
+          26.59893048128342
+        ],
+        "equivalent_diameter_px": 72.37477106727495,
+        "equivalent_diameter_um": null,
+        "floor_gray": 16.688868563653788,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 10,
+        "kind": "micro",
+        "area_px": 855,
+        "centroid_px": [
+          308.97777777777776,
+          573.2210526315789
+        ],
+        "equivalent_diameter_px": 32.99423905394037,
+        "equivalent_diameter_um": null,
+        "floor_gray": 31.656899571929152,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 11,
+        "kind": "gas",
+        "area_px": 7108,
+        "centroid_px": [
+          957.7016038266742,
+          458.0256049521666
+        ],
+        "equivalent_diameter_px": 95.1324691363445,
+        "equivalent_diameter_um": null,
+        "floor_gray": 26.363606786476815,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 12,
+        "kind": "gas",
+        "area_px": 1421,
+        "centroid_px": [
+          1072.2167487684728,
+          264.3004926108374
+        ],
+        "equivalent_diameter_px": 42.53555445822549,
+        "equivalent_diameter_um": null,
+        "floor_gray": 9.47249892889146,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 13,
+        "kind": "shrinkage",
+        "area_px": 4480,
+        "centroid_px": [
+          356.7524553571429,
+          537.1716517857143
+        ],
+        "equivalent_diameter_px": 75.52557951061037,
+        "equivalent_diameter_um": null,
+        "floor_gray": 37.909897638264155,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 14,
+        "kind": "gas",
+        "area_px": 5548,
+        "centroid_px": [
+          780.8895097332372,
+          555.509012256669
+        ],
+        "equivalent_diameter_px": 84.04720693866443,
+        "equivalent_diameter_um": null,
+        "floor_gray": 56.583475806149494,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 15,
+        "kind": "micro",
+        "area_px": 6727,
+        "centroid_px": [
+          918.2637133937862,
+          295.9070908280065
+        ],
+        "equivalent_diameter_px": 92.54773048234861,
+        "equivalent_diameter_um": null,
+        "floor_gray": 23.035413334099864,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 16,
+        "kind": "gas",
+        "area_px": 1396,
+        "centroid_px": [
+          661.0508595988539,
+          1712.5508595988538
+        ],
+        "equivalent_diameter_px": 42.15972490956609,
+        "equivalent_diameter_um": null,
+        "floor_gray": 47.17988692280066,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 17,
+        "kind": "gas",
+        "area_px": 5033,
+        "centroid_px": [
+          400.68388635008944,
+          831.1720643751241
+        ],
+        "equivalent_diameter_px": 80.05132496500026,
+        "equivalent_diameter_um": null,
+        "floor_gray": 14.534963298683843,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 18,
+        "kind": "shrinkage",
+        "area_px": 1200,
+        "centroid_px": [
+          1044.3125,
+          680.6866666666667
+        ],
+        "equivalent_diameter_px": 39.08820095223359,
+        "equivalent_diameter_um": null,
+        "floor_gray": 18.436229747052412,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      }
+    ]
+  },
+  {
+    "image": "Mitte_Nital_4s_10x.png",
+    "width": 3088,
+    "height": 2076,
+    "seed": 18,
+    "um_per_px": null,
+    "specimen_area_px": 5264502,
+    "pore_count": 18,
+    "pore_area_px": 311926,
+    "porosity_pct": 5.925080852851798,
+    "pores": [
+      {
+        "label": 1,
+        "kind": "gas",
+        "area_px": 6845,
+        "centroid_px": [
+          2215.301241782323,
+          582.8597516435354
+        ],
+        "equivalent_diameter_px": 93.35590331474593,
+        "equivalent_diameter_um": null,
+        "floor_gray": 8.762117641149311,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 2,
+        "kind": "gas",
+        "area_px": 25063,
+        "centroid_px": [
+          672.1500219446993,
+          1205.7441647049436
+        ],
+        "equivalent_diameter_px": 178.63706980830543,
+        "equivalent_diameter_um": null,
+        "floor_gray": 26.969060144618492,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 3,
+        "kind": "shrinkage",
+        "area_px": 40473,
+        "centroid_px": [
+          1345.6943641439973,
+          1797.5834259876956
+        ],
+        "equivalent_diameter_px": 227.0062203862842,
+        "equivalent_diameter_um": null,
+        "floor_gray": 62.914171270251614,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 4,
+        "kind": "gas",
+        "area_px": 13541,
+        "centroid_px": [
+          2823.827043792925,
+          1599.793294439111
+        ],
+        "equivalent_diameter_px": 131.30474734471272,
+        "equivalent_diameter_um": null,
+        "floor_gray": 8.296207229950067,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 5,
+        "kind": "micro",
+        "area_px": 2742,
+        "centroid_px": [
+          2388.1225382932166,
+          1352.6517140773158
+        ],
+        "equivalent_diameter_px": 59.08657065411578,
+        "equivalent_diameter_um": null,
+        "floor_gray": 11.609747696295614,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 6,
+        "kind": "gas",
+        "area_px": 1704,
+        "centroid_px": [
+          1214.5481220657277,
+          108.63849765258216
+        ],
+        "equivalent_diameter_px": 46.57896718722644,
+        "equivalent_diameter_um": null,
+        "floor_gray": 20.769503264837226,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 7,
+        "kind": "gas",
+        "area_px": 5677,
+        "centroid_px": [
+          2098.7838647172803,
+          1198.7192178967764
+        ],
+        "equivalent_diameter_px": 85.01870909077319,
+        "equivalent_diameter_um": null,
+        "floor_gray": 13.831374753044773,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 8,
+        "kind": "shrinkage",
+        "area_px": 38076,
+        "centroid_px": [
+          887.2140455930245,
+          1424.6906712890009
+        ],
+        "equivalent_diameter_px": 220.18144541567543,
+        "equivalent_diameter_um": null,
+        "floor_gray": 37.3205722340091,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 9,
+        "kind": "gas",
+        "area_px": 17766,
+        "centroid_px": [
+          2231.904705617472,
+          151.7925250478442
+        ],
+        "equivalent_diameter_px": 150.4007106092418,
+        "equivalent_diameter_um": null,
+        "floor_gray": 21.694132496776376,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 10,
+        "kind": "micro",
+        "area_px": 17971,
+        "centroid_px": [
+          2265.217183239664,
+          1636.949919314451
+        ],
+        "equivalent_diameter_px": 151.2659507570544,
+        "equivalent_diameter_um": null,
+        "floor_gray": 12.152887421446236,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 11,
+        "kind": "gas",
+        "area_px": 25539,
+        "centroid_px": [
+          672.6598144015036,
+          959.6177219155018
+        ],
+        "equivalent_diameter_px": 180.3254411695458,
+        "equivalent_diameter_um": null,
+        "floor_gray": 56.45572628117813,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 12,
+        "kind": "gas",
+        "area_px": 2942,
+        "centroid_px": [
+          2751.37933378654,
+          1230.9228416043509
+        ],
+        "equivalent_diameter_px": 61.20351902146517,
+        "equivalent_diameter_um": null,
+        "floor_gray": 36.8171259330617,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 13,
+        "kind": "shrinkage",
+        "area_px": 8980,
+        "centroid_px": [
+          1561.8937639198218,
+          1463.3620267260578
+        ],
+        "equivalent_diameter_px": 106.9284392092289,
+        "equivalent_diameter_um": null,
+        "floor_gray": 13.629384502791055,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 14,
+        "kind": "gas",
+        "area_px": 5934,
+        "centroid_px": [
+          1249.0552746882372,
+          2019.5091001011122
+        ],
+        "equivalent_diameter_px": 86.92182383301937,
+        "equivalent_diameter_um": null,
+        "floor_gray": 9.548318546798948,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 15,
+        "kind": "micro",
+        "area_px": 19599,
+        "centroid_px": [
+          1001.5493137404969,
+          502.21342925659474
+        ],
+        "equivalent_diameter_px": 157.96905341637157,
+        "equivalent_diameter_um": null,
+        "floor_gray": 18.182226113791895,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 16,
+        "kind": "gas",
+        "area_px": 19516,
+        "centroid_px": [
+          1122.4761221561796,
+          320.22386759581883
+        ],
+        "equivalent_diameter_px": 157.6342061706514,
+        "equivalent_diameter_um": null,
+        "floor_gray": 12.038899333868773,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 17,
+        "kind": "gas",
+        "area_px": 4103,
+        "centroid_px": [
+          1771.1825493541312,
+          397.882768705825
+        ],
+        "equivalent_diameter_px": 72.277948587715,
+        "equivalent_diameter_um": null,
+        "floor_gray": 33.64422495595905,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 18,
+        "kind": "shrinkage",
+        "area_px": 55455,
+        "centroid_px": [
+          1080.1887115679378,
+          980.216932648093
+        ],
+        "equivalent_diameter_px": 265.7207160785332,
+        "equivalent_diameter_um": null,
+        "floor_gray": 23.06698471535548,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      }
+    ]
+  },
+  {
+    "image": "Mitte_Nital_4s_20x.png",
+    "width": 3088,
+    "height": 2076,
+    "seed": 19,
+    "um_per_px": null,
+    "specimen_area_px": 5996401,
+    "pore_count": 18,
+    "pore_area_px": 241263,
+    "porosity_pct": 4.023463407467246,
+    "pores": [
+      {
+        "label": 1,
+        "kind": "gas",
+        "area_px": 7120,
+        "centroid_px": [
+          2859.048595505618,
+          568.5765449438202
+        ],
+        "equivalent_diameter_px": 95.21273842566634,
+        "equivalent_diameter_um": null,
+        "floor_gray": 26.603535396991575,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 2,
+        "kind": "gas",
+        "area_px": 4138,
+        "centroid_px": [
+          1210.538666022233,
+          677.7361043982601
+        ],
+        "equivalent_diameter_px": 72.58557181778004,
+        "equivalent_diameter_um": null,
+        "floor_gray": 33.18153341684295,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 3,
+        "kind": "shrinkage",
+        "area_px": 42584,
+        "centroid_px": [
+          1798.8626009768927,
+          1102.3842757843322
+        ],
+        "equivalent_diameter_px": 232.85109570925832,
+        "equivalent_diameter_um": null,
+        "floor_gray": 17.22275973933488,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 4,
+        "kind": "gas",
+        "area_px": 5318,
+        "centroid_px": [
+          687.5470101541933,
+          843.3726965024446
+        ],
+        "equivalent_diameter_px": 82.2866204124437,
+        "equivalent_diameter_um": null,
+        "floor_gray": 13.24300604652854,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 5,
+        "kind": "micro",
+        "area_px": 22513,
+        "centroid_px": [
+          1204.3650779549594,
+          1202.095411539999
+        ],
+        "equivalent_diameter_px": 169.30576443412292,
+        "equivalent_diameter_um": null,
+        "floor_gray": 8.724048936071132,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 6,
+        "kind": "gas",
+        "area_px": 8449,
+        "centroid_px": [
+          1034.1329151378861,
+          1740.0324298733578
+        ],
+        "equivalent_diameter_px": 103.7188551492321,
+        "equivalent_diameter_um": null,
+        "floor_gray": 12.14919293120418,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 7,
+        "kind": "gas",
+        "area_px": 15753,
+        "centroid_px": [
+          560.5372310036183,
+          1979.5131720942043
+        ],
+        "equivalent_diameter_px": 141.62394765085818,
+        "equivalent_diameter_um": null,
+        "floor_gray": 13.644221904072865,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 8,
+        "kind": "shrinkage",
+        "area_px": 6891,
+        "centroid_px": [
+          1752.121462777536,
+          1750.46524452184
+        ],
+        "equivalent_diameter_px": 93.66906481208194,
+        "equivalent_diameter_um": null,
+        "floor_gray": 9.463069907030933,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 9,
+        "kind": "gas",
+        "area_px": 11633,
+        "centroid_px": [
+          1118.1322100919797,
+          483.7523424739964
+        ],
+        "equivalent_diameter_px": 121.70289899548058,
+        "equivalent_diameter_um": null,
+        "floor_gray": 18.057494292939683,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 10,
+        "kind": "micro",
+        "area_px": 18429,
+        "centroid_px": [
+          2284.5660643550927,
+          52.595691573064194
+        ],
+        "equivalent_diameter_px": 153.181368220565,
+        "equivalent_diameter_um": null,
+        "floor_gray": 8.597182615911777,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 11,
+        "kind": "gas",
+        "area_px": 32019,
+        "centroid_px": [
+          1180.4279958774478,
+          168.90833567569257
+        ],
+        "equivalent_diameter_px": 201.91051726662278,
+        "equivalent_diameter_um": null,
+        "floor_gray": 32.54341055759403,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 12,
+        "kind": "gas",
+        "area_px": 9685,
+        "centroid_px": [
+          725.7954568921011,
+          296.63582860092924
+        ],
+        "equivalent_diameter_px": 111.04649922784623,
+        "equivalent_diameter_um": null,
+        "floor_gray": 37.48738924849922,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 13,
+        "kind": "shrinkage",
+        "area_px": 9752,
+        "centroid_px": [
+          2941.9867719442163,
+          1666.6204881050041
+        ],
+        "equivalent_diameter_px": 111.42994229675122,
+        "equivalent_diameter_um": null,
+        "floor_gray": 16.75014341835415,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 14,
+        "kind": "gas",
+        "area_px": 3985,
+        "centroid_px": [
+          269.467252195734,
+          764.1462986198244
+        ],
+        "equivalent_diameter_px": 71.23102965540807,
+        "equivalent_diameter_um": null,
+        "floor_gray": 20.94294367329107,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 15,
+        "kind": "micro",
+        "area_px": 4910,
+        "centroid_px": [
+          2599.4682281059063,
+          592.5260692464358
+        ],
+        "equivalent_diameter_px": 79.06709912883898,
+        "equivalent_diameter_um": null,
+        "floor_gray": 33.93511899743928,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 16,
+        "kind": "gas",
+        "area_px": 3236,
+        "centroid_px": [
+          360.8831891223733,
+          1751.5923980222497
+        ],
+        "equivalent_diameter_px": 64.18880873456825,
+        "equivalent_diameter_um": null,
+        "floor_gray": 49.05250970606781,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 17,
+        "kind": "gas",
+        "area_px": 7403,
+        "centroid_px": [
+          2402.5280291773606,
+          1416.410914494124
+        ],
+        "equivalent_diameter_px": 97.08651991741392,
+        "equivalent_diameter_um": null,
+        "floor_gray": 22.48796629471581,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 18,
+        "kind": "shrinkage",
+        "area_px": 27445,
+        "centroid_px": [
+          2782.2860994716707,
+          1552.7315357988705
+        ],
+        "equivalent_diameter_px": 186.93330175561692,
+        "equivalent_diameter_um": null,
+        "floor_gray": 22.844805017825877,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      }
+    ]
+  },
+  {
+    "image": "Mitte_Nital_4s_50sssx.png",
+    "width": 1068,
+    "height": 1190,
+    "seed": 20,
+    "um_per_px": null,
+    "specimen_area_px": 616417,
+    "pore_count": 18,
+    "pore_area_px": 65650,
+    "porosity_pct": 10.650257861155678,
+    "pores": [
+      {
+        "label": 1,
+        "kind": "gas",
+        "area_px": 512,
+        "centroid_px": [
+          862.384765625,
+          967.896484375
+        ],
+        "equivalent_diameter_px": 25.532305945691693,
+        "equivalent_diameter_um": null,
+        "floor_gray": 35.551816520525875,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 2,
+        "kind": "gas",
+        "area_px": 3327,
+        "centroid_px": [
+          716.8124436429216,
+          981.7541328524196
+        ],
+        "equivalent_diameter_px": 65.0850825100029,
+        "equivalent_diameter_um": null,
+        "floor_gray": 69.02711234948075,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 3,
+        "kind": "shrinkage",
+        "area_px": 9427,
+        "centroid_px": [
+          982.9026201336586,
+          403.6838867083908
+        ],
+        "equivalent_diameter_px": 109.55742415837632,
+        "equivalent_diameter_um": null,
+        "floor_gray": 25.81221104744392,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 4,
+        "kind": "gas",
+        "area_px": 3553,
+        "centroid_px": [
+          1030.5916127216437,
+          491.76639459611596
+        ],
+        "equivalent_diameter_px": 67.25934955412544,
+        "equivalent_diameter_um": null,
+        "floor_gray": 29.078144061762725,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 5,
+        "kind": "micro",
+        "area_px": 4979,
+        "centroid_px": [
+          960.4683671419964,
+          877.8839124322153
+        ],
+        "equivalent_diameter_px": 79.62072401853914,
+        "equivalent_diameter_um": null,
+        "floor_gray": 27.884114027511714,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 6,
+        "kind": "gas",
+        "area_px": 1126,
+        "centroid_px": [
+          832.1776198934281,
+          1153.271758436945
+        ],
+        "equivalent_diameter_px": 37.86380497746883,
+        "equivalent_diameter_um": null,
+        "floor_gray": 20.30373888359078,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 7,
+        "kind": "gas",
+        "area_px": 5575,
+        "centroid_px": [
+          847.7029596412556,
+          901.1241255605381
+        ],
+        "equivalent_diameter_px": 84.25147157111579,
+        "equivalent_diameter_um": null,
+        "floor_gray": 72.26884874698952,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 8,
+        "kind": "shrinkage",
+        "area_px": 1899,
+        "centroid_px": [
+          656.4044233807267,
+          806.679831490258
+        ],
+        "equivalent_diameter_px": 49.17196249339733,
+        "equivalent_diameter_um": null,
+        "floor_gray": 13.31995340500667,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 9,
+        "kind": "gas",
+        "area_px": 1450,
+        "centroid_px": [
+          488.36137931034483,
+          993.8917241379311
+        ],
+        "equivalent_diameter_px": 42.96739856991561,
+        "equivalent_diameter_um": null,
+        "floor_gray": 12.547074500322246,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 10,
+        "kind": "micro",
+        "area_px": 7429,
+        "centroid_px": [
+          967.2954637232467,
+          1032.5579485798896
+        ],
+        "equivalent_diameter_px": 97.25685877015319,
+        "equivalent_diameter_um": null,
+        "floor_gray": 52.85726368340762,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 11,
+        "kind": "gas",
+        "area_px": 2278,
+        "centroid_px": [
+          850.8472344161545,
+          416.1180860403863
+        ],
+        "equivalent_diameter_px": 53.855730269923,
+        "equivalent_diameter_um": null,
+        "floor_gray": 30.58290237468085,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 12,
+        "kind": "gas",
+        "area_px": 5025,
+        "centroid_px": [
+          276.3052736318408,
+          1111.6716417910447
+        ],
+        "equivalent_diameter_px": 79.98767850296815,
+        "equivalent_diameter_um": null,
+        "floor_gray": 33.90317714115524,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 13,
+        "kind": "shrinkage",
+        "area_px": 1183,
+        "centroid_px": [
+          543.3330515638208,
+          762.9002535925613
+        ],
+        "equivalent_diameter_px": 38.810338589372,
+        "equivalent_diameter_um": null,
+        "floor_gray": 17.67836846237512,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 14,
+        "kind": "gas",
+        "area_px": 7183,
+        "centroid_px": [
+          375.8921063622442,
+          1110.3214534317137
+        ],
+        "equivalent_diameter_px": 95.6330468500961,
+        "equivalent_diameter_um": null,
+        "floor_gray": 32.960352153826754,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 15,
+        "kind": "micro",
+        "area_px": 2863,
+        "centroid_px": [
+          480.2762836185819,
+          747.874956339504
+        ],
+        "equivalent_diameter_px": 60.37619412133205,
+        "equivalent_diameter_um": null,
+        "floor_gray": 69.38770947213457,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 16,
+        "kind": "gas",
+        "area_px": 2336,
+        "centroid_px": [
+          385.86686643835617,
+          951.8839897260274
+        ],
+        "equivalent_diameter_px": 54.53702940664572,
+        "equivalent_diameter_um": null,
+        "floor_gray": 15.763142279444583,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 17,
+        "kind": "gas",
+        "area_px": 1829,
+        "centroid_px": [
+          252.66265718972116,
+          1171.252597047567
+        ],
+        "equivalent_diameter_px": 48.257176951419495,
+        "equivalent_diameter_um": null,
+        "floor_gray": 24.870752600004366,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 18,
+        "kind": "shrinkage",
+        "area_px": 3676,
+        "centroid_px": [
+          978.0710010881393,
+          1171.0965723612621
+        ],
+        "equivalent_diameter_px": 68.41365774789752,
+        "equivalent_diameter_um": null,
+        "floor_gray": 10.80630826223231,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      }
+    ]
+  },
+  {
+    "image": "Mitte_Nital_4s_50x.png",
+    "width": 3088,
+    "height": 2076,
+    "seed": 21,
+    "um_per_px": null,
+    "specimen_area_px": 4735012,
+    "pore_count": 18,
+    "pore_area_px": 227859,
+    "porosity_pct": 4.812215893011464,
+    "pores": [
+      {
+        "label": 1,
+        "kind": "gas",
+        "area_px": 15493,
+        "centroid_px": [
+          1870.852514038598,
+          1473.4014070870717
+        ],
+        "equivalent_diameter_px": 140.45034804720805,
+        "equivalent_diameter_um": null,
+        "floor_gray": 28.967323556820503,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 2,
+        "kind": "gas",
+        "area_px": 20939,
+        "centroid_px": [
+          1822.4367448302212,
+          448.5547542862601
+        ],
+        "equivalent_diameter_px": 163.28001355710862,
+        "equivalent_diameter_um": null,
+        "floor_gray": 68.01586197011794,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 3,
+        "kind": "shrinkage",
+        "area_px": 19313,
+        "centroid_px": [
+          2449.8799772174184,
+          720.0016051364366
+        ],
+        "equivalent_diameter_px": 156.8122295213935,
+        "equivalent_diameter_um": null,
+        "floor_gray": 32.578841912650326,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 4,
+        "kind": "gas",
+        "area_px": 12802,
+        "centroid_px": [
+          1369.1589595375722,
+          1184.134666458366
+        ],
+        "equivalent_diameter_px": 127.67150289590685,
+        "equivalent_diameter_um": null,
+        "floor_gray": 23.016941570325052,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 5,
+        "kind": "micro",
+        "area_px": 3368,
+        "centroid_px": [
+          2560.7645486935867,
+          2048.475653206651
+        ],
+        "equivalent_diameter_px": 65.48488975838646,
+        "equivalent_diameter_um": null,
+        "floor_gray": 26.070789372512536,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 6,
+        "kind": "gas",
+        "area_px": 5928,
+        "centroid_px": [
+          2936.4315114709852,
+          427.12769905533065
+        ],
+        "equivalent_diameter_px": 86.8778684199264,
+        "equivalent_diameter_um": null,
+        "floor_gray": 21.73882175953419,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 7,
+        "kind": "gas",
+        "area_px": 7850,
+        "centroid_px": [
+          2324.443057324841,
+          633.5814012738854
+        ],
+        "equivalent_diameter_px": 99.97464891746822,
+        "equivalent_diameter_um": null,
+        "floor_gray": 8.876053884056066,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 8,
+        "kind": "shrinkage",
+        "area_px": 4252,
+        "centroid_px": [
+          2493.110301034807,
+          1681.9075729068672
+        ],
+        "equivalent_diameter_px": 73.57862831158184,
+        "equivalent_diameter_um": null,
+        "floor_gray": 68.27732192504281,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 9,
+        "kind": "gas",
+        "area_px": 8029,
+        "centroid_px": [
+          2532.4260804583387,
+          1795.2844688005978
+        ],
+        "equivalent_diameter_px": 101.10806251075442,
+        "equivalent_diameter_um": null,
+        "floor_gray": 64.62630786371534,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 10,
+        "kind": "micro",
+        "area_px": 10966,
+        "centroid_px": [
+          1076.2165785154114,
+          1335.1460879080796
+        ],
+        "equivalent_diameter_px": 118.1623664605859,
+        "equivalent_diameter_um": null,
+        "floor_gray": 9.45084105716322,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 11,
+        "kind": "gas",
+        "area_px": 27139,
+        "centroid_px": [
+          2653.291794097056,
+          1632.5583109178672
+        ],
+        "equivalent_diameter_px": 185.88826752801688,
+        "equivalent_diameter_um": null,
+        "floor_gray": 11.761026050509585,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 12,
+        "kind": "gas",
+        "area_px": 11798,
+        "centroid_px": [
+          2444.5585692490254,
+          1472.671469740634
+        ],
+        "equivalent_diameter_px": 122.56296401762422,
+        "equivalent_diameter_um": null,
+        "floor_gray": 58.96888897435967,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 13,
+        "kind": "shrinkage",
+        "area_px": 14040,
+        "centroid_px": [
+          1537.8955128205127,
+          83.3758547008547
+        ],
+        "equivalent_diameter_px": 133.7022184112204,
+        "equivalent_diameter_um": null,
+        "floor_gray": 46.34903997742956,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 14,
+        "kind": "gas",
+        "area_px": 22947,
+        "centroid_px": [
+          996.7179151958862,
+          1023.5345796836187
+        ],
+        "equivalent_diameter_px": 170.9298915726497,
+        "equivalent_diameter_um": null,
+        "floor_gray": 35.48436709784421,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 15,
+        "kind": "micro",
+        "area_px": 2221,
+        "centroid_px": [
+          2692.752814047726,
+          794.4660063034669
+        ],
+        "equivalent_diameter_px": 53.177674158022334,
+        "equivalent_diameter_um": null,
+        "floor_gray": 31.487217883839467,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 16,
+        "kind": "gas",
+        "area_px": 9741,
+        "centroid_px": [
+          3056.3316907915,
+          209.07360640591315
+        ],
+        "equivalent_diameter_px": 111.36707953998445,
+        "equivalent_diameter_um": null,
+        "floor_gray": 16.598764977494884,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 17,
+        "kind": "gas",
+        "area_px": 26869,
+        "centroid_px": [
+          2965.4547247757637,
+          1375.2332799880903
+        ],
+        "equivalent_diameter_px": 184.96127521048584,
+        "equivalent_diameter_um": null,
+        "floor_gray": 21.373293650030547,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 18,
+        "kind": "shrinkage",
+        "area_px": 4164,
+        "centroid_px": [
+          3012.517050912584,
+          812.1460134486072
+        ],
+        "equivalent_diameter_px": 72.8132506091935,
+        "equivalent_diameter_um": null,
+        "floor_gray": 12.979145324006799,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      }
+    ]
+  },
+  {
+    "image": "Mitte_Nital_4s_5x.png",
+    "width": 3088,
+    "height": 2076,
+    "seed": 22,
+    "um_per_px": null,
+    "specimen_area_px": 4973947,
+    "pore_count": 18,
+    "pore_area_px": 264994,
+    "porosity_pct": 5.327640202036733,
+    "pores": [
+      {
+        "label": 1,
+        "kind": "gas",
+        "area_px": 4010,
+        "centroid_px": [
+          2461.1563591022446,
+          873.7399002493765
+        ],
+        "equivalent_diameter_px": 71.4541151676235,
+        "equivalent_diameter_um": null,
+        "floor_gray": 31.92302924074197,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 2,
+        "kind": "gas",
+        "area_px": 31528,
+        "centroid_px": [
+          1718.223420451662,
+          366.02559629535654
+        ],
+        "equivalent_diameter_px": 200.35642332206424,
+        "equivalent_diameter_um": null,
+        "floor_gray": 73.89947360105845,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 3,
+        "kind": "shrinkage",
+        "area_px": 23204,
+        "centroid_px": [
+          1991.8589898293399,
+          301.9716859162213
+        ],
+        "equivalent_diameter_px": 171.8844099854164,
+        "equivalent_diameter_um": null,
+        "floor_gray": 28.82048230171475,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 4,
+        "kind": "gas",
+        "area_px": 15510,
+        "centroid_px": [
+          1242.67556415216,
+          143.32166344294004
+        ],
+        "equivalent_diameter_px": 140.52738287907584,
+        "equivalent_diameter_um": null,
+        "floor_gray": 29.46621101117261,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 5,
+        "kind": "micro",
+        "area_px": 22669,
+        "centroid_px": [
+          1991.5514579381534,
+          1374.4609819577397
+        ],
+        "equivalent_diameter_px": 169.89133950734924,
+        "equivalent_diameter_um": null,
+        "floor_gray": 18.71958291984366,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 6,
+        "kind": "gas",
+        "area_px": 8785,
+        "centroid_px": [
+          2623.2228799089357,
+          1933.1287421741606
+        ],
+        "equivalent_diameter_px": 105.76109587413703,
+        "equivalent_diameter_um": null,
+        "floor_gray": 14.140852439530477,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 7,
+        "kind": "gas",
+        "area_px": 17648,
+        "centroid_px": [
+          1885.3657071622847,
+          708.2093155031731
+        ],
+        "equivalent_diameter_px": 149.90040522122064,
+        "equivalent_diameter_um": null,
+        "floor_gray": 26.769872862234884,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 8,
+        "kind": "shrinkage",
+        "area_px": 27333,
+        "centroid_px": [
+          2724.1198917059965,
+          504.18783155892146
+        ],
+        "equivalent_diameter_px": 186.5514847870319,
+        "equivalent_diameter_um": null,
+        "floor_gray": 18.355445091737018,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 9,
+        "kind": "gas",
+        "area_px": 4797,
+        "centroid_px": [
+          3056.765269960392,
+          38.99124452782989
+        ],
+        "equivalent_diameter_px": 78.15196796047158,
+        "equivalent_diameter_um": null,
+        "floor_gray": 36.91023890440123,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 10,
+        "kind": "micro",
+        "area_px": 4729,
+        "centroid_px": [
+          2515.2729964051596,
+          1349.2734193275535
+        ],
+        "equivalent_diameter_px": 77.59606824480596,
+        "equivalent_diameter_um": null,
+        "floor_gray": 37.867191303450156,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 11,
+        "kind": "gas",
+        "area_px": 25697,
+        "centroid_px": [
+          2818.9319764953107,
+          1702.1994785383508
+        ],
+        "equivalent_diameter_px": 180.8823832800184,
+        "equivalent_diameter_um": null,
+        "floor_gray": 54.1639241047413,
+        "resin_filled": true,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 12,
+        "kind": "gas",
+        "area_px": 4152,
+        "centroid_px": [
+          2519.9894026974953,
+          377.638246628131
+        ],
+        "equivalent_diameter_px": 72.708256682033,
+        "equivalent_diameter_um": null,
+        "floor_gray": 19.200018983378495,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 13,
+        "kind": "shrinkage",
+        "area_px": 16420,
+        "centroid_px": [
+          2958.621010962241,
+          2002.6752131546893
+        ],
+        "equivalent_diameter_px": 144.59112463962433,
+        "equivalent_diameter_um": null,
+        "floor_gray": 17.053313030527022,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 14,
+        "kind": "gas",
+        "area_px": 4423,
+        "centroid_px": [
+          1947.9274248247796,
+          524.2312909789736
+        ],
+        "equivalent_diameter_px": 75.04357738250239,
+        "equivalent_diameter_um": null,
+        "floor_gray": 32.63674864207678,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 15,
+        "kind": "micro",
+        "area_px": 10201,
+        "centroid_px": [
+          886.656308205078,
+          1711.9879423585924
+        ],
+        "equivalent_diameter_px": 113.96629587664677,
+        "equivalent_diameter_um": null,
+        "floor_gray": 34.78776518666459,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 16,
+        "kind": "gas",
+        "area_px": 15814,
+        "centroid_px": [
+          2396.8264828632855,
+          559.2433919312002
+        ],
+        "equivalent_diameter_px": 141.89788638468815,
+        "equivalent_diameter_um": null,
+        "floor_gray": 17.65563029443429,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 17,
+        "kind": "gas",
+        "area_px": 19259,
+        "centroid_px": [
+          2262.904356404798,
+          1797.1004205825848
+        ],
+        "equivalent_diameter_px": 156.5928491089376,
+        "equivalent_diameter_um": null,
+        "floor_gray": 23.68758305106016,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      },
+      {
+        "label": 18,
+        "kind": "shrinkage",
+        "area_px": 8815,
+        "centroid_px": [
+          1230.8771412365286,
+          1697.1484968803177
+        ],
+        "equivalent_diameter_px": 105.94152437472505,
+        "equivalent_diameter_um": null,
+        "floor_gray": 12.003920191015059,
+        "resin_filled": false,
+        "touches_specimen_edge": false
+      }
+    ]
+  }
+]

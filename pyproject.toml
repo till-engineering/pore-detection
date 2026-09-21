@@ -1,0 +1,72 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "poredet"
+version = "0.1.0"
+description = "Detektion und Vermessung von Poren in metallographischen Schliffbildern"
+readme = "README.md"
+requires-python = ">=3.12"
+
+# Bewusst nur Python: keine externen Binaries, keine Frontend-Toolchain.
+dependencies = [
+    "numpy",
+    "opencv-python",
+    "scikit-image",
+    "scipy",
+    "pillow",
+    "pydantic>=2",
+    "pyyaml",
+    # Primaere OCR fuer die Massstabsbeschriftung: reines pip-Paket, keine Installation.
+    "rapidocr-onnxruntime",
+    "fastapi",
+    "uvicorn[standard]",
+    "jinja2",
+    "python-multipart",
+    "matplotlib",
+    "reportlab",
+]
+
+[project.optional-dependencies]
+# Zweite OCR-Meinung. Braucht eine installierte Tesseract-Binary, deshalb optional -
+# ohne sie laeuft alles, nur ohne Gegenprobe.
+tesseract = ["pytesseract"]
+dev = ["pytest", "pytest-cov", "ruff", "mypy"]
+
+[project.scripts]
+poredet = "poredet.cli.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+poredet = ["web/templates/*", "web/static/**/*", "reporting/templates/*", "reporting/assets/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "benchmark: laeuft gegen das reale Testset, nicht bei jedem Commit",
+]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.mypy]
+python_version = "3.12"
+packages = ["poredet"]
+ignore_missing_imports = true
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "ISC", "BLE"]
+
+[tool.ruff.lint.per-file-ignores]
+# Die OCR-Adapter und der Metadatenleser fangen bewusst jede Ausnahme: eine defekte
+# Fremdbibliothek oder eine kaputte Datei darf einen Stapellauf nicht abbrechen. Sie
+# melden den Ausfall und der Aufrufer geht zur naechsten Quelle weiter.
+"src/poredet/scale/ocr/*.py" = ["BLE001"]
+"src/poredet/io/metadata.py" = ["BLE001"]
+# Numerisch entartete Bilder koennen aus skimage beliebige Fehler werfen -
+# ein Stapellauf darf daran nicht sterben.
+"src/poredet/specimen/random_walker.py" = ["BLE001"]

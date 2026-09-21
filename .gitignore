@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Laufergebnisse und Zwischenstaende - werden jederzeit neu erzeugt
+data/runs/
+data/cache/
+!data/runs/.gitkeep
+!data/cache/.gitkeep
