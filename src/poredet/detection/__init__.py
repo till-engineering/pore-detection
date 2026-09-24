@@ -10,6 +10,8 @@ Die Arbeitsteilung ist eng gezogen und das ist der Punkt:
   Kandidatenmaske. Sonst nichts.
 * **Die Nachbearbeitung** (:mod:`~poredet.detection.postprocess`) räumt auf, füllt Löcher
   und trennt zusammengewachsene Nester - verfahrensunabhängig und für alle gleich.
+* **Das Zusammenführen** (:mod:`~poredet.detection.merge`) nimmt als Letztes wieder
+  zusammen, was sich berührt oder nur durch einen schmalen Spalt getrennt ist.
 * **Die Vermessung** (:mod:`poredet.measurement`) macht daraus Zahlen.
 * **Die Filter** (:mod:`poredet.analysis.filters`) entscheiden, was fachlich als Pore
   gilt - mit Begründung je verworfenem Objekt.

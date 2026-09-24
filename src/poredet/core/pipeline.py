@@ -7,6 +7,7 @@
     3. Einbettmittel entfernen   specimen/  -> Probenmaske = Bezugsfläche
     4. Poren suchen              detection/ -> nur INNERHALB der Probenmaske
        vermessen und filtern     measurement/, analysis/
+    5. manuelle Korrektur        analysis/corrections.py -> entfernt/aufgenommen/eingezeichnet
 
 **Warum diese Reihenfolge zwingend ist**, Stufe für Stufe:
 
@@ -36,15 +37,17 @@ from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from datetime import datetime
 from pathlib import Path
 
 import numpy as np
 
 from ..analysis import FilterContext, apply as apply_filters
+from ..analysis import corrections as manual
 from ..config.schema import AppConfig
 from ..detection import contrast_image, estimate_background, get_detector
+from ..detection import merge as detection_merge
 from ..detection import postprocess as detection_post
 from ..io.image_reader import ImageReadError, find_images, read_image
 from ..measurement.pore_metrics import measure
@@ -114,8 +117,16 @@ class PoreDetectionPipeline:
         ctx = self.analyse(path)
         return self._to_result(ctx, time.perf_counter() - started)
 
-    def analyse(self, path: str | Path) -> PipelineContext:
-        """Die vier Stufen, in dieser Reihenfolge. Liefert den vollen Kontext."""
+    def analyse(
+        self,
+        path: str | Path,
+        corrections: Sequence[manual.PoreCorrection] | None = None,
+    ) -> PipelineContext:
+        """Die Stufen, in dieser Reihenfolge. Liefert den vollen Kontext.
+
+        ``corrections`` ersetzt die gespeicherten Korrekturen dieses Bildes - eine leere
+        Liste liefert das rein automatische Ergebnis. ``None`` heißt: aus der Ablage.
+        """
         image = read_image(path)
         ctx = PipelineContext(path=image.path, gray=image.gray, color=image.color)
 
@@ -123,6 +134,7 @@ class PoreDetectionPipeline:
         self._stage_specimen(ctx)
         self._stage_detect(ctx)
         self._stage_measure(ctx)
+        self._stage_corrections(ctx, corrections)
         return ctx
 
     # -- Stufe 1 und 2: Maßstab und Overlay ---------------------------------------------
@@ -203,6 +215,7 @@ class PoreDetectionPipeline:
         mask = detection_post.clean(result.mask, pore_cfg)
         labels = detection_post.label_image(mask, pore_cfg)
         labels, zusaetzlich = detection_post.split_touching(labels, pore_cfg)
+        labels, vereinigt = detection_merge.merge_close(labels, pore_cfg)
         ctx.labels = labels
 
         schwellen = ", ".join(f"{k} {v:.1f}" for k, v in result.thresholds.items())
@@ -210,7 +223,8 @@ class PoreDetectionPipeline:
             "poren",
             f"{int(labels.max())} Kandidaten ({result.method}"
             + (f", {schwellen}" if schwellen else "")
-            + (f", {zusaetzlich} durch Trennung" if zusaetzlich else "") + ")",
+            + (f", {zusaetzlich} durch Trennung" if zusaetzlich else "")
+            + (f", {vereinigt} zusammengeführt" if vereinigt else "") + ")",
         )
 
     def _stage_measure(self, ctx: PipelineContext) -> None:
@@ -246,6 +260,47 @@ class PoreDetectionPipeline:
                 ", ".join(f"{anzahl}x {name}" for name, anzahl in sorted(gruende.items())),
             )
 
+    # -- Stufe 5: manuelle Korrektur ----------------------------------------------------
+
+    def _stage_corrections(
+        self, ctx: PipelineContext, corrections: Sequence[manual.PoreCorrection] | None
+    ) -> None:
+        cfg = self.config.corrections
+        if corrections is None:
+            if not cfg.enabled:
+                return
+            corrections = manual.CorrectionStore(cfg.directory).load(ctx.path)
+        if not corrections:
+            return
+
+        assert ctx.labels is not None and ctx.specimen is not None
+        assert ctx.contrast is not None
+
+        def vermessen(labels: np.ndarray) -> list:
+            # Eingezeichnete Poren nehmen denselben Messweg wie erkannte.
+            return measure(labels, ctx.gray, ctx.contrast, ctx.specimen,
+                           um_per_px=ctx.um_per_px)
+
+        outcome = manual.apply(ctx.pores, ctx.rejected, ctx.labels, corrections,
+                               measure=vermessen, allowed=ctx.specimen)
+        ctx.labels = outcome.labels
+        ctx.pores = outcome.pores
+        ctx.rejected = outcome.rejected
+        ctx.extras["korrekturen"] = outcome.summary()
+        ctx.extras["korrekturen_gezeichnet"] = dict(outcome.drawn)
+
+        ctx.note(
+            "korrektur",
+            f"{len(outcome.removed)} von Hand entfernt, "
+            f"{len(outcome.restored)} von Hand aufgenommen, "
+            f"{len(outcome.drawn)} eingezeichnet",
+        )
+        if outcome.missed:
+            ctx.warn(
+                f"{len(outcome.missed)} Korrektur(en) treffen keine Pore mehr - "
+                "vermutlich nach geänderten Parametern"
+            )
+
     # -- Ergebnis ------------------------------------------------------------------------
 
     def _to_result(self, ctx: PipelineContext, duration_s: float) -> ImageResult:
@@ -261,4 +316,5 @@ class PoreDetectionPipeline:
             warnings=list(ctx.warnings),
             stages=dict(ctx.stages),
             duration_s=duration_s,
+            extras={k: ctx.extras[k] for k in ("korrekturen",) if k in ctx.extras},
         )

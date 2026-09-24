@@ -1,7 +1,7 @@
 # Befehle — die Pipeline starten
 
-Alle Aufrufe laufen in der Projekt-`.venv` und werden aus dem Projektordner
-`E:\Arbeit\Werkstudent SEW\Programme\Pore_Detection_V2` gestartet.
+Alle Aufrufe laufen in der Projekt-`.venv` und werden aus dem Wurzelverzeichnis des
+Projekts gestartet.
 Die Reihenfolge der Stufen ist fest verdrahtet (`src/poredet/core/pipeline.py`):
 
 ```
@@ -9,6 +9,7 @@ Die Reihenfolge der Stufen ist fest verdrahtet (`src/poredet/core/pipeline.py`):
 2. Overlay ausschließen     scale/      -> dieser Bereich ist kein Gefüge
 3. Einbettmittel entfernen  specimen/   -> Probenmaske = Nenner der Porosität
 4. Poren suchen + messen    detection/, measurement/, analysis/
+5. manuelle Korrektur       analysis/corrections.py -> entfernt/aufgenommen/eingezeichnet
 ```
 
 ---
@@ -41,6 +42,30 @@ Ohne Aktivieren geht jeder Befehl auch direkt über den Interpreter der venv:
 ```powershell
 .\.venv\Scripts\python.exe -m poredet --version
 ```
+
+---
+
+## Start — das Startfenster
+
+Der normale Einstieg ins Programm:
+
+```powershell
+.venv\Scripts\python.exe scripts\start.py
+```
+
+- **Einlesepfad**: Ordner mit den Bildern. **Zielpfad**: Ordner für die Ergebnisse
+  (wird angelegt, falls nötig). Beide Pfade merkt sich das Fenster.
+- **Start** wertet alle Bilder aus. Fortschritt und ein Protokoll je Bild stehen im
+  Fenster; ein Bild, das scheitert, bricht den Lauf nicht ab.
+- Im Zielordner landen `poren.csv`, `bilder.csv`, `verworfen.csv` und `ergebnis.json`.
+- Ist **Viewer starten** angehakt, öffnet sich nach dem Lauf der Viewer im Browser.
+  Mit den Pfeilen oben (oder den Pfeiltasten) wird zwischen den Bildern geblättert.
+  Korrekturen im Viewer schreiben die Dateien im Zielordner sofort nach.
+- Das Fenster offen lassen, solange der Viewer gebraucht wird — mit ihm endet der
+  Viewer. **Viewer öffnen** holt ihn wieder in den Browser.
+
+Im Speicher gehalten werden die ersten zwölf Bilder; die übrigen rechnet der Viewer
+beim Blättern neu, das jeweils nächste schon im Hintergrund.
 
 ---
 
@@ -166,6 +191,39 @@ Anderes Bild bzw. anderer Ordner:
 | `--bild PFAD` | einzelnes Bild statt des Ordners |
 | `-o`, `--out PFAD` | Ziel der HTML-Datei (Standard `data/runs/gui/index.html`) |
 | `--nicht-oeffnen` | Seite nur schreiben, Browser nicht starten |
+| `--server` | über einen lokalen Server starten — Poren lassen sich dann bearbeiten |
+| `--port N` | Port des Servers (Standard `8765`) |
+
+### Poren von Hand bearbeiten
+
+```powershell
+.venv\Scripts\python.exe scripts\gui_vorschau.py --server
+```
+
+Startet die Ansicht über einen lokalen Server auf `http://127.0.0.1:8765/` (beenden
+mit `Strg+C`). Links neben dem Bild steht die Werkzeugleiste:
+
+| Werkzeug | Wirkung |
+|---|---|
+| **+** | Klick auf eine verworfene Pore zählt sie |
+| **−** | Klick auf eine gezählte Pore verwirft sie; eine eingezeichnete wird gelöscht |
+| **Stift** | Umriss einer übersehenen Pore mit gedrückter Maustaste ziehen; beim Loslassen schließt er sich. Eine Zeichnung über einer erkannten Pore ersetzt diese |
+| **Pfeil** | Rückgängig (auch `Strg+Z`) |
+| **Papierkorb** | alle Korrekturen an diesem Bild verwerfen |
+
+Ein zweiter Klick auf das aktive Werkzeug oder `Esc` schaltet es ab. Ohne Werkzeug
+hält ein Klick die Pore wie gewohnt für die Lupe fest. Von Hand entfernte Poren
+erscheinen pink, aufgenommene und eingezeichnete türkis. Kennzahlen, Liste,
+Diagramme und Nachbarabstände rechnet der Server nach jedem Schritt neu — mit
+denselben Funktionen wie der Stapellauf. Eingezeichnete Poren werden wie erkannte
+vermessen, durchlaufen aber keine Filter, und zählen nur innerhalb der Probe.
+
+Jede Änderung wird sofort nach `data\korrekturen\<bild>_<prüfsumme>.json`
+geschrieben. Die Datei ist an den Bildinhalt gebunden und gilt ab dann für **jeden**
+Lauf dieses Bildes, auch für `run`. Gespeichert wird je Pore ein Punkt in ihrem
+Inneren, keine Label-Nummer — nach geänderten Parametern trifft die Korrektur so
+weiterhin dieselbe Pore. Trifft sie keine mehr, steht das als Warnung im Ergebnis.
+Abschalten lässt sich die Stufe über `corrections.enabled: false`.
 
 ### Eine einzelne Pore ansehen
 
@@ -253,6 +311,8 @@ mypy
 |---|---|
 | `data\runs\` | alle Übersichtsblätter, JSON- und CSV-Ausgaben |
 | `data\runs\gui\index.html` | die eigenständige Einzelbild-Ansicht |
+| `data\korrekturen\` | manuelle Korrekturen, eine JSON je Bild |
+| `data\start_einstellungen.json` | die zuletzt gewählten Pfade des Startfensters |
 | `data\runs\aufgepraegte_poren\` | Prüfbilder-Wahrheit, Masken, Übersicht |
 | `data\cache\` | Zwischenergebnisse |
 | `config\default.yaml` | Referenzkonfiguration; Profile unter `config\profiles\` enthalten nur die Abweichungen |

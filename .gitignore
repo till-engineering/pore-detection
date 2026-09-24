@@ -14,3 +14,7 @@ data/runs/
 data/cache/
 !data/runs/.gitkeep
 !data/cache/.gitkeep
+
+# Lokale Arbeitsdaten - Korrekturen und Einstellungen des Startfensters
+data/korrekturen/
+data/start_einstellungen.json

@@ -7,6 +7,8 @@ Abschnitte kommen mit den jeweiligen Modulen dazu.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -523,6 +525,26 @@ class SplitConfig(_Strict):
     )
 
 
+class MergeConfig(_Strict):
+    """Nahe beieinanderliegende Porenteile zu einer Pore zusammenführen."""
+
+    enabled: bool = Field(
+        True,
+        description="Eine Pore, die als zwei Objekte im Label-Bild steht, verfälscht "
+                    "Anzahl und Größenverteilung genauso wie zwei als eine gezählte.",
+    )
+    max_gap_px: int = Field(
+        1, ge=0,
+        description="Größter Spalt in Pixeln, über den zusammengeführt wird. 0 = nur "
+                    "Teile, die sich berühren.",
+    )
+    bridge_gaps: bool = Field(
+        True,
+        description="Den Spalt der Pore zuschlagen, damit sie ein zusammenhängendes "
+                    "Objekt mit einem Umriss ist.",
+    )
+
+
 class PoreConfig(_Strict):
     """Porendetektion insgesamt."""
 
@@ -539,6 +561,7 @@ class PoreConfig(_Strict):
     threshold: ThresholdConfig = ThresholdConfig()
     adaptive: AdaptiveConfig = AdaptiveConfig()
     split: SplitConfig = SplitConfig()
+    merge: MergeConfig = MergeConfig()
 
     open_radius_px: int = Field(
         1, ge=0, description="Entfernt einzelne Rauschpixel, ohne kleine Poren zu kosten")
@@ -614,6 +637,21 @@ class AnalysisConfig(_Strict):
         description="Untergrenzen der Größenklassen für den Bericht, in Mikrometern")
 
 
+class CorrectionsConfig(_Strict):
+    """Manuelle Korrekturen: von Hand entfernte oder wieder aufgenommene Poren."""
+
+    enabled: bool = Field(
+        True,
+        description="Gespeicherte Korrekturen bei jedem Lauf anwenden. Aus = das rein "
+                    "automatische Ergebnis, etwa zum Vergleich.",
+    )
+    directory: Path = Field(
+        Path("data/korrekturen"),
+        description="Ablage der Korrekturdateien, eine JSON je Bild. Relativ zum "
+                    "Arbeitsverzeichnis.",
+    )
+
+
 class AppConfig(_Strict):
     """Die vollständige Laufkonfiguration.
 
@@ -627,6 +665,7 @@ class AppConfig(_Strict):
     specimen: SpecimenConfig = SpecimenConfig()
     pore: PoreConfig = PoreConfig()
     analysis: AnalysisConfig = AnalysisConfig()
+    corrections: CorrectionsConfig = CorrectionsConfig()
 
     require_scale: bool = Field(
         False,

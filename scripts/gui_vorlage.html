@@ -14,6 +14,7 @@
   --akzent:#0f6d8c; --akzent-weich:#d9edf4;
   --pore:#1b9a6b; --verworfen:#b8722b; --harz:#7c5cd6; --ausschluss:#2f6fd0; --kandidat:#a89217;
   --messung:#e2483a;
+  --entfernt:#d63370; --aufgenommen:#0c8599;
   --dia-gez:#1b9a6b; --dia-verw:#b8722b;
   --dia-steg:#1379a3;
   --kante:#c2410c;
@@ -26,6 +27,7 @@
     --akzent:#48aed0; --akzent-weich:#11323f;
     --pore:#35c98f; --verworfen:#e09a52; --harz:#a78bf5; --ausschluss:#6398ea; --kandidat:#d9bf3e;
     --messung:#ff6f5e;
+    --entfernt:#f06595; --aufgenommen:#22b8cf;
     --dia-gez:#1b9a6b; --dia-verw:#b8722b;
     --dia-steg:#1379a3;
     --kante:#c2410c;
@@ -38,6 +40,7 @@
   --akzent:#48aed0; --akzent-weich:#11323f;
   --pore:#35c98f; --verworfen:#e09a52; --harz:#a78bf5; --ausschluss:#6398ea; --kandidat:#d9bf3e;
   --messung:#ff6f5e;
+  --entfernt:#f06595; --aufgenommen:#22b8cf;
   --dia-gez:#1b9a6b; --dia-verw:#b8722b;
   --dia-steg:#1379a3;
   --kante:#c2410c;
@@ -66,6 +69,15 @@ body{
 }
 .kopf h1{margin:0; font-size:15px; font-weight:600; letter-spacing:-.01em}
 .kopf .datei{font-size:13px; color:var(--muted)}
+/* Blaettern zwischen den Bildern eines Laufs. */
+.bildnav{display:flex; align-items:center; gap:6px}
+.navpfeil{display:grid; place-items:center; width:28px; height:28px; border-radius:6px;
+  border:1px solid var(--line); background:var(--surface-2); color:var(--ink);
+  text-decoration:none; font-size:17px; line-height:1}
+.navpfeil:hover{border-color:var(--akzent); color:var(--akzent)}
+.navpfeil.aus{opacity:.35; pointer-events:none}
+.bildnav .stand{font-size:12px; color:var(--muted); min-width:7ch; text-align:center}
+body.laedt, body.laedt *{cursor:progress!important}
 .kopf .kette{margin-left:auto; display:flex; align-items:center; gap:10px;
   font-size:12px; color:var(--muted)}
 .pfeil{color:var(--faint)}
@@ -79,17 +91,31 @@ body{
 .raster{display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:18px;
   padding:18px 20px 32px; align-items:start}
 .buehne{grid-column:1; grid-row:1}
-.tafel{grid-column:2; grid-row:1 / span 2}
+/* Kennzahlen und Ebenen stehen neben dem Bildfenster und enden mit dessen Unterkante.
+   Die Hoehe gibt das Fenster vor: der Inhalt liegt absolut im Block und traegt zur
+   Zeilenhoehe nichts bei. Die Ebenenkarte nimmt den Rest und scrollt in sich, falls
+   ein sehr flaches Bild nicht genug Hoehe laesst. */
+.tafel-oben{grid-column:2; grid-row:1; align-self:stretch; position:relative; min-width:0}
+.tafel-oben-innen{position:absolute; inset:0; display:flex; flex-direction:column; gap:14px}
+.tafel-oben .ebenenkarte{flex:1 1 auto; min-height:0; display:flex; flex-direction:column}
+.tafel-oben .ebenen{flex:1 1 auto; min-height:0; overflow-y:auto}
+.tafel{grid-column:2; grid-row:2}
 @media (max-width:900px){
   .raster{grid-template-columns:minmax(0,1fr)}
-  .buehne,.tafel{grid-column:1; grid-row:auto}
+  .buehne,.tafel,.tafel-oben{grid-column:1; grid-row:auto}
+  .tafel-oben-innen{position:static}
 }
 
 /* -- Buehne ---------------------------------------------------------------- */
 .buehne{background:var(--surface); border:1px solid var(--line); border-radius:10px;
   box-shadow:var(--schatten); overflow:hidden}
-.bildfeld{position:relative; background:var(--sunken); display:flex; justify-content:center;
-  padding:16px}
+/* Das Bild wird NIE ueber seine gerenderte Groesse hinaus gestreckt, nur bei Bedarf
+   verkleinert. Die Ebenen sind serverseitig um einen ganzzahligen Faktor vergroessert;
+   ein krummer Faktor im Browser machte die Bildpixel ungleich breit (mal zwei, mal
+   drei Bildschirmpixel) und verfaelschte die Form kleiner Poren. Der Platz daneben
+   bleibt deshalb frei - in der Farbe des Seitenhintergrunds, nicht als dunkler
+   Rahmen. Die Werkzeugleiste steht als eigene Spalte daneben, nie auf dem Bild. */
+.bildfeld{position:relative; background:var(--ground); display:flex}
 .stapel{position:relative; line-height:0; max-width:100%}
 .stapel img{display:block; max-width:100%; height:auto; image-rendering:pixelated}
 .stapel img.auflage{position:absolute; inset:0; width:100%; height:100%}
@@ -115,6 +141,51 @@ body{
 #kanten line{stroke:var(--kante); stroke-width:1.5; vector-effect:non-scaling-stroke;
   stroke-linecap:round}
 .regler{display:flex; align-items:center; gap:8px; margin-left:auto}
+
+/* -- Werkzeugleiste --------------------------------------------------------
+   Senkrecht links neben dem Bild: dort liegt sie im Blick, ohne das Bild zu
+   verdecken, und die Hand muss fuer den Wechsel nicht unter das Bild.
+
+   Ohne aktives Werkzeug haelt ein Klick die Pore fuer die Lupe fest - das muss so
+   bleiben, wer eine Kontur beurteilen will, darf sie nicht versehentlich aendern.
+   Ein zweiter Klick auf das aktive Werkzeug (oder Esc) schaltet es wieder ab. */
+.bildfeld > .stapel{flex:0 1 auto; min-width:0; margin:0 auto}
+.werkzeuge{flex:none; position:sticky; top:10px; display:flex; flex-direction:column;
+  gap:4px; margin:10px; padding:5px; background:var(--surface);
+  border:1px solid var(--line); border-radius:9px; box-shadow:var(--schatten)}
+@media (max-width:600px){
+  .bildfeld{flex-direction:column; align-items:center}
+  .werkzeuge{position:static; flex-direction:row; align-self:flex-start}
+  .werkzeugtrenner{width:1px; height:auto; margin:2px 3px}
+}
+.werkzeug{width:34px; height:34px; padding:0; display:grid; place-items:center;
+  border:1px solid transparent; border-radius:6px; background:transparent;
+  color:var(--muted); cursor:pointer}
+.werkzeug svg{width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2;
+  stroke-linecap:round; stroke-linejoin:round}
+.werkzeug.klein svg{width:16px; height:16px}
+.werkzeug:hover{background:var(--surface-2); color:var(--ink); border-color:var(--line)}
+.werkzeug.an{color:#fff; border-color:transparent}
+.werkzeug.an[data-werkzeug="plus"]{background:var(--aufgenommen)}
+.werkzeug.an[data-werkzeug="minus"]{background:var(--entfernt)}
+.werkzeug.an[data-werkzeug="zeichnen"]{background:var(--akzent)}
+.werkzeug:disabled{opacity:.35; cursor:default; background:transparent; border-color:transparent}
+.werkzeugtrenner{height:1px; background:var(--line); margin:3px 2px}
+
+/* Das Werkzeug faerbt die Pore unter der Maus in der Farbe dessen, was ein Klick
+   aus ihr machen wuerde. */
+.stapel.werkzeug-plus .treffer, .stapel.werkzeug-minus .treffer{cursor:pointer}
+.stapel.werkzeug-plus .treffer:hover{stroke:var(--aufgenommen); stroke-width:2.5}
+.stapel.werkzeug-minus .treffer:hover{stroke:var(--entfernt); stroke-width:2.5}
+/* Beim Zeichnen darf keine Trefferflaeche den Strich abfangen. */
+.stapel.werkzeug-zeichnen{cursor:crosshair; touch-action:none}
+.stapel.werkzeug-zeichnen #treffer{pointer-events:none}
+#zeichnung{pointer-events:none}
+#zeichnung polygon{fill:var(--akzent); fill-opacity:.18; stroke:var(--akzent);
+  stroke-width:2; vector-effect:non-scaling-stroke; stroke-linejoin:round}
+.stapel.wartet, .stapel.wartet .treffer{cursor:progress}
+#korrekturstand{color:var(--muted)}
+#korrekturstand.fehler{color:var(--entfernt)}
 .regler input{width:110px; accent-color:var(--akzent)}
 
 /* -- Nebenspalte neben dem Bild --------------------------------------------
@@ -130,9 +201,27 @@ body{
 /* Das Bild oben halten: die Spalte ist meist hoeher als das Schliffbild, und ein
    senkrecht zentriertes Bild wanderte dann je nach Porenzahl auf und ab. */
 .bildfeld{align-items:flex-start}
-.nebenspalte{border-left:1px solid var(--line); min-width:0; background:var(--surface);
-  display:flex; flex-direction:column}
-@media (max-width:820px){.nebenspalte{border-left:0; border-top:1px solid var(--line)}}
+/* Die Spalte ist genau so hoch wie das Bild - nicht umgekehrt: das Bild wird nie
+   gestreckt (siehe .bildfeld). Dafuer liegt der Inhalt der Spalte absolut in ihr und
+   traegt zur Zeilenhoehe nichts bei; die Hoehe gibt allein das Bild vor. Die Lupe
+   nimmt als Quadrat, was unter dem Massstab uebrig bleibt. Reicht es bei einem sehr
+   flachen Bild nicht, scrollt die Spalte. */
+.nebenspalte{position:relative; border-left:1px solid var(--line); min-width:0;
+  background:var(--surface)}
+.nebenspalte-innen{position:absolute; inset:0; display:flex; flex-direction:column;
+  overflow-y:auto}
+.nebenspalte-innen > #porenkarte{flex:1 1 auto; min-height:0; display:flex;
+  flex-direction:column}
+#porenkarte .plupe{flex:1 1 auto; min-height:0}
+/* Groesse als Container, damit das Fenster das groesste Quadrat werden kann, das in
+   Breite UND Hoehe passt. */
+.pfensterfeld{flex:1 1 0; min-height:140px; display:flex; justify-content:center;
+  container-type:size}
+@media (max-width:820px){
+  .nebenspalte{border-left:0; border-top:1px solid var(--line)}
+  .nebenspalte-innen{position:static; overflow:visible}
+  .pfensterfeld{flex:none; height:min(90vw, 420px)}
+}
 .spaltenblock{min-width:0}
 .spaltenblock + .spaltenblock{border-top:1px solid var(--line)}
 .spaltenkopf{padding:11px 14px; font-size:11px; font-weight:600; text-transform:uppercase;
@@ -153,27 +242,15 @@ body{
   overflow:visible}
 #m-marken line{stroke:var(--messung); stroke-width:2; vector-effect:non-scaling-stroke;
   stroke-linecap:round}
-.mbild figcaption{font-size:10px; color:var(--faint); line-height:1.35;
-  text-align:center}
-/* Das Gelesene und die Rechnung nebeneinander statt untereinander. Das ist der
-   Platz, den die Lupe darunter bekommt - und die beiden gehoeren ohnehin
-   zusammengelesen: links was dasteht, rechts was daraus geworden ist. */
+/* Links was auf dem Balken steht, rechts was daraus geworden ist. */
 .mdaten{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr);
-  gap:8px 12px; align-items:start; min-width:0}
-.mdaten > .breit{grid-column:1/-1}
+  gap:8px 12px; align-items:stretch; min-width:0}
 .gelesen{padding:6px 9px; border:1px solid var(--line); border-radius:7px;
   background:var(--surface-2)}
 .gelesen .etikett{font-size:10px; text-transform:uppercase; letter-spacing:.07em;
   color:var(--faint)}
 .gelesen .wert{font-size:16px; font-weight:500; letter-spacing:-.02em; line-height:1.3}
 .gelesen .herkunft{font-size:10px; color:var(--muted); margin-top:1px}
-.rechnung{display:grid; grid-template-columns:auto 1fr; gap:2px 10px; font-size:11px;
-  margin:0}
-.rechnung dt{color:var(--muted)}
-.rechnung dd{margin:0; text-align:right}
-.rechnung .summe{border-top:1px solid var(--line); padding-top:3px; margin-top:1px;
-  font-weight:500}
-.messlegende{font-size:11px; color:var(--muted); line-height:1.35}
 
 /* -- Diagramm --------------------------------------------------------------
    Die Serienfarben sind in beiden Themes dieselben: sie sind gegen helle und dunkle
@@ -272,9 +349,17 @@ body{
 .zahl .bez{font-size:11px; color:var(--muted); margin-top:1px}
 .zahl .neben{font-size:11px; color:var(--faint)}
 
-.ebenen{display:flex; flex-direction:column; gap:2px; padding:8px}
-.ebene{display:flex; align-items:center; gap:9px; padding:6px 7px; border-radius:6px;
-  cursor:pointer; font-size:13px}
+.ebenen{display:flex; flex-direction:column; gap:1px; padding:6px 8px}
+.ebene{display:flex; align-items:center; gap:8px; padding:3px 7px; border-radius:6px;
+  cursor:pointer; font-size:12px}
+/* Die drei Grundbilder als Umschalter in einer Zeile statt dreier Listenzeilen. */
+.basiswahl{display:flex; gap:4px; padding:2px 0 4px}
+.basiswahl .ebene{flex:1 1 0; justify-content:center; padding:4px 6px;
+  border:1px solid var(--line); position:relative}
+.basiswahl .ebene input{position:absolute; opacity:0; pointer-events:none}
+.basiswahl .ebene:has(input:checked){background:var(--akzent-weich);
+  border-color:var(--akzent); color:var(--akzent); font-weight:500}
+.basiswahl .ebene:has(input:focus-visible){outline:2px solid var(--akzent); outline-offset:1px}
 .ebene:hover{background:var(--surface-2)}
 /* Eingeschaltete Ebene sichtbar machen - sonst ist am Bedienfeld nicht zu erkennen,
    ob ein Schalter gegriffen hat, wenn die Auflage im Bild schwach ausfaellt. */
@@ -283,9 +368,9 @@ body{
 .ebene input{margin:0; accent-color:var(--akzent); flex:none}
 .punkt{width:10px; height:10px; border-radius:2px; flex:none}
 .ebene .anzahl{margin-left:auto; font-size:11px; color:var(--faint)}
-.trenner{height:1px; background:var(--line); margin:6px 7px}
+.trenner{height:1px; background:var(--line); margin:4px 7px}
 .gruppe{font-size:10px; text-transform:uppercase; letter-spacing:.07em; color:var(--faint);
-  padding:4px 7px 2px}
+  padding:2px 7px 1px}
 
 .kriterium{padding:11px 14px; display:flex; flex-direction:column; gap:9px}
 .hinweis-kompakt{margin:0; font-size:11px; color:var(--muted); line-height:1.45}
@@ -322,7 +407,8 @@ body{
    Weg und der falsche: bei einigen hundert Poren waere die Datei nicht mehr
    weiterzugeben, und genau das ist der Zweck dieser Ansicht. */
 .plupe{display:flex; flex-direction:column; gap:9px; padding:11px 13px}
-.pfenster{position:relative; width:100%; aspect-ratio:1/1; overflow:hidden;
+.pfenster{position:relative; width:min(100cqw, 100cqh); height:min(100cqw, 100cqh);
+  flex:none; overflow:hidden;
   border:1px solid var(--line); border-radius:5px; background:var(--sunken)}
 /* Die Flaechenebenen liegen als verschobene, vergroesserte Bilder im Fenster.
    Nearest - sonst verwischt die Vergroesserung genau die Kante, um die es geht. */
@@ -339,6 +425,8 @@ body{
 #p-marken .u-kandidat{stroke:var(--kandidat)}
 #p-marken .u-verworfen{stroke:var(--verworfen)}
 #p-marken .u-pore{stroke:var(--pore)}
+#p-marken .u-entfernt{stroke:var(--entfernt)}
+#p-marken .u-aufgenommen{stroke:var(--aufgenommen)}
 #p-marken .u-aktiv{stroke:var(--akzent); stroke-width:1.6}
 .plupe .feld{font-size:11px; color:var(--muted)}
 .plupe .feld input[type=range]{accent-color:var(--akzent)}
@@ -350,10 +438,22 @@ body{
   background:var(--akzent-weich); color:var(--akzent); font-size:10px;
   text-transform:uppercase; letter-spacing:.06em; vertical-align:middle}
 
-.detail{padding:12px 14px; font-size:12px}
-.detail dl{display:grid; grid-template-columns:auto 1fr; gap:4px 12px; margin:0}
-.detail dt{color:var(--muted)}
-.detail dd{margin:0; text-align:right}
+/* -- Porenzeile ueber dem Bild ---------------------------------------------
+   Die Kennwerte der ausgewaehlten Pore als eine durchgehende Zeile ueber dem Bild.
+   Sie steht immer da - ohne Auswahl mit Strichen -, damit das Bild darunter nicht
+   springt, sobald man ueber eine Pore faehrt. Die Werte haben feste Mindestbreiten
+   aus demselben Grund: sonst ruckt die Zeile bei jeder Pore anders. */
+.porenzeile{display:flex; flex-wrap:wrap; align-items:center; gap:4px 18px;
+  padding:8px 16px; min-height:38px; border-bottom:1px solid var(--line);
+  background:var(--surface-2); font-size:12px; color:var(--muted)}
+.porenzeile .pkopf{display:flex; align-items:center; gap:7px; min-width:15ch; color:var(--ink)}
+.porenzeile .pkopf b{font-weight:600}
+.porenzeile .pstatus{color:var(--muted)}
+.porenzeile .pw{display:flex; align-items:baseline; gap:5px; white-space:nowrap}
+.porenzeile .pw b{font-weight:500; color:var(--ink); min-width:5ch}
+.porenzeile .pgrund{color:var(--verworfen); white-space:nowrap; overflow:hidden;
+  text-overflow:ellipsis; max-width:100%}
+.porenzeile.leerzeile .pkopf, .porenzeile.leerzeile .pw b{color:var(--faint)}
 .leer{padding:14px; font-size:12px; color:var(--faint)}
 
 .stufen{padding:10px 14px; font-size:12px; display:flex; flex-direction:column; gap:5px}
@@ -367,6 +467,11 @@ body{
 
 <header class="kopf">
   <h1>Schliffbild-Inspektor</h1>
+  <nav class="bildnav" id="bildnav" aria-label="Bilder des Laufs" hidden>
+    <a class="navpfeil" id="nav-zurueck" title="Vorheriges Bild (Pfeil links)" aria-label="Vorheriges Bild">‹</a>
+    <span class="stand mono" id="nav-stand"></span>
+    <a class="navpfeil" id="nav-vor" title="Nächstes Bild (Pfeil rechts)" aria-label="Nächstes Bild">›</a>
+  </nav>
   <span class="datei mono" id="dateiname"></span>
   <span class="datei mono" id="erzeugt"></span>
   <div class="kette">
@@ -380,22 +485,43 @@ body{
 <div class="verdunkelung" id="verdunkelung" hidden></div>
 <div class="raster">
   <section class="buehne">
+   <div class="porenzeile leerzeile" id="detail" aria-live="polite"></div>
    <div class="buehneninhalt">
     <div class="bildfeld">
+      <div class="werkzeuge" id="werkzeuge" role="toolbar" aria-label="Poren bearbeiten"
+           aria-orientation="vertical" hidden>
+        <button class="werkzeug" type="button" data-werkzeug="plus" aria-pressed="false"
+                title="Pore aufnehmen – Klick auf eine verworfene Pore zählt sie">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></button>
+        <button class="werkzeug" type="button" data-werkzeug="minus" aria-pressed="false"
+                title="Pore entfernen – Klick auf eine gezählte Pore verwirft sie, eine eingezeichnete wird gelöscht">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12"/></svg></button>
+        <button class="werkzeug" type="button" data-werkzeug="zeichnen" aria-pressed="false"
+                title="Pore einzeichnen – Umriss mit gedrückter Maustaste ziehen">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 16l1-4 8-8 3 3-8 8-4 1zM11 6l3 3"/></svg></button>
+        <div class="werkzeugtrenner"></div>
+        <button class="werkzeug klein" type="button" id="rueckgaengig" title="Rückgängig (Strg+Z)">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 5L3 9l4 4M3 9h9a4 4 0 010 8h-2"/></svg></button>
+        <button class="werkzeug klein" type="button" id="zuruecksetzen" title="Alle Korrekturen an diesem Bild verwerfen">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10"/></svg></button>
+      </div>
       <div class="stapel" id="stapel">
         <img id="basis" alt="Schliffbild">
         <img class="auflage" id="l-harz" alt="" hidden>
         <img class="auflage" id="l-ausschluss" alt="" hidden>
         <img class="auflage" id="l-kandidaten" alt="" hidden>
         <img class="auflage" id="l-verworfen" alt="" hidden>
+        <img class="auflage" id="l-entfernt" alt="" hidden>
+        <img class="auflage" id="l-aufgenommen" alt="" hidden>
         <img class="auflage" id="l-poren" alt="" hidden>
         <svg id="kanten" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" hidden></svg>
         <svg id="treffer" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
         <svg id="vektoren" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
+        <svg id="zeichnung" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
       </div>
     </div>
 
-    <div class="nebenspalte">
+    <div class="nebenspalte"><div class="nebenspalte-innen">
       <section class="spaltenblock" id="massstabkarte">
         <div class="spaltenkopf">Maßstab — optische Kontrolle</div>
         <div class="mkontrolle">
@@ -404,7 +530,6 @@ body{
               <img id="m-ausschnitt" alt="Vergrößerter Ausschnitt des Maßstabsbalkens">
               <svg id="m-marken" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
             </div>
-            <figcaption id="m-lupe"></figcaption>
           </figure>
           <div class="mdaten" id="m-daten"></div>
         </div>
@@ -413,12 +538,12 @@ body{
       <section class="spaltenblock" id="porenkarte">
         <div class="spaltenkopf">Pore — optische Kontrolle</div>
         <div class="plupe" id="plupe" hidden>
-          <div class="pfenster" id="p-fenster">
+          <div class="pfensterfeld"><div class="pfenster" id="p-fenster">
             <img id="p-basis" alt="Vergrößerter Ausschnitt der ausgewählten Pore">
             <img class="pauflage" id="p-harz" alt="">
             <img class="pauflage" id="p-ausschluss" alt="">
             <svg id="p-marken" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
-          </div>
+          </div></div>
           <label class="feld">Umfeld
             <input type="range" id="p-umfeld" min="1.5" max="12" step="0.5" value="3">
             <span class="mono" id="p-umfeldwert">3,0</span> ×
@@ -428,12 +553,13 @@ body{
         <div class="leer" id="plupe-leer">Auf eine Pore im Bild oder in der Liste
           zeigen. Ein Klick hält sie fest.</div>
       </section>
-    </div>
+    </div></div>
    </div>
 
     <div class="leiste">
       <span class="mono" id="bildmasse"></span>
       <span class="mono" id="aufloesung"></span>
+      <span class="mono" id="korrekturstand" hidden></span>
       <label class="regler">Deckkraft
         <input type="range" id="deckkraft" min="20" max="100" value="100" step="5">
         <span class="mono" id="deckkraftwert">100 %</span>
@@ -484,39 +610,44 @@ body{
   </section>
   </div>
 
-  <aside class="tafel">
+  <aside class="tafel-oben"><div class="tafel-oben-innen">
     <div class="karte">
       <h2>Kennzahlen</h2>
       <div class="zahlen" id="kennzahlen"></div>
     </div>
 
-    <div class="karte">
+    <div class="karte ebenenkarte">
       <h2>Ebenen</h2>
       <div class="ebenen">
         <div class="gruppe">Grundbild</div>
-        <label class="ebene"><input type="radio" name="basis" value="original" id="b-original" checked>
-          <span>Original</span></label>
-        <label class="ebene"><input type="radio" name="basis" value="untergrund" id="b-untergrund">
-          <span>Geschätzter Untergrund</span></label>
-        <label class="ebene"><input type="radio" name="basis" value="kontrast" id="b-kontrast">
-          <span>Kontrast zum Untergrund</span></label>
+        <div class="basiswahl">
+          <label class="ebene" title="Das Schliffbild"><input type="radio" name="basis" value="original" id="b-original" checked>
+            <span>Original</span></label>
+          <label class="ebene" title="Geschätzter Untergrund"><input type="radio" name="basis" value="untergrund" id="b-untergrund">
+            <span>Untergrund</span></label>
+          <label class="ebene" title="Kontrast zum Untergrund"><input type="radio" name="basis" value="kontrast" id="b-kontrast">
+            <span>Kontrast</span></label>
+        </div>
         <div class="trenner"></div>
-        <div class="gruppe">Auflagen</div>
+        <div class="gruppe">Overlay</div>
         <label class="ebene"><input type="checkbox" id="c-harz">
           <span class="punkt" style="background:var(--harz)"></span><span>Einbettmittel</span>
           <span class="anzahl" id="n-harz"></span></label>
-        <label class="ebene"><input type="checkbox" id="c-messstrecke" checked>
-          <span class="punkt" style="background:var(--messung)"></span><span>Messstrecke Maßstab</span>
-          <span class="anzahl" id="n-messstrecke"></span></label>
-        <label class="ebene"><input type="checkbox" id="c-ausschluss">
-          <span class="punkt" style="background:var(--ausschluss)"></span><span>Overlay-Ausschluss</span>
-          <span class="anzahl" id="n-ausschluss"></span></label>
+        <label class="ebene" title="Gemessene Balkenstrecke und der ausgeschlossene Bereich des Maßstabs"><input type="checkbox" id="c-massstab" checked>
+          <span class="punkt" style="background:linear-gradient(135deg, var(--messung) 50%, var(--ausschluss) 50%)"></span><span>Overlay Maßstab</span>
+          <span class="anzahl" id="n-massstab"></span></label>
         <label class="ebene"><input type="checkbox" id="c-kandidaten">
           <span class="punkt" style="background:var(--kandidat)"></span><span>Kandidaten</span>
           <span class="anzahl" id="n-kandidaten"></span></label>
         <label class="ebene"><input type="checkbox" id="c-verworfen" checked>
           <span class="punkt" style="background:var(--verworfen)"></span><span>Verworfen</span>
           <span class="anzahl" id="n-verworfen"></span></label>
+        <label class="ebene"><input type="checkbox" id="c-entfernt" checked>
+          <span class="punkt" style="background:var(--entfernt)"></span><span>Von Hand entfernt</span>
+          <span class="anzahl" id="n-entfernt"></span></label>
+        <label class="ebene"><input type="checkbox" id="c-aufgenommen" checked>
+          <span class="punkt" style="background:var(--aufgenommen)"></span><span>Von Hand aufgenommen</span>
+          <span class="anzahl" id="n-aufgenommen"></span></label>
         <label class="ebene"><input type="checkbox" id="c-poren" checked>
           <span class="punkt" style="background:var(--pore)"></span><span>Poren</span>
           <span class="anzahl" id="n-poren"></span></label>
@@ -525,7 +656,9 @@ body{
           <span class="anzahl" id="n-kanten"></span></label>
       </div>
     </div>
+  </div></aside>
 
+  <aside class="tafel">
     <div class="karte" id="kriteriumkarte">
       <h2>Nachbarabstände</h2>
       <div class="kriterium">
@@ -545,12 +678,6 @@ body{
         </div>
         <div class="ergebnis" id="k-ergebnis"></div>
       </div>
-    </div>
-
-    <div class="karte">
-      <h2>Ausgewählte Pore</h2>
-      <div id="detail" class="leer">Auf eine Pore im Bild oder in der Liste zeigen.
-        Ein Klick hält sie fest.</div>
     </div>
 
     <div class="karte">
@@ -621,6 +748,40 @@ function svgSetzen(ziel, markup) {
 
 /* -- Kopf und Kennzahlen --------------------------------------------------- */
 $("dateiname").textContent = D.bild;
+
+/* -- Blaettern -------------------------------------------------------------
+   Jedes Bild ist eine eigene Seite (/bild/<n>): der Server liefert sie fertig,
+   und das naechste Bild rechnet er schon, waehrend man dieses ansieht. */
+(function navigation() {
+  const N = D.navigation;
+  if (!N || !D.server || N.anzahl < 2) return;
+  zeigen($("bildnav"), true);
+  $("nav-stand").textContent = `${N.index + 1} / ${N.anzahl}`;
+  const ziel = (i) => (i >= 0 && i < N.anzahl) ? `/bild/${i}` : null;
+  const pfeil = (el, i) => {
+    const href = ziel(i);
+    el.classList.toggle("aus", !href);
+    if (href) {
+      el.href = href;
+      el.title = (i < N.index ? "Vorheriges" : "Nächstes") + ` Bild: ${N.namen[i]}`;
+      el.addEventListener("click", () => document.body.classList.add("laedt"));
+    }
+  };
+  pfeil($("nav-zurueck"), N.index - 1);
+  pfeil($("nav-vor"), N.index + 1);
+  // Zurueck mit dem Browser holt die Seite aus dem Zwischenspeicher - samt Warte-Zeiger.
+  window.addEventListener("pageshow", () => document.body.classList.remove("laedt"));
+
+  // Pfeiltasten blaettern - ausser in Eingabefeldern, dort gehoeren sie dem Regler.
+  document.addEventListener("keydown", (e) => {
+    if (e.target.closest && e.target.closest("input, textarea, select")) return;
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+    const i = e.key === "ArrowLeft" ? N.index - 1 : e.key === "ArrowRight" ? N.index + 1 : null;
+    if (i === null || !ziel(i)) return;
+    document.body.classList.add("laedt");
+    location.href = ziel(i);
+  });
+})();
 $("erzeugt").textContent = "ausgewertet " + D.erzeugt;
 $("bildmasse").textContent = `${D.breite} × ${D.hoehe} px · ${D.zoom}×`;
 $("v-probe").textContent = D.verfahren.probe;
@@ -628,24 +789,32 @@ $("v-poren").textContent = D.verfahren.poren;
 $("v-massstab").textContent = D.massstab
   ? `${nz(D.massstab.um_pro_px, 2)} µm/px` : "kein Maßstab";
 
-const k = D.kennzahlen;
+/* Alles, was sich durch eine Korrektur ändert, steht in einer Funktion, die sich
+   mit neuen Daten erneut aufrufen lässt - siehe aktualisieren() weiter unten. */
 const kachel = (wert, bez, neben) =>
   `<div class="zahl"><div class="wert mono">${wert}</div>
    <div class="bez">${bez}</div>${neben ? `<div class="neben mono">${neben}</div>` : ""}</div>`;
-$("kennzahlen").innerHTML =
-  kachel(k.porositaet === null ? "–" : nz(k.porositaet, 2) + " %", "Porosität",
-         k.porositaet_ohne_rand === null ? "" : nz(k.porositaet_ohne_rand, 2) + " % ohne Randporen") +
-  kachel(k.behalten, "Poren", `${k.kandidaten} Kandidaten, ${k.verworfen} verworfen`) +
-  kachel(k.groesste_um !== null ? nz(k.groesste_um, 1) + " µm" : nz(k.groesste_px, 0) + " px",
-         "Größte Pore", "oft das Abnahmekriterium") +
-  kachel(k.dichte !== null ? nz(k.dichte, 0) : "–", "Poren / mm²",
-         k.probe_mm2 !== null ? nz(k.probe_mm2, 2) + " mm² Probe" : k.probe_px + " px Probe");
+function kennzahlenZeichnen() {
+  const k = D.kennzahlen;
+  $("kennzahlen").innerHTML =
+    kachel(k.porositaet === null ? "–" : nz(k.porositaet, 2) + " %", "Porosität",
+           k.porositaet_ohne_rand === null ? "" : nz(k.porositaet_ohne_rand, 2) + " % ohne Randporen") +
+    kachel(k.behalten, "Poren", `${k.kandidaten} Kandidaten, ${k.verworfen} verworfen`) +
+    kachel(k.groesste_um !== null ? nz(k.groesste_um, 1) + " µm" : nz(k.groesste_px, 0) + " px",
+           "Größte Pore") +
+    kachel(k.dichte !== null ? nz(k.dichte, 0) : "–", "Poren / mm²",
+           k.probe_mm2 !== null ? nz(k.probe_mm2, 2) + " mm² Probe" : k.probe_px + " px Probe");
+}
+kennzahlenZeichnen();
 
 /* -- Stufenmeldungen ------------------------------------------------------- */
-$("stufen").innerHTML =
-  Object.entries(D.stufen).map(([n, t]) =>
-    `<div class="stufe"><dt>${n}</dt><dd>${t}</dd></div>`).join("") +
-  D.warnungen.map((w) => `<div class="stufe warnung"><dt>Warnung</dt><dd>${w}</dd></div>`).join("");
+function stufenZeichnen() {
+  $("stufen").innerHTML =
+    Object.entries(D.stufen).map(([n, t]) =>
+      `<div class="stufe"><dt>${n}</dt><dd>${t}</dd></div>`).join("") +
+    D.warnungen.map((w) => `<div class="stufe warnung"><dt>Warnung</dt><dd>${w}</dd></div>`).join("");
+}
+stufenZeichnen();
 
 /* -- Zustand der Porenauswahl ----------------------------------------------
    Steht hier oben und nicht erst beim Auswahl-Block weiter unten: die
@@ -664,13 +833,6 @@ const m = D.massstab;
 if (m) {
   $("m-ausschnitt").src = m.ausschnitt;
   const am = m.ausschnitt_masse;
-  // Die Legende zur roten Strecke steht in der Bildunterschrift statt in einer
-  // eigenen Zeile darunter - das ist der Platz, den die Lupe darunter bekommt.
-  $("m-lupe").textContent = am
-    ? `${am.faktor}× vergrößert · ein Kästchen = ein Bildpixel · rot die gemessene `
-      + `Strecke, Endmarken auf den Balkenkanten`
-    : "";
-
   // Die Marken als Vektor über dem Ausschnitt, in Bildkoordinaten des Ausschnitts.
   // Dieselbe Rechnung wie im Hauptbild, nur um den Crop-Ursprung verschoben.
   if (am && m.balken_box) {
@@ -685,37 +847,36 @@ if (m) {
       <line x1="${bx}" y1="${by - marke}" x2="${bx}" y2="${by + marke}"></line>
       <line x1="${bx2}" y1="${by - marke}" x2="${bx2}" y2="${by + marke}"></line>`);
   }
-  const zeile = (dt, dd, klasse) =>
-    `<dt${klasse ? ` class="${klasse}"` : ""}>${dt}</dt>
-     <dd class="mono${klasse ? " " + klasse : ""}">${dd}</dd>`;
   $("m-daten").innerHTML = `
     <div class="gelesen">
-      <div class="etikett">Beschriftung gelesen</div>
-      <div class="wert mono">${m.text || "–"}</div>
-      <div class="herkunft">${m.engine || "?"} · ${nz(m.konfidenz * 100, 0)} % Konfidenz</div>
+      <div class="etikett">Beschriftung</div>
+      <div class="wert mono">${m.beschriftung || "–"}</div>
+      <div class="herkunft">${nz(m.konfidenz * 100, 0)} % Konfidenz</div>
     </div>
-    <dl class="rechnung">
-      ${zeile("Zahlenwert", m.wert_um === null ? "–" : nz(m.wert_um, 1) + " µm")}
-      ${zeile("Einheit", m.einheit || "–")}
-      ${zeile("Balkenlänge", nz(m.balken_px, 1) + " px")}
-      ${zeile("= Auflösung", nz(m.um_pro_px, 3) + " µm/px", "summe")}
-    </dl>
-    ${m.warnungen.length
-      ? `<div class="messlegende warnung breit">${m.warnungen.join(" · ")}</div>` : ""}`;
+    <div class="gelesen">
+      <div class="etikett">Auflösung</div>
+      <div class="wert mono">${m.aufloesung || "–"}</div>
+    </div>`;
 } else {
   $("massstabkarte").querySelector(".mkontrolle").innerHTML =
     `<div class="leer">Kein Maßstab erkannt – es wird in Pixeln gemessen.</div>`;
 }
 
 /* -- Ebenen ---------------------------------------------------------------- */
-const auflagen = ["harz", "ausschluss", "kandidaten", "verworfen", "poren"];
+const auflagen = ["harz", "ausschluss", "kandidaten", "verworfen", "entfernt", "aufgenommen", "poren"];
 $("basis").src = D.ebenen.original;
-auflagen.forEach((n) => { $("l-" + n).src = D.ebenen[n]; });
 
-$("n-kandidaten").textContent = k.kandidaten;
-$("n-poren").textContent = k.behalten;
-$("n-verworfen").textContent = k.verworfen;
-$("n-messstrecke").textContent = m ? nz(m.balken_px, 0) + " px" : "–";
+function ebenenBilder() {
+  auflagen.forEach((n) => { $("l-" + n).src = D.ebenen[n]; });
+  const k = D.kennzahlen, kr = D.korrekturen;
+  $("n-kandidaten").textContent = k.kandidaten;
+  $("n-poren").textContent = k.behalten;
+  $("n-verworfen").textContent = k.verworfen;
+  $("n-entfernt").textContent = kr.entfernt;
+  $("n-aufgenommen").textContent = kr.aufgenommen + kr.gezeichnet;
+}
+ebenenBilder();
+$("n-massstab").textContent = m ? nz(m.balken_px, 0) + " px" : "–";
 
 /* Die Lupe zeigt dieselben Ebenen wie das Hauptbild - ein eigener Satz Schalter
    wäre eine zweite Wahrheit: man sähe im Ausschnitt etwas anderes als im Bild und
@@ -735,7 +896,8 @@ for (const name of ["original", "untergrund", "kontrast"]) {
     $("p-basis").src = D.ebenen[name];
   });
 }
-for (const name of auflagen) {
+// Der Ausschluss hat keinen eigenen Schalter: er gehoert zum Overlay Massstab, siehe unten.
+for (const name of auflagen.filter((n) => n !== "ausschluss")) {
   const box = $("c-" + name);
   const anwenden = () => {
     zeigen($("l-" + name), box.checked);
@@ -773,13 +935,20 @@ if (bb) {
     <line x1="${bb.x}" y1="${y - marke}" x2="${bb.x}" y2="${y + marke}"></line>
     <line x1="${x1}" y1="${y - marke}" x2="${x1}" y2="${y + marke}"></line>`);
 }
-const messbox = $("c-messstrecke");
+/* Overlay Massstab: Messstrecke und ausgeschlossener Bereich in einem Schalter.
+   Beides beantwortet dieselbe Frage - was hat die Massstabserkennung im Bild
+   gefunden und was nimmt sie deshalb aus der Auswertung. */
+const messbox = $("c-massstab");
 const messSchalten = () => {
-  zeigen(vek, messbox.checked && !!bb);
-  markiere(messbox, messbox.checked && !!bb);
+  const an = messbox.checked && !!m;
+  zeigen(vek, an && !!bb);
+  zeigen($("l-ausschluss"), an);
+  zeigen($("p-ausschluss"), an);
+  markiere(messbox, an);
+  lupeZeichnen();
 };
 messbox.addEventListener("change", messSchalten);
-messbox.disabled = !bb;
+messbox.disabled = !m;
 messSchalten();
 
 /* Nachbarabstände: alle Paare unterhalb der eingestellten Schwelle.
@@ -787,7 +956,7 @@ messSchalten();
    Zusammenfassungskriterium nicht feststeht, lässt sich an ihm ablesen, welche
    Schwelle welche Poren verbindet. */
 const kantenSvg = $("kanten");
-const KD = D.kanten || { kanten: [], einheit: "px", schranke: 0 };
+let KD = null;
 kantenSvg.setAttribute("viewBox", `0 0 ${D.breite} ${D.hoehe}`);
 
 const kFaktor = $("k-faktor");
@@ -827,26 +996,41 @@ for (const id of ["k-klein", "k-gross"]) {
   if ($(id)) $(id).addEventListener("change", kantenZeichnen);
 }
 kantenbox.addEventListener("change", kantenSchalten);
-kantenbox.disabled = !KD.kanten.length;
-kantenZeichnen();
-kantenSchalten();
+
+function kantenDaten() {
+  KD = D.kanten || { kanten: [], einheit: "px", schranke: 0 };
+  kantenbox.disabled = !KD.kanten.length;
+  kantenZeichnen();
+  kantenSchalten();
+}
+kantenDaten();
 
 /* -- Poren: Trefferflächen und Liste --------------------------------------- */
 const svg = $("treffer");
 svg.setAttribute("viewBox", `0 0 ${D.breite} ${D.hoehe}`);
-svgSetzen(svg, D.poren.map((p, i) =>
-  `<circle class="treffer" data-i="${i}" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}"
-     r="${Math.max(p.r, 2).toFixed(2)}"></circle>`).join(""));
 
 const mass = (p) => p.d_um !== null ? nz(p.d_um, 1) + " µm" : nz(p.d_px, 1) + " px";
-$("liste").innerHTML = D.poren.map((p, i) => `
-  <div class="zeile" data-i="${i}">
-    <span class="marke" style="background:var(--${p.status === "behalten" ? "pore" : "verworfen"})"></span>
-    <span class="name">${p.status === "behalten"
-      ? "Pore " + p.label + (p.randbild ? " · angeschnitten" : "")
-      : `<span class="grund">${p.grund}</span>`}</span>
-    <span class="mass mono">${mass(p)}</span>
-  </div>`).join("");
+/** Farbe einer Pore - von Hand geänderte haben ihre eigene, im Bild wie in der Liste. */
+const farbe = (p) => p.manuell === "gezeichnet" ? "aufgenommen"
+  : p.manuell || (p.status === "behalten" ? "pore" : "verworfen");
+
+function porenZeichnen() {
+  svgSetzen(svg, D.poren.map((p, i) =>
+    `<circle class="treffer" data-i="${i}" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}"
+       r="${Math.max(p.r, 2).toFixed(2)}"></circle>`).join(""));
+
+  $("liste").innerHTML = D.poren.map((p, i) => `
+    <div class="zeile" data-i="${i}">
+      <span class="marke" style="background:var(--${farbe(p)})"></span>
+      <span class="name">${p.status === "behalten"
+        ? "Pore " + p.label + (p.randbild ? " · angeschnitten" : "")
+          + (p.manuell === "aufgenommen" ? " · von Hand aufgenommen" : "")
+          + (p.manuell === "gezeichnet" ? " · eingezeichnet" : "")
+        : `<span class="grund">${p.grund}</span>`}</span>
+      <span class="mass mono">${mass(p)}</span>
+    </div>`).join("");
+}
+porenZeichnen();
 
 /* -- Lupe auf die ausgewaehlte Pore ----------------------------------------
    Der Ausschnitt wird nicht gerechnet, sondern gelegt: die Ebenenbilder liegen
@@ -881,11 +1065,14 @@ function umrissPfade(i, klasse) {
    Pore zuletzt, damit sie in keinem Fall von einer Nachbarkontur verdeckt wird. */
 function markenMarkup(x0, y0, seite) {
   const sicht = imAusschnitt(x0, y0, seite);
-  const nur = (status) => sicht.filter((i) => D.poren[i].status === status);
+  const nur = (art) => sicht.filter((i) => farbe(D.poren[i]) === art);
   let markup = "";
   if ($("c-kandidaten").checked) markup += sicht.map((i) => umrissPfade(i, "u-kandidat")).join("");
-  if ($("c-verworfen").checked) markup += nur("verworfen").map((i) => umrissPfade(i, "u-verworfen")).join("");
-  if ($("c-poren").checked) markup += nur("behalten").map((i) => umrissPfade(i, "u-pore")).join("");
+  for (const [art, klasse] of [["verworfen", "u-verworfen"], ["entfernt", "u-entfernt"],
+                               ["aufgenommen", "u-aufgenommen"], ["pore", "u-pore"]]) {
+    const box = $("c-" + (art === "pore" ? "poren" : art));
+    if (box.checked) markup += nur(art).map((i) => umrissPfade(i, klasse)).join("");
+  }
   return markup + umrissPfade(aktiv, "u-aktiv");
 }
 
@@ -939,12 +1126,15 @@ PL.umfeld.addEventListener("input", lupeZeichnen);
 // Die Kantenlaenge des Fensters haengt an der Spaltenbreite - beim Umbruch der
 // Seite stimmte der Massstab der Lupe sonst nicht mehr.
 window.addEventListener("resize", lupeZeichnen);
+// Das Fenster haengt jetzt auch an der Bildhoehe - es aendert sich, sobald das Bild
+// geladen ist oder die Spalte umbricht, ohne dass das Fenster seine Groesse aendert.
+if (window.ResizeObserver) new ResizeObserver(() => lupeZeichnen()).observe(PL.fenster);
 
 /* -- Auswahl ---------------------------------------------------------------
    Zeigen waehlt, Klicken haelt fest. Das Festhalten ist nicht Zierde, sondern die
    Bedingung dafuer, dass die Lupe zu gebrauchen ist: der Weg der Maus vom Bild zum
    Bedienfeld fuehrt ueber andere Poren, und jede davon zoege die Auswahl an sich.
-   Ein zweiter Klick oder Esc loest wieder. */
+   Ein zweiter Klick auf dieselbe Pore oder Esc waehlt sie wieder ab. */
 function darstellen() {
   svg.querySelectorAll(".treffer").forEach((el) => {
     const ja = Number(el.dataset.i) === aktiv;
@@ -954,36 +1144,45 @@ function darstellen() {
   $("liste").querySelectorAll(".zeile").forEach((el) =>
     el.classList.toggle("aktiv", Number(el.dataset.i) === aktiv));
 
+  porenzeileZeichnen(aktiv === null ? null : D.poren[aktiv]);
+
   if (aktiv === null) {
     zeigen($("plupe"), false);
     zeigen($("plupe-leer"), true);
-    $("detail").className = "leer";
-    $("detail").textContent =
-      "Auf eine Pore im Bild oder in der Liste zeigen. Ein Klick hält sie fest.";
     return;
   }
-
-  const p = D.poren[aktiv];
-  const zeile = (dt, dd) => `<dt>${dt}</dt><dd class="mono">${dd}</dd>`;
-  $("detail").className = "detail";
-  $("detail").innerHTML = `<dl>
-    ${zeile("Objekt", "Nr. " + p.label
-      + (fest ? `<span class="gehalten">gehalten</span>` : ""))}
-    ${zeile("Status", p.status === "behalten" ? "gezählt" : "verworfen")}
-    ${p.grund ? zeile("Grund", p.grund) : ""}
-    ${zeile("Durchmesser", mass(p))}
-    ${zeile("Fläche", p.flaeche_um2 !== null
-      ? nz(p.flaeche_um2, 1) + " µm²" : nz(p.flaeche_px, 0) + " px")}
-    ${zeile("Rundheit", nz(p.rundheit, 2))}
-    ${zeile("Solidität", nz(p.solidity, 2))}
-    ${zeile("Kontrast", nz(p.kontrast, 0) + " Graustufen")}
-    ${zeile("Rand", [p.randbild ? "Bildrand" : null, p.randprobe ? "Probenrand" : null]
-      .filter(Boolean).join(", ") || "frei")}
-  </dl>`;
-
   zeigen($("plupe-leer"), false);
   zeigen($("plupe"), true);
   lupeZeichnen();
+}
+
+/** Die Kennwerte als eine Zeile über dem Bild; ohne Pore stehen Striche. */
+function porenzeileZeichnen(p) {
+  const w = (bez, wert) => `<span class="pw">${bez} <b class="mono">${wert}</b></span>`;
+  const el = $("detail");
+  el.classList.toggle("leerzeile", !p);
+  if (!p) {
+    el.innerHTML = `<span class="pkopf"><b>Pore –</b></span>`
+      + ["Ø", "Fläche", "Rundheit", "Solidität", "Kontrast", "Rand"].map((b) => w(b, "–")).join("");
+    return;
+  }
+  const status = (p.status === "behalten" ? "gezählt" : "verworfen")
+    + (p.manuell === "gezeichnet" ? " · eingezeichnet" : p.manuell ? " · von Hand" : "");
+  const rand = [p.randbild ? "Bild" : null, p.randprobe ? "Probe" : null]
+    .filter(Boolean).join(", ") || "frei";
+  el.innerHTML = `
+    <span class="pkopf">
+      <span class="marke" style="background:var(--${farbe(p)})"></span>
+      <b>Pore ${p.label}</b><span class="pstatus">${status}</span>
+      ${fest ? `<span class="gehalten">gehalten</span>` : ""}
+    </span>
+    ${w("Ø", mass(p))}
+    ${w("Fläche", p.flaeche_um2 !== null ? nz(p.flaeche_um2, 1) + " µm²" : nz(p.flaeche_px, 0) + " px")}
+    ${w("Rundheit", nz(p.rundheit, 2))}
+    ${w("Solidität", nz(p.solidity, 2))}
+    ${w("Kontrast", nz(p.kontrast, 0))}
+    ${w("Rand", rand)}
+    ${p.grund && p.manuell !== "entfernt" ? `<span class="pgrund" title="${p.grund}">${p.grund}</span>` : ""}`;
 }
 
 /** Auswahl durch Zeigen. Solange eine Pore festgehalten ist, bleibt sie es. */
@@ -993,16 +1192,23 @@ function waehlen(i) {
   darstellen();
 }
 
-/** Auswahl durch Klick: festhalten, oder dieselbe Pore wieder freigeben. */
+/** Auswahl durch Klick: festhalten - oder, war es schon die festgehaltene, abwählen. */
 function festhalten(i) {
-  fest = !(fest && i === aktiv);
-  aktiv = i;
+  if (fest && i === aktiv) {
+    fest = false;
+    aktiv = null;
+  } else {
+    fest = true;
+    aktiv = i;
+  }
   darstellen();
 }
 
+/** Esc: die festgehaltene Pore abwählen. */
 function loesen() {
   if (!fest) return;
   fest = false;
+  aktiv = null;
   darstellen();
 }
 
@@ -1010,13 +1216,13 @@ svg.addEventListener("mouseover", (e) => {
   const t = e.target.closest(".treffer"); if (t) waehlen(Number(t.dataset.i));
 });
 svg.addEventListener("click", (e) => {
-  const t = e.target.closest(".treffer"); if (t) festhalten(Number(t.dataset.i));
+  const t = e.target.closest(".treffer"); if (t) klicken(Number(t.dataset.i));
 });
 $("liste").addEventListener("mouseover", (e) => {
   const t = e.target.closest(".zeile"); if (t) waehlen(Number(t.dataset.i));
 });
 $("liste").addEventListener("click", (e) => {
-  const t = e.target.closest(".zeile"); if (t) festhalten(Number(t.dataset.i));
+  const t = e.target.closest(".zeile"); if (t) klicken(Number(t.dataset.i));
 });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") loesen(); });
 
@@ -1146,10 +1352,11 @@ function balkendiagramm(o) {
   svgEl.setAttribute("viewBox", `0 0 ${B} ${HH}`);
   svgSetzen(svgEl, t.join(""));
 
-  // Tooltip je Klasse
+  // Tooltip je Klasse. Als Eigenschaft statt addEventListener: das Diagramm wird
+  // bei jeder Korrektur neu gezeichnet, und die Handler duerfen sich nicht stapeln.
   const tip = $(o.tooltip);
-  svgEl.addEventListener("mouseleave", () => { zeigen(tip, false); });
-  svgEl.addEventListener("mousemove", (e) => {
+  svgEl.onmouseleave = () => { zeigen(tip, false); };
+  svgEl.onmousemove = (e) => {
     const ziel = e.target.closest(".klassenfeld");
     if (!ziel) { zeigen(tip, false); return; }
     const i = Number(ziel.dataset.i);
@@ -1163,17 +1370,24 @@ function balkendiagramm(o) {
     const x = e.clientX - kasten.left, y = e.clientY - kasten.top;
     tip.style.left = Math.min(x + 14, kasten.width - tip.offsetWidth - 4) + "px";
     tip.style.top = Math.max(y - tip.offsetHeight - 10, 4) + "px";
-  });
+  };
+}
+
+/* Ist ein Diagramm einmal durch "keine Poren" ersetzt, muss es sich wiederherstellen
+   lassen, sobald eine Korrektur wieder Poren bringt - deshalb der gemerkte Aufbau. */
+const figurAufbau = {};
+function figurBereit(karte, leer, meldung) {
+  const figur = $(karte).querySelector(".figur");
+  if (!(karte in figurAufbau)) figurAufbau[karte] = figur.innerHTML;
+  if (leer) { figur.innerHTML = `<div class="leer">${meldung}</div>`; return false; }
+  if (!figur.querySelector("svg")) figur.innerHTML = figurAufbau[karte];
+  return true;
 }
 
 /* Größenverteilung der Porenfläche */
-(function () {
+function histogrammZeichnen() {
   const H = D.histogramm;
-  if (!H || H.leer) {
-    $("histogrammkarte").querySelector(".figur").innerHTML =
-      `<div class="leer">Keine Poren zum Auswerten.</div>`;
-    return;
-  }
+  if (!figurBereit("histogrammkarte", !H || H.leer, "Keine Poren zum Auswerten.")) return;
   const kw = H.kennwerte;
   balkendiagramm({
     svg: "histogramm", tooltip: "h-tooltip", einheit: H.einheit,
@@ -1194,16 +1408,13 @@ function balkendiagramm(o) {
      <span>D50 <b>${zahl(kw.d50)}</b> ${H.einheit}</span>
      <span>D90 <b>${zahl(kw.d90)}</b> ${H.einheit}</span>
      <span>Spanne <b>${zahl(kw.min)}</b> – <b>${zahl(kw.max)}</b> ${H.einheit}</span>`;
-})();
+}
+histogrammZeichnen();
 
 /* Abstand zur nächsten Nachbarpore - gemessen von Rand zu Rand */
-(function () {
+function stegZeichnen() {
   const S = D.stege;
-  if (!S || S.leer) {
-    $("stegkarte").querySelector(".figur").innerHTML =
-      `<div class="leer">Zu wenige Poren für eine Nachbarschaft.</div>`;
-    return;
-  }
+  if (!figurBereit("stegkarte", !S || S.leer, "Zu wenige Poren für eine Nachbarschaft.")) return;
   const kw = S.kennwerte;
   balkendiagramm({
     svg: "stegplot", tooltip: "s-tooltip", einheit: S.einheit,
@@ -1228,7 +1439,178 @@ function balkendiagramm(o) {
      <span>D90 <b>${zahl(kw.d90)}</b> ${S.einheit}</span>
      ${D.um_pro_px
         ? `<span>Auflösungsgrenze 1 px = <b>${zahl(grenze)}</b> ${S.einheit}</span>` : ""}`;
-})();
+}
+stegZeichnen();
+
+/* -- Bearbeiten ------------------------------------------------------------
+   Nur über den lokalen Server (gui_vorschau.py --server). Der Browser rechnet
+   nichts selbst: er schickt Pore oder Umriss, der Server wendet die Korrektur an,
+   speichert die Korrekturdatei und liefert alle veränderlichen Teile neu. So gibt
+   es genau eine Implementierung der Kennzahlen - die in Python. */
+let werkzeug = null;          // "plus" | "minus" | "zeichnen" | null
+let wartet = false;
+const stapel = $("stapel");
+// Im Viewer mit mehreren Bildern hat jedes Bild seine eigenen Adressen.
+const API = D.navigation ? `/api/bild/${D.navigation.index}` : "/api";
+const WERKZEUG_API = { plus: API + "/plus", minus: API + "/minus" };
+
+function korrekturstandZeichnen(fehler) {
+  const kr = D.korrekturen;
+  const el = $("korrekturstand");
+  el.classList.toggle("fehler", !!fehler);
+  if (fehler) { el.textContent = fehler; return; }
+  const teile = [];
+  if (kr.entfernt) teile.push(`${kr.entfernt} entfernt`);
+  if (kr.aufgenommen) teile.push(`${kr.aufgenommen} aufgenommen`);
+  if (kr.gezeichnet) teile.push(`${kr.gezeichnet} eingezeichnet`);
+  if (kr.ohne_treffer) teile.push(`${kr.ohne_treffer} ohne Treffer`);
+  el.textContent = teile.length ? "von Hand: " + teile.join(" · ") : "keine Korrekturen";
+  $("zuruecksetzen").disabled = !(kr.entfernt + kr.aufgenommen + kr.gezeichnet + kr.ohne_treffer);
+}
+
+/** Neue Daten vom Server übernehmen und alles Veränderliche neu zeichnen. */
+function aktualisieren(neu) {
+  // Die Auswahl hängt am Label, nicht am Listenplatz - der kann sich verschieben.
+  const label = aktiv === null ? null : D.poren[aktiv].label;
+  const ebenen = { ...D.ebenen, ...neu.ebenen };
+  Object.assign(D, neu);
+  D.ebenen = ebenen;
+  const i = label === null ? -1 : D.poren.findIndex((p) => p.label === label);
+  aktiv = i < 0 ? null : i;
+  if (aktiv === null) fest = false;
+
+  kennzahlenZeichnen();
+  stufenZeichnen();
+  ebenenBilder();
+  kantenDaten();
+  porenZeichnen();
+  histogrammZeichnen();
+  stegZeichnen();
+  korrekturstandZeichnen();
+  darstellen();
+}
+
+async function senden(pfad, koerper) {
+  if (wartet) return;
+  wartet = true;
+  stapel.classList.add("wartet");
+  try {
+    const antwort = await fetch(pfad, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(koerper || {}),
+    });
+    if (!antwort.ok) throw new Error(`Server meldet ${antwort.status}`);
+    aktualisieren(await antwort.json());
+  } catch (e) {
+    korrekturstandZeichnen("nicht gespeichert – " + e.message);
+  } finally {
+    wartet = false;
+    stapel.classList.remove("wartet");
+  }
+}
+
+/** Klick im Bild oder in der Liste: mit "+" oder "−" ändern, sonst festhalten. */
+function klicken(i) {
+  const pfad = WERKZEUG_API[werkzeug];
+  if (pfad) senden(pfad, { label: D.poren[i].label });
+  else festhalten(i);
+}
+
+/** Werkzeug wählen; das aktive noch einmal gewählt schaltet es ab. */
+function werkzeugSetzen(w) {
+  werkzeug = (w === werkzeug) ? null : w;
+  for (const knopf of document.querySelectorAll(".werkzeug[data-werkzeug]")) {
+    const an = knopf.dataset.werkzeug === werkzeug;
+    knopf.classList.toggle("an", an);
+    knopf.setAttribute("aria-pressed", String(an));
+  }
+  for (const name of ["plus", "minus", "zeichnen"]) {
+    stapel.classList.toggle("werkzeug-" + name, werkzeug === name);
+  }
+}
+
+/* Zeichnen: mit gedrückter Maustaste den Umriss ziehen, beim Loslassen schließt
+   er sich von selbst. Gerechnet wird in Bildkoordinaten - dieselbe Umrechnung wie
+   für alle Vektoren über dem Bild, über die viewBox der Trefferebene. */
+const zeichnung = $("zeichnung");
+zeichnung.setAttribute("viewBox", `0 0 ${D.breite} ${D.hoehe}`);
+let zug = null;
+
+function bildpunkt(e) {
+  const m = svg.getScreenCTM();
+  if (!m) return null;
+  const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
+  return [Math.min(Math.max(p.x, 0), D.breite), Math.min(Math.max(p.y, 0), D.hoehe)];
+}
+
+function zugZeigen(punkte) {
+  svgSetzen(zeichnung, punkte && punkte.length > 1
+    ? `<polygon points="${punkte.map((p) => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ")}"></polygon>`
+    : "");
+}
+
+/** Fläche des Polygons (Gaußsche Trapezformel) - ein Klick ohne Ziehen ist keine Pore. */
+function polygonflaeche(punkte) {
+  let a = 0;
+  for (let i = 0; i < punkte.length; i++) {
+    const [x1, y1] = punkte[i], [x2, y2] = punkte[(i + 1) % punkte.length];
+    a += x1 * y2 - x2 * y1;
+  }
+  return Math.abs(a) / 2;
+}
+
+stapel.addEventListener("pointerdown", (e) => {
+  if (werkzeug !== "zeichnen" || e.button !== 0 || wartet) return;
+  const p = bildpunkt(e);
+  if (!p) return;
+  e.preventDefault();
+  stapel.setPointerCapture(e.pointerId);
+  zug = [p];
+});
+stapel.addEventListener("pointermove", (e) => {
+  if (!zug) return;
+  const p = bildpunkt(e);
+  const letzter = zug[zug.length - 1];
+  // Ein halber Bildpixel Mindestabstand - feiner löst die Maske ohnehin nicht auf.
+  if (p && Math.hypot(p[0] - letzter[0], p[1] - letzter[1]) >= 0.5) {
+    zug.push(p);
+    zugZeigen(zug);
+  }
+});
+async function zugBeenden() {
+  if (!zug) return;
+  const punkte = zug;
+  zug = null;
+  if (punkte.length >= 3 && polygonflaeche(punkte) >= 2) {
+    await senden(API + "/zeichnen",
+      { punkte: punkte.map(([x, y]) => [Math.round(x * 10) / 10, Math.round(y * 10) / 10]) });
+  }
+  zugZeigen(null);
+}
+stapel.addEventListener("pointerup", zugBeenden);
+stapel.addEventListener("pointercancel", () => { zug = null; zugZeigen(null); });
+
+if (D.server) {
+  zeigen($("werkzeuge"), true);
+  zeigen($("korrekturstand"), true);
+  for (const knopf of document.querySelectorAll(".werkzeug[data-werkzeug]")) {
+    knopf.addEventListener("click", () => werkzeugSetzen(knopf.dataset.werkzeug));
+  }
+  $("rueckgaengig").addEventListener("click", () => senden(API + "/rueckgaengig"));
+  $("zuruecksetzen").addEventListener("click", () => {
+    if (confirm("Alle Korrekturen an diesem Bild verwerfen?")) senden(API + "/zuruecksetzen");
+  });
+  document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+      e.preventDefault();
+      senden(API + "/rueckgaengig");
+    } else if (e.key === "Escape" && werkzeug) {
+      werkzeugSetzen(werkzeug);
+    }
+  });
+  korrekturstandZeichnen();
+}
 
 /* -- Diagramm aufklappen ---------------------------------------------------
    Vergrößert wird dasselbe Element, keine Kopie: Tooltip, Regler und Zustand

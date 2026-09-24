@@ -13,9 +13,15 @@ Ausgewertet wird das Bild aus ``test/GUI_Test`` - ein anderes probiert man aus, 
 man es dort hineinlegt. Liegen mehrere darin, gewinnt das zuletzt geaenderte; der Name
 steht nirgends im Code.
 
+Mit ``--server`` laeuft die Seite stattdessen ueber einen lokalen Server (siehe
+``gui_server.py``). Dann lassen sich Poren im Bild von Hand entfernen und wieder
+aufnehmen; die Korrekturen landen je Bild in ``data/korrekturen`` und gelten ab dann
+fuer jeden Lauf.
+
 Aufruf::
 
     .venv\\Scripts\\python.exe scripts/gui_vorschau.py
+    .venv\\Scripts\\python.exe scripts/gui_vorschau.py --server
     .venv\\Scripts\\python.exe scripts/gui_vorschau.py --ordner test/real_pores
     .venv\\Scripts\\python.exe scripts/gui_vorschau.py --bild test/GUI_Test/gas-porosity.jpg
 """
@@ -24,9 +30,12 @@ from __future__ import annotations
 
 import argparse
 import base64
+import copy
 import json
 import sys
 import webbrowser
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
@@ -39,8 +48,12 @@ WURZEL = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(WURZEL / "src"))
 
 from poredet.analysis import spatial  # noqa: E402
-from poredet.config.schema import AppConfig  # noqa: E402
+from poredet.analysis import corrections as manuell  # noqa: E402
+from poredet.config.schema import AppConfig, CorrectionsConfig  # noqa: E402
+from poredet.core.context import PipelineContext  # noqa: E402
+from poredet.core.models import ImageResult  # noqa: E402
 from poredet.core.pipeline import PoreDetectionPipeline  # noqa: E402
+from poredet.core.units import UNIT_FACTORS_UM, UNIT_SYMBOLS, format_um  # noqa: E402
 from poredet.io.image_reader import find_images  # noqa: E402
 from poredet.measurement import distributions as vert  # noqa: E402
 
@@ -104,11 +117,14 @@ def _konturen(
     if fuellung:
         ebene[gross > 0] = (*farbe_bgr, fuellung)
 
-    for wert in np.unique(gross):
-        if wert == 0:
+    # Je Objekt nur sein Fenster, nicht das ganze Bild: die Ebene wird bei jeder
+    # Korrektur neu gezeichnet, und ein Vollbildvergleich je Pore machte das zaeh.
+    for wert, fenster in enumerate(ndi.find_objects(gross), start=1):
+        if fenster is None:
             continue
-        einzeln = (gross == wert).astype(np.uint8)
-        umrisse, _ = cv2.findContours(einzeln, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        einzeln = (gross[fenster] == wert).astype(np.uint8)
+        umrisse, _ = cv2.findContours(einzeln, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE,
+                                      offset=(fenster[1].start, fenster[0].start))
         cv2.drawContours(ebene, umrisse, -1, (*farbe_bgr, 255), dicke)
     return ebene
 
@@ -205,17 +221,29 @@ def _kontrollausschnitt(gray: np.ndarray, scale) -> tuple[str, dict] | tuple[Non
     Zurueck kommt neben dem Bild die Lage des Ausschnitts, damit die Anzeige in
     Bildkoordinaten rechnen kann.
     """
-    kasten = scale.box or scale.bar_box
-    if kasten is None:
+    # Nur Balken und Beschriftung, mit knappem Rand: genug, um beide Balkenkanten gegen
+    # das Weiss des Kastens zu sehen, die Endmarken ganz zu zeigen und die gelesene Zahl
+    # daneben zu haben. Der Rest des Kastens wuerde den Balken nur kleiner rechnen.
+    balken = scale.bar_box or scale.box
+    if balken is None:
         return None, None
 
+    rand_x = max(int(0.04 * balken.w), 3)
+    rand_y = max(int(2.0 * balken.h), 4)
+    x0, y0 = balken.x - rand_x, balken.y - rand_y
+    x1, y1 = balken.x2 + rand_x, balken.y2 + rand_y
+
+    schrift = scale.label_box
+    if schrift is not None:
+        x0, y0 = min(x0, schrift.x - 3), min(y0, schrift.y - 3)
+        x1, y1 = max(x1, schrift.x2 + 3), max(y1, schrift.y2 + 3)
+    else:
+        # Ohne bekannte Lage der Schrift: sie steht in aller Regel unter dem Balken.
+        y1 = balken.y2 + max(int(6.0 * balken.h), 20)
+
     hoehe, breite = gray.shape
-    rand_x = max(int(0.35 * kasten.w), 8)
-    rand_y = max(int(0.8 * kasten.h), 8)
-    x0 = max(0, kasten.x - rand_x)
-    y0 = max(0, kasten.y - rand_y)
-    x1 = min(breite, kasten.x2 + rand_x)
-    y1 = min(hoehe, kasten.y2 + rand_y)
+    x0, y0 = max(0, x0), max(0, y0)
+    x1, y1 = min(breite, x1), min(hoehe, y1)
 
     ausschnitt = cv2.cvtColor(gray[y0:y1, x0:x1], cv2.COLOR_GRAY2BGR)
     # So weit vergroessern, dass einzelne Pixel als Kaestchen sichtbar werden - nur dann
@@ -229,6 +257,28 @@ def _kontrollausschnitt(gray: np.ndarray, scale) -> tuple[str, dict] | tuple[Non
         # Lage und Groesse in Bildkoordinaten - die viewBox des Vektor-Overlays.
         "x0": x0, "y0": y0, "crop_w": x1 - x0, "crop_h": y1 - y0,
     }
+
+
+def _beschriftung(scale) -> str | None:
+    """Die gelesene Beschriftung in ihrer eigenen Einheit, mit richtigem Symbol.
+
+    Der Rohtext der OCR steht als "um" da, wo auf dem Balken "µm" gedruckt ist - aus
+    dem geparsten Wert wird deshalb neu geschrieben, nicht der Rohtext gezeigt.
+    """
+    if scale.value_um is None or not scale.unit_text:
+        return scale.label_text
+    faktor = UNIT_FACTORS_UM.get(scale.unit_text)
+    if faktor is None:
+        return scale.label_text
+    zahl = f"{scale.value_um / faktor:.6g}".replace(".", ",")
+    return f"{zahl} {UNIT_SYMBOLS.get(scale.unit_text, scale.unit_text)}"
+
+
+def _aufloesung(um_per_px: float | None) -> str | None:
+    """Laenge je Pixel in der passenden Einheit, z. B. "1,724 µm/px"."""
+    if not um_per_px:
+        return None
+    return format_um(um_per_px).replace(".", ",") + "/px"
 
 
 # --------------------------------------------------------------------------------------
@@ -354,22 +404,47 @@ def _stegverteilung(labels: np.ndarray, um_per_px: float | None) -> dict:
 # --------------------------------------------------------------------------------------
 
 
-def auswerten(bildpfad: Path) -> dict:
-    """Ein Bild durch die Pipeline schicken und alles einsammeln, was die Ansicht zeigt."""
-    cfg = AppConfig()
-    pipeline = PoreDetectionPipeline(cfg)
-    ctx = pipeline.analyse(bildpfad)
-    ergebnis = pipeline._to_result(ctx, 0.0)
+#: Farben in BGR, weil cv2 sie so schreibt. Sie entsprechen den Tokens im Stylesheet.
+FARBE_PORE = (107, 154, 27)
+FARBE_VERWORFEN = (43, 114, 184)
+FARBE_ENTFERNT = (112, 51, 214)
+FARBE_AUFGENOMMEN = (153, 133, 12)
+
+
+@dataclass
+class Grundlage:
+    """Das rein automatische Ergebnis eines Bildes - einmal gerechnet, dann gehalten.
+
+    Alles, was sich durch eine Korrektur nicht aendert, steht fertig in ``fest``. Eine
+    Korrektur rechnet danach nur noch :func:`darstellen` - die Pipeline laeuft nicht
+    noch einmal.
+    """
+
+    bildpfad: Path
+    pipeline: PoreDetectionPipeline
+    ctx: PipelineContext
+    zoom: int
+    umrisse: dict[int, list]
+    fest: dict = field(default_factory=dict)
+
+
+def standard_konfiguration() -> AppConfig:
+    """Die Konfiguration der Vorschau: Standardwerte, Korrekturen im Projektordner."""
+    return AppConfig(corrections=CorrectionsConfig(directory=WURZEL / "data/korrekturen"))
+
+
+def rechnen(bildpfad: Path, cfg: AppConfig | None = None,
+            pipeline: PoreDetectionPipeline | None = None) -> Grundlage:
+    """Der teure Teil: das Bild durch die Pipeline schicken, **ohne** Korrekturen.
+
+    Fuer viele Bilder die ``pipeline`` mitgeben: sie laedt beim Anlegen die OCR, und
+    das soll einmal je Lauf geschehen, nicht einmal je Bild.
+    """
+    pipeline = pipeline or PoreDetectionPipeline(cfg or standard_konfiguration())
+    ctx = pipeline.analyse(bildpfad, corrections=[])
 
     gray = ctx.gray
     hoehe, breite = gray.shape
-    behalten_ids = [p.label for p in ctx.pores]
-    verworfen_ids = [r.pore.label for r in ctx.rejected]
-
-    labels = ctx.labels
-    lab_behalten = np.where(np.isin(labels, behalten_ids), labels, 0)
-    lab_verworfen = np.where(np.isin(labels, verworfen_ids), labels, 0)
-
     harz = ctx.resin if ctx.resin is not None else np.zeros(gray.shape, dtype=bool)
     ausschluss = ctx.excluded if ctx.excluded is not None else np.zeros(gray.shape, dtype=bool)
 
@@ -383,7 +458,6 @@ def auswerten(bildpfad: Path) -> dict:
     else:
         kontrollbild, kontrollmasse = None, None
 
-    # Farben in BGR, weil cv2 sie so schreibt. Sie entsprechen den Tokens im Stylesheet.
     zoom = zoom_fuer(breite)
     ebenen = {
         "original": _png(_gross(cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR), zoom)),
@@ -393,15 +467,99 @@ def auswerten(bildpfad: Path) -> dict:
         "harz": _png(_flaeche(harz, (214, 92, 124), 115, zoom)),
         "ausschluss": _png(_flaeche(ausschluss, (208, 111, 47), 115, zoom)),
         "kandidaten": _png(_konturen(ctx.candidates.astype(np.int32), (37, 193, 201), zoom)),
-        "poren": _png(_konturen(lab_behalten, (107, 154, 27), zoom, fuellung=70)),
-        "verworfen": _png(_konturen(lab_verworfen, (43, 114, 184), zoom, fuellung=50)),
     }
 
-    umrisse = _umrisse(labels)
+    fest = {
+        "bild": bildpfad.name,
+        # Steht im Kopf der Seite: so ist sofort zu sehen, ob der Browser noch eine
+        # alte Fassung anzeigt, statt dass man einem Fehler nachjagt, der behoben ist.
+        "erzeugt": datetime.now().strftime("%d.%m.%Y %H:%M:%S"),
+        "breite": breite, "hoehe": hoehe, "zoom": zoom,
+        "um_pro_px": ctx.um_per_px,
+        "massstab": None if ctx.scale is None else {
+            "um_pro_px": ctx.scale.um_per_px,
+            # Die gelesene Beschriftung und das, was daraus geworden ist: beides gehoert
+            # nebeneinander, sonst ist ein Faktor-zehn-Fehler der OCR nicht zu sehen.
+            "text": ctx.scale.label_text,
+            "beschriftung": _beschriftung(ctx.scale),
+            "aufloesung": _aufloesung(ctx.scale.um_per_px),
+            "wert_um": ctx.scale.value_um,
+            "einheit": ctx.scale.unit_text,
+            "balken_px": ctx.scale.bar_length_px,
+            "konfidenz": ctx.scale.confidence,
+            "engine": ctx.scale.engine,
+            "quelle": str(getattr(ctx.scale.source, "value", ctx.scale.source)),
+            "balken_box": _balkenkasten(ctx.scale.bar_box),
+            "warnungen": list(ctx.scale.warnings),
+            "ausschnitt": kontrollbild,
+            "ausschnitt_masse": kontrollmasse,
+        },
+        "verfahren": {"probe": pipeline.config.specimen.method,
+                      "poren": pipeline.config.pore.method},
+        "ebenen": ebenen,
+        # Ohne Server ist die Seite nur zum Ansehen - die Bearbeitung bleibt aus.
+        "server": False,
+    }
+    return Grundlage(bildpfad=bildpfad, pipeline=pipeline, ctx=ctx, zoom=zoom,
+                     umrisse=_umrisse(ctx.labels), fest=fest)
+
+
+def _korrigiert(g: Grundlage, korrekturen: list[manuell.PoreCorrection]) -> PipelineContext:
+    """Die Grundlage mit angewandten Korrekturen - ueber dieselbe Stufe wie im Stapellauf.
+
+    Die Ansicht zeigt damit genau das, was auch in CSV und Bericht landet.
+    """
+    ctx = copy.copy(g.ctx)
+    ctx.stages = dict(g.ctx.stages)
+    ctx.warnings = list(g.ctx.warnings)
+    ctx.extras = dict(g.ctx.extras)
+    g.pipeline._stage_corrections(ctx, korrekturen)
+    return ctx
+
+
+def darstellen(g: Grundlage, korrekturen: list[manuell.PoreCorrection]) -> dict:
+    """Der billige Teil: alles, was sich durch eine Korrektur aendert."""
+    ctx = _korrigiert(g, korrekturen)
+    ergebnis = g.pipeline._to_result(ctx, 0.0)
+
+    bericht = ctx.extras.get("korrekturen", {})
+    entfernt = set(bericht.get("entfernt", []))
+    aufgenommen = set(bericht.get("aufgenommen", []))
+    gezeichnet = set(bericht.get("gezeichnet", []))
+    # Eingezeichnete Poren gibt es in der Grundlage nicht - ihre Umrisse kommen dazu.
+    umrisse = g.umrisse
+    if gezeichnet:
+        umrisse = {**g.umrisse,
+                   **_umrisse(np.where(np.isin(ctx.labels, list(gezeichnet)), ctx.labels, 0))}
+
+    labels = ctx.labels
+    zoom = g.zoom
+    ids_behalten = [p.label for p in ctx.pores]
+    von_hand = aufgenommen | gezeichnet
+    ids_poren = [i for i in ids_behalten if i not in von_hand]
+    ids_verworfen = [r.pore.label for r in ctx.rejected if r.pore.label not in entfernt]
+
+    def _auswahl(ids) -> np.ndarray:
+        return np.where(np.isin(labels, list(ids)), labels, 0)
+
+    lab_behalten = _auswahl(ids_behalten)
+    # Von Hand geaenderte Poren bekommen eigene Ebenen: im Bild muss zu sehen sein,
+    # wo eingegriffen wurde, sonst ist das Ergebnis nicht mehr nachzuvollziehen.
+    ebenen = {
+        "poren": _png(_konturen(_auswahl(ids_poren), FARBE_PORE, zoom, fuellung=70)),
+        "verworfen": _png(_konturen(_auswahl(ids_verworfen), FARBE_VERWORFEN, zoom,
+                                    fuellung=50)),
+        "entfernt": _png(_konturen(_auswahl(entfernt), FARBE_ENTFERNT, zoom, fuellung=60)),
+        "aufgenommen": _png(_konturen(_auswahl(von_hand), FARBE_AUFGENOMMEN, zoom,
+                                      fuellung=70)),
+    }
 
     def _eintrag(p, status: str, grund: str | None) -> dict:
         return {
             "label": p.label, "status": status, "grund": grund,
+            "manuell": ("entfernt" if p.label in entfernt
+                        else "aufgenommen" if p.label in aufgenommen
+                        else "gezeichnet" if p.label in gezeichnet else None),
             "x": p.centroid_px[0], "y": p.centroid_px[1],
             "r": max(p.equivalent_diameter_px / 2.0, 1.0),
             # Der umschliessende Kasten, nicht nur Schwerpunkt und Radius: die Lupe
@@ -431,33 +589,10 @@ def auswerten(bildpfad: Path) -> dict:
 
     groesste = ergebnis.largest_pore
     return {
-        "bild": bildpfad.name,
-        # Steht im Kopf der Seite: so ist sofort zu sehen, ob der Browser noch eine
-        # alte Fassung anzeigt, statt dass man einem Fehler nachjagt, der behoben ist.
-        "erzeugt": datetime.now().strftime("%d.%m.%Y %H:%M:%S"),
-        "breite": breite, "hoehe": hoehe, "zoom": zoom,
-        "um_pro_px": ctx.um_per_px,
-        "massstab": None if ctx.scale is None else {
-            "um_pro_px": ctx.scale.um_per_px,
-            # Die gelesene Beschriftung und das, was daraus geworden ist: beides gehoert
-            # nebeneinander, sonst ist ein Faktor-zehn-Fehler der OCR nicht zu sehen.
-            "text": ctx.scale.label_text,
-            "wert_um": ctx.scale.value_um,
-            "einheit": ctx.scale.unit_text,
-            "balken_px": ctx.scale.bar_length_px,
-            "konfidenz": ctx.scale.confidence,
-            "engine": ctx.scale.engine,
-            "quelle": str(getattr(ctx.scale.source, "value", ctx.scale.source)),
-            "balken_box": _balkenkasten(ctx.scale.bar_box),
-            "warnungen": list(ctx.scale.warnings),
-            "ausschnitt": kontrollbild,
-            "ausschnitt_masse": kontrollmasse,
-        },
-        "verfahren": {"probe": cfg.specimen.method, "poren": cfg.pore.method},
         "stufen": dict(ctx.stages),
         "warnungen": list(ctx.warnings),
         "kennzahlen": {
-            "kandidaten": int(labels.max()),
+            "kandidaten": int(g.ctx.labels.max()),
             "behalten": len(ctx.pores),
             "verworfen": len(ctx.rejected),
             "porositaet": ergebnis.porosity_pct,
@@ -468,6 +603,11 @@ def auswerten(bildpfad: Path) -> dict:
             "groesste_um": None if groesste is None else groesste.equivalent_diameter_um,
             "groesste_px": None if groesste is None else groesste.equivalent_diameter_px,
         },
+        "korrekturen": {
+            "entfernt": len(entfernt), "aufgenommen": len(aufgenommen),
+            "gezeichnet": len(gezeichnet),
+            "ohne_treffer": len(bericht.get("ohne_treffer", [])),
+        },
         "ebenen": ebenen,
         "poren": poren,
         "histogramm": histogramm,
@@ -476,16 +616,114 @@ def auswerten(bildpfad: Path) -> dict:
     }
 
 
+def ansicht(g: Grundlage, korrekturen: list[manuell.PoreCorrection]) -> dict:
+    """Die vollstaendigen Seitendaten: der feste und der veraenderliche Teil."""
+    dynamisch = darstellen(g, korrekturen)
+    daten = {**g.fest, **dynamisch}
+    daten["ebenen"] = {**g.fest["ebenen"], **dynamisch["ebenen"]}
+    return daten
+
+
+class Sitzung:
+    """Ein Bild in Bearbeitung: Grundlage, aktuelle Korrekturen, Verlauf, Ablage.
+
+    Die Oberflaeche spricht nur mit dieser Klasse - ob ueber den lokalen Server aus
+    ``gui_server.py`` oder spaeter ueber die FastAPI-Oberflaeche aus P5, ist ihr gleich.
+    Jede Aenderung wird sofort gespeichert; es gibt keinen ungesicherten Zustand.
+    ``bei_aenderung`` wird danach aufgerufen - so haelt der Stapel seine Ergebnisdateien
+    aktuell, ohne dass die Sitzung von ihnen weiss.
+    """
+
+    def __init__(self, grundlage: Grundlage,
+                 bei_aenderung: Callable[[Sitzung], None] | None = None) -> None:
+        self.g = grundlage
+        self.ablage = manuell.CorrectionStore(
+            grundlage.pipeline.config.corrections.directory)
+        self.korrekturen = self.ablage.load(grundlage.bildpfad)
+        self._verlauf: list[list[manuell.PoreCorrection]] = []
+        self._bei_aenderung = bei_aenderung
+
+    def ansicht(self) -> dict:
+        return ansicht(self.g, self.korrekturen)
+
+    def ergebnis(self) -> ImageResult:
+        """Das Ergebnis mit den aktuellen Korrekturen - so, wie es exportiert wird."""
+        return self.g.pipeline._to_result(_korrigiert(self.g, self.korrekturen), 0.0)
+
+    def plus(self, label: int) -> dict:
+        """Werkzeug "+": die Pore zaehlen, auch wenn ein Filter sie verworfen hat."""
+        return self._zaehlen(label, True)
+
+    def minus(self, label: int) -> dict:
+        """Werkzeug "-": die Pore nicht zaehlen. Eine eingezeichnete wird geloescht."""
+        gezeichnet = _korrigiert(self.g, self.korrekturen).extras.get(
+            "korrekturen_gezeichnet", {})
+        if label in gezeichnet:
+            index = gezeichnet[label]
+            return self._setzen(self.korrekturen[:index] + self.korrekturen[index + 1:])
+        return self._zaehlen(label, False)
+
+    def zeichnen(self, punkte: list[list[float]]) -> dict:
+        """Werkzeug "Zeichnen": der Umriss wird als neue Pore gezaehlt."""
+        try:
+            neu = manuell.PoreCorrection.drawn(punkte)
+        except ValueError:
+            return darstellen(self.g, self.korrekturen)
+        return self._setzen([*self.korrekturen, neu])
+
+    def _zaehlen(self, label: int, gezaehlt: bool) -> dict:
+        """Gespeichert wird nicht das Label, sondern ein Punkt tief im Inneren der Pore -
+        das Label gilt nur fuer diesen einen Rechenlauf."""
+        basis = self.g.ctx
+        punkt = manuell.interior_point(basis.labels, label)
+        if punkt is None:
+            return darstellen(self.g, self.korrekturen)
+        neu = manuell.set_counted(basis.pores, basis.rejected, basis.labels,
+                                  self.korrekturen, *punkt, counted=gezaehlt)
+        return self._setzen(neu)
+
+    def rueckgaengig(self) -> dict:
+        if not self._verlauf:
+            return darstellen(self.g, self.korrekturen)
+        self.korrekturen = self._verlauf.pop()
+        self._gespeichert()
+        return darstellen(self.g, self.korrekturen)
+
+    def zuruecksetzen(self) -> dict:
+        return self._setzen([])
+
+    def _setzen(self, neu: list[manuell.PoreCorrection]) -> dict:
+        if neu != self.korrekturen:
+            self._verlauf.append(self.korrekturen)
+            self.korrekturen = neu
+            self._gespeichert()
+        return darstellen(self.g, self.korrekturen)
+
+    def _gespeichert(self) -> None:
+        self.ablage.save(self.g.bildpfad, self.korrekturen)
+        if self._bei_aenderung is not None:
+            self._bei_aenderung(self)
+
+
+def auswerten(bildpfad: Path) -> dict:
+    """Ein Bild auswerten, mit den gespeicherten Korrekturen - fuer die statische Seite."""
+    return Sitzung(rechnen(bildpfad)).ansicht()
+
+
 # --------------------------------------------------------------------------------------
 # Seite schreiben
 # --------------------------------------------------------------------------------------
 
 
-def schreiben(daten: dict, ziel: Path) -> Path:
+def seite_bauen(daten: dict) -> str:
+    """Die Vorlage mit den Daten fuellen - fuer die Datei wie fuer den Server."""
     vorlage = (Path(__file__).parent / "gui_vorlage.html").read_text(encoding="utf-8")
-    seite = vorlage.replace("__DATEN__", json.dumps(daten, ensure_ascii=False))
+    return vorlage.replace("__DATEN__", json.dumps(daten, ensure_ascii=False))
+
+
+def schreiben(daten: dict, ziel: Path) -> Path:
     ziel.parent.mkdir(parents=True, exist_ok=True)
-    ziel.write_text(seite, encoding="utf-8")
+    ziel.write_text(seite_bauen(daten), encoding="utf-8")
     return ziel
 
 
@@ -523,6 +761,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("-o", "--out", type=Path, default=WURZEL / "data/runs/gui/index.html")
     parser.add_argument("--nicht-oeffnen", action="store_true",
                         help="Die Seite nur schreiben, nicht im Browser anzeigen")
+    parser.add_argument("--server", action="store_true",
+                        help="Ueber einen lokalen Server starten - Poren lassen sich dann "
+                             "im Bild entfernen und wieder aufnehmen")
+    parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args(argv)
 
     if args.bild is not None:
@@ -534,6 +776,18 @@ def main(argv: list[str] | None = None) -> int:
         bild = bild_waehlen(args.ordner)
         if bild is None:
             return 2
+
+    if args.server:
+        # Erst hier importiert: die statische Seite soll ohne FastAPI auskommen.
+        import gui_server
+        from stapel import Mappe
+
+        mappe = Mappe(bild.parent)
+        ergebnis = mappe.aufnehmen(bild)
+        print(f"{bild.name}: {ergebnis.pore_count} Poren, {len(ergebnis.rejected)} verworfen")
+        gui_server.starten(lambda: mappe, seite_bauen, port=args.port,
+                           oeffnen=not args.nicht_oeffnen)
+        return 0
 
     daten = auswerten(bild)
     ziel = schreiben(daten, args.out)
