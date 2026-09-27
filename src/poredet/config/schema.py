@@ -479,6 +479,43 @@ class LocalContrastConfig(_Strict):
         description="Harte Untergrenze in Graustufen. Was sich weniger vom Untergrund "
                     "abhebt, ist Rauschen - unabhängig davon, was die Schwelle sagt.",
     )
+    strict_floor: float = Field(
+        40.0, ge=0,
+        description="Absolute Untergrenze NUR der strengen Schwelle, in Graustufen "
+                    "Kontrast. 0 = aus. Die strenge Schwelle wird aus dem Bild selbst "
+                    "bestimmt; auf einem Bild ohne Poren beschreibt sie nur das Rauschen "
+                    "des Gefüges und rutscht so tief, dass Gefügesprenkel als Poren "
+                    "durchgehen. Die Untergrenze hält sie oben. 40 aus dem Benchmark: "
+                    "an einer Stichprobe erreichen 98 % der echten Poren diesen Kontrast, "
+                    "aber nur 70 % der Fehlfunde; an den ersten 50 Benchmarkbildern "
+                    "halbierten sich die Fehlfunde ohne eine verlorene Pore.",
+    )
+    presmooth_sigma_px: float = Field(
+        0.0, ge=0,
+        description="Gauß-Glättung des Kontrastbilds für die GROBE Suche (ob und wo eine "
+                    "Pore ist). 0 = aus. Höchstens etwa so groß wie die kleinste gesuchte "
+                    "Pore, sonst verschwinden echte kleine Poren mit. Der Rand wird bei "
+                    "extent_method 'half_max' auf dem ungeglätteten Bild bestimmt.",
+    )
+    extent_method: str = Field(
+        "global", pattern="^(global|half_max)$",
+        description="Wie weit eine erkannte Pore reicht. 'global': lockere Schwelle für "
+                    "das ganze Bild (strenge Schwelle mal grow_factor). 'half_max': je "
+                    "Pore aus ihr selbst - der Rand liegt dort, wo der Kontrast den "
+                    "Anteil half_max_fraction des Wegs vom lokalen Untergrund zum "
+                    "dunkelsten Punkt der Pore erreicht. Tiefe Poren bekommen damit "
+                    "keinen aufgeblähten Saum mehr.",
+    )
+    half_max_fraction: float = Field(
+        0.5, gt=0, lt=1.0,
+        description="Lage des Rands zwischen Untergrund (0) und Porenkern (1). 0,5 ist "
+                    "das übliche Kriterium für eine unscharfe Kante.",
+    )
+    half_max_ring_px: int = Field(
+        3, ge=1,
+        description="Breite des Rings um die Pore, in dem der lokale Untergrund gemessen "
+                    "wird.",
+    )
 
 
 class ThresholdConfig(_Strict):

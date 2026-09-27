@@ -49,7 +49,8 @@ sys.path.insert(0, str(WURZEL / "src"))
 
 from poredet.analysis import spatial  # noqa: E402
 from poredet.analysis import corrections as manuell  # noqa: E402
-from poredet.config.schema import AppConfig, CorrectionsConfig  # noqa: E402
+from poredet.config.loader import load_config  # noqa: E402
+from poredet.config.schema import AppConfig  # noqa: E402
 from poredet.core.context import PipelineContext  # noqa: E402
 from poredet.core.models import ImageResult  # noqa: E402
 from poredet.core.pipeline import PoreDetectionPipeline  # noqa: E402
@@ -429,8 +430,8 @@ class Grundlage:
 
 
 def standard_konfiguration() -> AppConfig:
-    """Die Konfiguration der Vorschau: Standardwerte, Korrekturen im Projektordner."""
-    return AppConfig(corrections=CorrectionsConfig(directory=WURZEL / "data/korrekturen"))
+    """Die Konfiguration der Vorschau: die globale Einstellungsdatei."""
+    return load_config()
 
 
 def rechnen(bildpfad: Path, cfg: AppConfig | None = None,

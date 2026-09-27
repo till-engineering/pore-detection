@@ -45,6 +45,7 @@ import numpy as np
 
 from ..analysis import FilterContext, apply as apply_filters
 from ..analysis import corrections as manual
+from ..config.loader import load_config
 from ..config.schema import AppConfig
 from ..detection import contrast_image, estimate_background, get_detector
 from ..detection import merge as detection_merge
@@ -63,7 +64,7 @@ class PoreDetectionPipeline:
     """Wertet einzelne Bilder oder ganze Ordner aus."""
 
     def __init__(self, config: AppConfig | None = None) -> None:
-        self.config = config or AppConfig()
+        self.config = config or load_config()
         self.scale_resolver = ScaleResolver(self.config.scale)
         self.detector = get_detector(self.config.pore.method)
 

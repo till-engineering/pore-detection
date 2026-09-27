@@ -31,6 +31,7 @@ from collections.abc import Callable
 
 import numpy as np
 
+from ..config.loader import load_config
 from ..config.schema import SpecimenConfig
 from .base import SpecimenMask, SpecimenSegmenter
 from .boundary_path import BoundaryPathSegmenter
@@ -97,7 +98,7 @@ def segment(
     Farbkanäle schätzt; alle anderen rechnen auf Helligkeit und Textur. Wer ein Farbbild
     zur Hand hat, sollte es übergeben - es kostet nichts und kann nur helfen.
     """
-    cfg = cfg or SpecimenConfig()
+    cfg = cfg or load_config().specimen
     segmenter = get_segmenter(cfg.method)
     if color is not None and getattr(segmenter, "uses_color", False):
         return segmenter.segment_color(gray, color, cfg)

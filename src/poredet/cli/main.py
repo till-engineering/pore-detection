@@ -19,7 +19,7 @@ from pathlib import Path
 import numpy as np
 
 from .. import __version__
-from ..config.schema import ScaleConfig
+from ..config.loader import load_config
 from ..core.models import BatchResult
 from ..io.image_reader import ImageReadError, find_images, read_image
 from ..io.metadata import read_imagej_calibration
@@ -108,6 +108,16 @@ def build_parser() -> argparse.ArgumentParser:
                      help="grabcut (Standard) | lasso | random_walker | watershed | ...")
     run.set_defaults(func=cmd_run)
 
+    config = sub.add_parser(
+        "config",
+        help="Globale Einstellungen: Pfad und Stand anzeigen, auf Standard zuruecksetzen",
+        description="Die Einstellungen stehen in config/einstellungen.yaml. Ohne Option "
+                    "wird angezeigt, welche Datei gilt und ob sie vom Standard abweicht.",
+    )
+    config.add_argument("--reset", action="store_true",
+                        help="einstellungen.yaml durch die Vorlage default.yaml ersetzen")
+    config.set_defaults(func=cmd_config)
+
     return parser
 
 
@@ -126,7 +136,7 @@ def cmd_scale(args: argparse.Namespace) -> int:
         print(f"Keine Bilder unter {args.input}", file=sys.stderr)
         return 2
 
-    resolver = ScaleResolver(ScaleConfig())
+    resolver = ScaleResolver(load_config().scale)
     entries: list[SheetEntry] = []
     records: list[dict] = []
 
@@ -218,7 +228,6 @@ def cmd_scale(args: argparse.Namespace) -> int:
 def cmd_specimen(args: argparse.Namespace) -> int:
     import cv2
 
-    from ..config.schema import SpecimenConfig
     from ..specimen import get_segmenter
     from ..specimen.visualize import SheetEntry as SpecimenEntry
     from ..specimen.visualize import contact_sheet as specimen_sheet
@@ -232,7 +241,9 @@ def cmd_specimen(args: argparse.Namespace) -> int:
         print(f"Keine Bilder unter {args.input}", file=sys.stderr)
         return 2
 
-    cfg = SpecimenConfig(**({"method": args.method} if args.method else {}))
+    cfg = load_config().specimen
+    if args.method:
+        cfg = cfg.model_copy(update={"method": args.method})
     try:
         segmenter = get_segmenter(cfg.method)
     except KeyError as exc:
@@ -313,7 +324,6 @@ def cmd_specimen(args: argparse.Namespace) -> int:
 def cmd_specimen_compare(args: argparse.Namespace) -> int:
     import time
 
-    from ..config.schema import SpecimenConfig
     from ..specimen import COMPARISON_METHODS, get_segmenter
     from ..specimen import signals as sig
     from ..specimen.visualize import ComparisonRow, comparison_sheet
@@ -337,7 +347,7 @@ def cmd_specimen_compare(args: argparse.Namespace) -> int:
         print(f"Fehler: {exc}", file=sys.stderr)
         return 2
 
-    cfg = SpecimenConfig()
+    cfg = load_config().specimen
     rows: list[ComparisonRow] = []
     records: list[dict] = []
     seconds = dict.fromkeys(methods, 0.0)
@@ -408,18 +418,18 @@ def cmd_specimen_compare(args: argparse.Namespace) -> int:
 
 
 def cmd_run(args: argparse.Namespace) -> int:
-    from ..config.schema import AppConfig, PoreConfig, SpecimenConfig
     from ..core.pipeline import PoreDetectionPipeline
     from ..detection.visualize import SheetEntry as PoreEntry
     from ..detection.visualize import contact_sheet as pore_sheet
     from ..io.exporters import csv_export, json_export
 
-    overrides: dict = {}
+    cfg = load_config()
     if args.pore_method:
-        overrides["pore"] = PoreConfig(method=args.pore_method)
+        cfg = cfg.model_copy(update={"pore": cfg.pore.model_copy(
+            update={"method": args.pore_method})})
     if args.specimen_method:
-        overrides["specimen"] = SpecimenConfig(method=args.specimen_method)
-    cfg = AppConfig(**overrides)
+        cfg = cfg.model_copy(update={"specimen": cfg.specimen.model_copy(
+            update={"method": args.specimen_method})})
 
     try:
         pipeline = PoreDetectionPipeline(cfg)
@@ -514,6 +524,32 @@ def cmd_run(args: argparse.Namespace) -> int:
 
 
 # --------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------
+# config - die globale Einstellungsdatei
+# --------------------------------------------------------------------------------------
+
+
+def cmd_config(args: argparse.Namespace) -> int:
+    import yaml
+
+    from ..config.loader import DEFAULT_PATH, reset_settings, settings_path
+
+    if args.reset:
+        print(f"Auf Standard zurueckgesetzt: {reset_settings()}")
+        return 0
+
+    path = settings_path()
+    print(f"Einstellungsdatei: {path}")
+    try:
+        cfg = load_config(path)
+    except (ValueError, yaml.YAMLError) as exc:  # ValidationError ist ein ValueError
+        print(f"Fehler in der Einstellungsdatei: {exc}", file=sys.stderr)
+        return 2
+    standard = cfg == load_config(DEFAULT_PATH)
+    print("Stand: Standardwerte" if standard else "Stand: weicht vom Standard ab")
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:

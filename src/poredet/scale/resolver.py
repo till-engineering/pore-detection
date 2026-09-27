@@ -22,6 +22,7 @@ from pathlib import Path
 
 import numpy as np
 
+from ..config.loader import load_config
 from ..config.schema import ScaleConfig
 from ..core.models import ScaleInfo, ScaleSource
 from ..core.units import ParsedLength, parse_length
@@ -59,7 +60,7 @@ class ScaleResolver:
         cfg: ScaleConfig | None = None,
         detectors: list[ScaleDetector] | None = None,
     ) -> None:
-        self.cfg = cfg or ScaleConfig()
+        self.cfg = cfg or load_config().scale
         # Reihenfolge ist hier belanglos - die Kandidaten aller Detektoren werden
         # gemeinsam nach geometry_score sortiert. Die beiden schließen sich ohnehin
         # gegenseitig aus: split_box lässt jeden Balken liegen, der von Weiß

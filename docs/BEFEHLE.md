@@ -69,6 +69,31 @@ beim Blättern neu, das jeweils nächste schon im Hintergrund.
 
 ---
 
+## Einstellungen — `config/einstellungen.yaml`
+
+Alle Einstellungen stehen in **`config/einstellungen.yaml`**, jeder Wert mit kurzer
+Erklärung daneben. Die Datei wird bei jedem Lauf gelesen (`run`, `scale`, `specimen`,
+Startfenster, `gui_vorschau.py`); ein laufender Server braucht einen Neustart.
+`config/default.yaml` ist die unveränderte Vorlage mit den Standardwerten.
+
+Zurück auf Standard:
+
+```powershell
+# Variante 1: in einstellungen.yaml   standardwerte_verwenden: true
+#             -> eigene Werte bleiben stehen, werden aber ignoriert
+# Variante 2: Datei durch die Vorlage ersetzen
+python -m poredet config --reset
+
+# Welche Datei gilt, weicht sie vom Standard ab?
+python -m poredet config
+```
+
+Eine andere Einstellungsdatei für einen Vergleichslauf: `$env:POREDET_CONFIG = "pfad.yaml"`.
+`--pore-method` / `--specimen-method` bei `run` überschreiben nur das Verfahren, alle
+übrigen Werte kommen weiter aus der Datei.
+
+---
+
 ## 1. Die vollständige Pipeline — `run`
 
 Das ist der Befehl, der alles zusammen laufen lässt.

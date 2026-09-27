@@ -18,3 +18,8 @@ data/cache/
 # Lokale Arbeitsdaten - Korrekturen und Einstellungen des Startfensters
 data/korrekturen/
 data/start_einstellungen.json
+
+# Bilddaten bleiben lokal - bereits eingecheckte Bilder sind davon nicht betroffen
+test/Benchmark/
+*.tif
+*.tiff
