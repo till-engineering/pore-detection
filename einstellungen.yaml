@@ -5,6 +5,11 @@
 #  Lauf starten - fertig. Jeder Wert, den das Programm braucht, steht hier; fehlt einer,
 #  nennt die Fehlermeldung seinen Namen.
 #
+#  Das ist der STANDARD. Was im Viewer (Menü Einstellungen) verstellt wird, landet als
+#  Abweichung in einstellungen_eigene.yaml und wird über diese Datei gelegt. Diese Datei
+#  schreibt das Programm nie. Die Kommentare hier sind zugleich die Hilfetexte im Menü;
+#  "a | b | c" am Anfang eines Kommentars wird dort zur Auswahlliste.
+#
 #  Wo wird was benutzt?
 #    scale      -> poren/massstab/       specimen   -> poren/einbettmittel/
 #    pore       -> poren/detektion/      analysis   -> poren/filter.py
@@ -209,6 +214,7 @@ analysis:
     # zuschaltbar
     - {name: aspect_ratio, enabled: false, params: {max_aspect_ratio: 8.0}}
     - {name: edge,         enabled: false, params: {image_edge: 1.0, specimen_edge: 0.0}}  # angeschnittene Poren verwerfen (1 = an)
+    - {name: edge_distance, enabled: false, params: {min_distance_px: 10.0}}  # Poren naeher als N px am Probenrand verwerfen
     - {name: circularity,  enabled: false, params: {min_circularity: 0.3}}
     - {name: solidity,     enabled: false, params: {min_solidity: 0.6}}
     - {name: contrast,     enabled: false, params: {min_contrast: 15.0}}
@@ -218,4 +224,4 @@ analysis:
 # --------------------------------------------------------------------------------------
 corrections:
   enabled: true                    # gespeicherte Korrekturen anwenden (false = rein automatisch)
-  # Gespeichert wird im Zielordner unter korrekturen/ - je Bild eine JSON-Datei.
+  # Gespeichert wird im Zielordner im Ordner des Bildes - je Bild eine JSON-Datei.

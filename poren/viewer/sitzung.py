@@ -242,6 +242,8 @@ def _fest(bildpfad: Path, pipeline: Pipeline, ctx: PipelineContext) -> dict:
     return {
         "bild": bildpfad.name,
         "erzeugt": datetime.now().strftime("%d.%m.%Y %H:%M:%S"),
+        # Für die Bildadressen: nach "Bild neu laden" holt der Browser neue Ebenen.
+        "version": datetime.now().strftime("%Y%m%d%H%M%S%f"),
         "breite": breite, "hoehe": ctx.height,
         "zoom": max(1, min(6, round(ZIEL_BREITE / max(breite, 1)))),
         "um_pro_px": ctx.um_per_px,
@@ -402,10 +404,10 @@ class Sitzung:
     so hält der Stapel seine Ergebnisdateien aktuell.
     """
 
-    def __init__(self, grundlage: Grundlage,
+    def __init__(self, grundlage: Grundlage, ablage: manuell.CorrectionStore,
                  bei_aenderung: Callable[[Sitzung], None] | None = None) -> None:
         self.g = grundlage
-        self.ablage = manuell.CorrectionStore(grundlage.pipeline.config.corrections.directory)
+        self.ablage = ablage
         self.korrekturen = self.ablage.load(grundlage.bildpfad)
         self._verlauf: list[list[manuell.PoreCorrection]] = []
         self._bei_aenderung = bei_aenderung

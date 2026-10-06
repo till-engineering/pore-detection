@@ -53,6 +53,13 @@ def available() -> list[str]:
     return sorted(_FILTERS)
 
 
+def beschreibung(name: str) -> str:
+    """Erster Absatz der Filterbeschreibung - für das Einstellungsmenü im Viewer."""
+    fn = _FILTERS.get(name)
+    text = (fn.__doc__ or "").strip() if fn else ""
+    return " ".join(text.split("\n\n", 1)[0].split())
+
+
 # --------------------------------------------------------------------------------------
 # Die mitgelieferten Filter
 # --------------------------------------------------------------------------------------
@@ -341,6 +348,23 @@ def _compactness(pore: Pore, ctx: FilterContext, params: dict[str, float]) -> st
     grenze = params.get("min_solidity", 0.0)
     if pore.solidity < grenze:
         return f"Solidität {pore.solidity:.2f} unter {grenze:g}"
+    return None
+
+
+@register("edge_distance")
+def _edge_distance(pore: Pore, ctx: FilterContext, params: dict[str, float]) -> str | None:
+    """Poren in einem Streifen fester Breite entlang des Probenrands verwerfen.
+
+    Anders als ``edge`` mit ``specimen_edge`` reicht hier schon die Nähe zum Rand: dort
+    häufen sich Ausbrüche und die dunkle Kantenabrundung der Präparation. Die
+    Probenfläche bleibt dabei unverändert - im Gegensatz zu ``erode_border_px``.
+    """
+    abstand = pore.specimen_edge_distance_px
+    if abstand is None:
+        return None
+    grenze = params.get("min_distance_px", 0.0)
+    if abstand < grenze:
+        return f"{abstand:.0f} px vom Probenrand, unter {grenze:g} px"
     return None
 
 

@@ -8,6 +8,8 @@ Die Seite (``seite.html``) wird einmal geladen und holt sich dann alles einzeln:
     GET  /api/bild/<n>/ebene/<name>.png  eine Bildebene (original, untergrund, kontrast,
                                          harz, ausschluss, kandidaten)
     POST /api/bild/<n>/<aktion>          plus | minus | zeichnen | rueckgaengig | zuruecksetzen
+    GET  /api/einstellungen              geltende Werte, Standard, Hilfetexte, Auswahllisten
+    POST /api/bild/<n>/neu_laden         Einstellungen speichern, Pipeline neu, Bild neu rechnen
 
 Gerechnet wird ausschließlich in Python; der Browser zeichnet nur.
 """
@@ -29,6 +31,36 @@ SEITE = Path(__file__).with_name("seite.html")
 _BILD = re.compile(r"^/api/bild/(\d+)$")
 _EBENE = re.compile(r"^/api/bild/(\d+)/ebene/(\w+)\.png$")
 _AKTION = re.compile(r"^/api/bild/(\d+)/(plus|minus|zeichnen|rueckgaengig|zuruecksetzen)$")
+_NEU_LADEN = re.compile(r"^/api/bild/(\d+)/neu_laden$")
+
+
+def _einstellungen() -> dict:
+    """Alles, was das Einstellungsmenü braucht."""
+    from .. import einstellungen as einst
+    from .. import filter as filtermodul
+
+    hilfe, auswahl = einst.hilfen()
+    standard = einst.standard()
+    for f in standard.get("analysis", {}).get("filters", []):
+        schluessel = f"analysis.filters.{f['name']}"
+        teile = [filtermodul.beschreibung(f["name"]), hilfe.get(schluessel, "")]
+        hilfe[schluessel] = "\n".join(t for t in teile if t)
+    return {"werte": einst.roh(), "standard": standard, "hilfe": hilfe, "auswahl": auswahl,
+            "ganzzahl": _ganzzahlig(standard),
+            "eigene_datei": einst.EIGENE.name, "eigene_vorhanden": einst.EIGENE.is_file()}
+
+
+def _ganzzahlig(wert, pfad: str = "") -> list[str]:
+    """Schlüssel der Werte, die im Standard ganze Zahlen sind - der Browser kann 4 und
+    4.0 nicht unterscheiden. Filter stehen unter ihrem Namen, nicht ihrer Position."""
+    if isinstance(wert, dict):
+        return [s for k, v in wert.items() for s in _ganzzahlig(v, f"{pfad}.{k}" if pfad else k)]
+    if isinstance(wert, list):
+        return [s for v in wert if isinstance(v, dict) and "name" in v
+                for s in _ganzzahlig(v, f"{pfad}.{v['name']}")]
+    if isinstance(wert, int) and not isinstance(wert, bool):
+        return [pfad]
+    return []
 
 
 def _handler(quelle: Callable[[], object]) -> type[BaseHTTPRequestHandler]:
@@ -74,6 +106,8 @@ def _handler(quelle: Callable[[], object]) -> type[BaseHTTPRequestHandler]:
             try:
                 if pfad in ("/", "/index.html"):
                     self._senden(200, SEITE.read_bytes(), "text/html; charset=utf-8")
+                elif pfad == "/api/einstellungen":
+                    self._json(_einstellungen())
                 elif pfad == "/api/stapel":
                     mappe = self._mappe()
                     self._json({"anzahl": mappe.anzahl(), "kennung": mappe.kennung,
@@ -101,13 +135,16 @@ def _handler(quelle: Callable[[], object]) -> type[BaseHTTPRequestHandler]:
         # -- POST ----------------------------------------------------------------------
 
         def do_POST(self) -> None:
-            m = _AKTION.match(self.path.split("?", 1)[0])
+            pfad = self.path.split("?", 1)[0]
+            if m := _NEU_LADEN.match(pfad):
+                self._neu_laden(int(m.group(1)))
+                return
+            m = _AKTION.match(pfad)
             if not m:
                 self._fehler(404, "Nicht gefunden")
                 return
             try:
-                laenge = int(self.headers.get("Content-Length") or 0)
-                koerper = json.loads(self.rfile.read(laenge) or b"{}")
+                koerper = self._koerper()
                 index, aktion = int(m.group(1)), m.group(2)
                 with sperre:
                     sitzung = self._mappe(index).sitzung(index)
@@ -121,6 +158,24 @@ def _handler(quelle: Callable[[], object]) -> type[BaseHTTPRequestHandler]:
             except LookupError as exc:
                 self._fehler(404, str(exc))
             except Exception as exc:  # noqa: BLE001
+                traceback.print_exc()
+                self._fehler(500, f"{type(exc).__name__}: {exc}")
+
+        def _koerper(self) -> dict:
+            laenge = int(self.headers.get("Content-Length") or 0)
+            return json.loads(self.rfile.read(laenge) or b"{}")
+
+        def _neu_laden(self, index: int) -> None:
+            """Knopf "Bild neu laden": Einstellungen speichern, Pipeline neu aufbauen und
+            dieses Bild neu rechnen. Danach holt die Seite das Bild wie gewohnt."""
+            try:
+                werte = self._koerper().get("werte")
+                with sperre:
+                    aenderungen = self._mappe(index).neu_laden(index, werte)
+                self._json({"aenderungen": aenderungen})
+            except LookupError as exc:
+                self._fehler(404, str(exc))
+            except Exception as exc:  # noqa: BLE001 - der Grund gehört ins Menü
                 traceback.print_exc()
                 self._fehler(500, f"{type(exc).__name__}: {exc}")
 

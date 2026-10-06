@@ -2,13 +2,15 @@
 
 Einlesepfad und Zielpfad waehlen, Start druecken: alle Bilder des Ordners werden
 ausgewertet, die Ergebnisse landen im Zielordner (``poren.csv``, ``bilder.csv``,
-``verworfen.csv`` und je Bild ``<name>_ergebnis.png`` - links das Original, rechts mit
-den gezaehlten Poren in Rot). Ist "Viewer starten" angehakt, oeffnet sich nach dem Lauf
-der Viewer im Browser - dort laesst sich zwischen den Bildern blaettern und jede Pore
-von Hand korrigieren. Korrekturen im Viewer schreiben die Dateien im Zielordner sofort
+``verworfen.csv``, ``einstellungen_log.txt`` und je Bild ein Ordner ``<name>/`` mit
+Ergebnisbild, Tabellen, Einstellungen und Log). Ist "Viewer starten" angehakt, oeffnet
+sich nach dem Lauf der Viewer im Browser - dort laesst sich zwischen den Bildern
+blaettern, jede Pore von Hand korrigieren und ueber das Menue "Einstellungen" jeder
+Parameter verstellen. Korrekturen im Viewer schreiben die Dateien im Zielordner sofort
 nach.
 
-Alle Parameter stehen in ``einstellungen.yaml``.
+Alle Parameter stehen in ``einstellungen.yaml`` (Standard); Abweichungen aus dem Viewer
+in ``einstellungen_eigene.yaml``.
 
 Tkinter statt einer weiteren Weboberflaeche: es gehoert zu Python, braucht nichts
 Zusaetzliches und startet sofort. Die schweren Bibliotheken (OpenCV, OCR, ...) werden

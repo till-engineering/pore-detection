@@ -309,8 +309,10 @@ class CorrectionStore:
     ersetzt wurde, soll nicht die Korrekturen seines Vorgängers erben.
     """
 
-    def __init__(self, directory: str | Path) -> None:
+    def __init__(self, directory: str | Path, alt: str | Path | None = None) -> None:
         self.directory = Path(directory)
+        # Früherer Ablageort - wird nur gelesen, solange es am neuen Ort nichts gibt.
+        self.alt = None if alt is None else Path(alt)
 
     def path_for(self, image_path: str | Path) -> Path:
         image_path = Path(image_path)
@@ -318,6 +320,8 @@ class CorrectionStore:
 
     def load(self, image_path: str | Path) -> list[PoreCorrection]:
         pfad = self.path_for(image_path)
+        if not pfad.is_file() and self.alt is not None:
+            pfad = CorrectionStore(self.alt).path_for(image_path)
         if not pfad.is_file():
             return []
         daten = json.loads(pfad.read_text(encoding="utf-8"))

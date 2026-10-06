@@ -1,9 +1,15 @@
 """Was im Zielordner landet: CSV-Tabellen und je Bild ein Ergebnisbild.
 
+Im Zielordner, über alle Bilder:
+
 * ``poren.csv``      eine Zeile je gezählter Pore (Rohmessung)
 * ``bilder.csv``     eine Zeile je Bild (Porosität, Porenzahl, Maßstab, ...)
 * ``verworfen.csv``  eine Zeile je verworfenem Objekt, mit Grund
+
+Je Bild im Unterordner ``<bild>/`` (:func:`write_bild`):
+
 * ``<bild>_ergebnis.png``  links das Original, rechts dasselbe mit den gezählten Poren rot
+* ``poren.csv``, ``kennzahlen.csv``, ``verworfen.csv``  dieselben Tabellen nur für dieses Bild
 
 Geschrieben wird mit Semikolon und Dezimalkomma - so öffnet Excel auf einem deutschen
 System die Datei ohne Nachfrage und ohne dass aus "1.5" ein Datum wird.
@@ -18,7 +24,7 @@ import cv2
 import numpy as np
 
 from .filter import roundness
-from .modelle import BatchResult
+from .modelle import BatchResult, ImageResult
 
 PORE_COLUMNS = [
     "bild", "label", "flaeche_px", "flaeche_um2", "aequivalentdurchmesser_px",
@@ -26,6 +32,7 @@ PORE_COLUMNS = [
     "hauptachse_px", "nebenachse_px", "rundheit", "seitenverhaeltnis", "soliditaet",
     "exzentrizitaet", "orientierung_grad", "schwerpunkt_x_px", "schwerpunkt_y_px",
     "grauwert_mittel", "grauwert_min", "kontrast", "am_bildrand", "am_probenrand",
+    "abstand_probenrand_px",
 ]
 
 IMAGE_COLUMNS = [
@@ -56,6 +63,7 @@ def write_pores(batch: BatchResult, path: str | Path) -> Path:
                     _num(pore.centroid_px[0]), _num(pore.centroid_px[1]),
                     _num(pore.mean_intensity), _num(pore.min_intensity), _num(pore.contrast),
                     _bool(pore.touches_image_edge), _bool(pore.touches_specimen_edge),
+                    _num(pore.specimen_edge_distance_px),
                 ])
     return path
 
@@ -132,6 +140,15 @@ def write_all(batch: BatchResult, directory: str | Path) -> tuple[Path, Path, Pa
         write_images(batch, directory / "bilder.csv"),
         write_rejected(batch, directory / "verworfen.csv"),
     )
+
+
+def write_bild(ordner: str | Path, result: ImageResult) -> None:
+    """Die Tabellen eines einzelnen Bildes in seinen Ordner."""
+    ordner = Path(ordner)
+    einzeln = BatchResult(input_dir=result.path.parent, results=[result])
+    write_pores(einzeln, ordner / "poren.csv")
+    write_images(einzeln, ordner / "kennzahlen.csv")
+    write_rejected(einzeln, ordner / "verworfen.csv")
 
 
 #: Farbe der Poren im Ergebnisbild (BGR).

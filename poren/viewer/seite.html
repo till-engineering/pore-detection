@@ -322,6 +322,73 @@ body.laedt, body.laedt *{cursor:progress!important}
 .stufe dt{color:var(--muted)}
 .stufe dd{margin:0}
 .warnung{color:var(--verworfen)}
+
+/* -- Einstellungen: Schublade von rechts ----------------------------------- */
+.themeknopf.an{color:var(--akzent); border-color:var(--akzent); background:var(--akzent-weich)}
+.schublade{position:fixed; top:0; right:0; bottom:0; z-index:50; width:min(460px, 100vw);
+  display:flex; flex-direction:column; background:var(--surface);
+  border-left:1px solid var(--line); box-shadow:-8px 0 24px rgba(20,24,32,.12);
+  transform:translateX(100%); visibility:hidden;
+  transition:transform .18s ease, visibility 0s linear .18s}
+.schublade.offen{transform:none; visibility:visible; transition:transform .18s ease}
+/* Auf breiten Bildschirmen rückt der Viewer zur Seite, statt verdeckt zu werden. */
+@media (min-width:1200px){ body.menue-offen .raster{margin-right:460px} }
+.e-kopf{display:flex; align-items:center; gap:10px; padding:12px 16px;
+  border-bottom:1px solid var(--line)}
+.e-kopf h2{margin:0; font-size:13px; font-weight:600; flex:1}
+.e-aktionen{display:flex; flex-direction:column; gap:8px; padding:12px 16px;
+  border-bottom:1px solid var(--line); background:var(--surface-2)}
+.e-knopfreihe{display:flex; gap:8px; flex-wrap:wrap}
+.e-knopf{border:1px solid var(--line); background:var(--surface); color:var(--ink);
+  border-radius:6px; padding:6px 12px; font:inherit; font-size:12px; cursor:pointer}
+.e-knopf:hover{border-color:var(--akzent)}
+.e-knopf.haupt{background:var(--akzent); border-color:var(--akzent); color:#fff; font-weight:500}
+.e-knopf.haupt.faellig{box-shadow:0 0 0 3px var(--akzent-weich)}
+.e-knopf:disabled{opacity:.5; cursor:default}
+.e-status{font-size:11px; color:var(--muted)}
+.e-status.fehler{color:var(--entfernt)}
+.e-meldung{font-size:11px; color:var(--muted); max-height:96px; overflow-y:auto;
+  white-space:pre-wrap; font-family:"IBM Plex Mono", monospace}
+.e-meldung.fehler{color:var(--entfernt)}
+.e-suche{width:100%; padding:5px 9px; border:1px solid var(--line); border-radius:6px;
+  background:var(--surface); color:var(--ink); font:inherit; font-size:12px}
+.e-inhalt{flex:1; overflow-y:auto; padding:6px 0 24px}
+.e-abschnitt{border-bottom:1px solid var(--line)}
+.e-abschnitt > summary{padding:10px 16px; cursor:pointer; font-size:12px; font-weight:600;
+  display:flex; align-items:center; gap:8px; list-style:none}
+.e-abschnitt > summary::-webkit-details-marker{display:none}
+.e-abschnitt > summary::before{content:"›"; display:inline-block; width:10px;
+  color:var(--faint); transition:transform .12s}
+.e-abschnitt[open] > summary::before{transform:rotate(90deg)}
+.e-abschnitt > summary:hover{background:var(--surface-2)}
+.e-zaehler{margin-left:auto; font-size:10px; font-weight:500; color:var(--akzent);
+  background:var(--akzent-weich); border-radius:999px; padding:1px 7px}
+.e-koerper{padding:2px 16px 12px}
+.e-gruppe{margin:8px 0 2px 0; padding-left:10px; border-left:2px solid var(--line)}
+.e-gruppenkopf{font-size:11px; font-weight:600; color:var(--muted); padding:4px 0 2px;
+  font-family:"IBM Plex Mono", monospace}
+.e-feld{display:grid; grid-template-columns:minmax(0,1fr) 150px; gap:2px 10px;
+  align-items:center; padding:4px 0}
+.e-name{font-size:12px; font-family:"IBM Plex Mono", monospace; overflow-wrap:anywhere;
+  display:flex; align-items:center; gap:6px}
+.e-feld input[type=number], .e-feld input[type=text], .e-feld select{width:100%;
+  padding:3px 7px; border:1px solid var(--line); border-radius:5px; background:var(--surface);
+  color:var(--ink); font:inherit; font-size:12px; font-family:"IBM Plex Mono", monospace}
+.e-feld input[type=checkbox], .e-filterkopf input{accent-color:var(--akzent); justify-self:start; margin:0}
+.e-feld .ungueltig{border-color:var(--entfernt); background:color-mix(in srgb, var(--entfernt) 10%, var(--surface))}
+.e-hilfe{grid-column:1 / -1; font-size:11px; color:var(--faint); line-height:1.35;
+  white-space:pre-line}
+.e-punkt{width:7px; height:7px; border-radius:50%; flex:none; visibility:hidden;
+  background:var(--akzent); cursor:pointer; border:0; padding:0}
+.abweichend > .e-name .e-punkt, .abweichend > .e-filterkopf .e-punkt{visibility:visible}
+.abweichend > .e-name{color:var(--akzent)}
+.e-filter{padding:7px 0; border-top:1px dashed var(--line)}
+.e-filter:first-child{border-top:0}
+.e-filterkopf{display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;
+  font-family:"IBM Plex Mono", monospace; font-weight:500}
+.e-filter.aus .e-feld{opacity:.5}
+.e-filter > .e-hilfe{padding:2px 0 2px 21px}
+.e-filter > .e-feld{padding-left:21px}
 </style>
 </head>
 <body>
@@ -340,9 +407,34 @@ body.laedt, body.laedt *{cursor:progress!important}
     <span class="chip" id="v-massstab">Maßstab</span><span class="pfeil">→</span>
     <span class="chip" id="v-probe">Probe</span><span class="pfeil">→</span>
     <span class="chip" id="v-poren">Poren</span>
+    <button class="themeknopf" id="menueknopf" type="button" aria-expanded="false"
+            aria-controls="schublade" title="Einstellungen der Auswertung">Einstellungen</button>
     <button class="themeknopf" id="themeknopf" type="button">Dunkel</button>
   </div>
 </header>
+
+<aside class="schublade" id="schublade" aria-label="Einstellungen">
+  <div class="e-kopf">
+    <h2>Einstellungen</h2>
+    <button class="zuknopf" id="e-zu" type="button" aria-label="Einstellungen schließen"
+            style="display:block; position:static">×</button>
+  </div>
+  <div class="e-aktionen">
+    <div class="e-knopfreihe">
+      <button class="e-knopf haupt" id="e-neu-laden" type="button"
+              title="Einstellungen speichern, Pipeline neu aufbauen und dieses Bild neu auswerten">Bild neu laden</button>
+      <button class="e-knopf" id="e-standard" type="button"
+              title="Alle Felder auf einstellungen.yaml zurücksetzen – übernommen wird erst mit „Bild neu laden“">Auf Standard zurücksetzen</button>
+      <button class="e-knopf" id="e-verwerfen" type="button"
+              title="Nicht übernommene Änderungen im Menü verwerfen">Änderungen verwerfen</button>
+    </div>
+    <div class="e-status" id="e-status"></div>
+    <div class="e-meldung" id="e-meldung" hidden></div>
+    <input class="e-suche" id="e-suche" type="search" placeholder="Einstellung suchen …"
+           aria-label="Einstellung suchen">
+  </div>
+  <div class="e-inhalt" id="e-inhalt"><div class="leer">Lädt …</div></div>
+</aside>
 
 <div class="verdunkelung" id="verdunkelung" hidden></div>
 <div class="raster">
@@ -539,7 +631,7 @@ function svgSetzen(ziel, elemente) {
 }
 const farbeAus = (name) => getComputedStyle(document.documentElement).getPropertyValue("--" + name).trim();
 const deckkraft = () => parseInt($("deckkraft").value, 10) / 100;
-const ebeneUrl = (name) => `/api/bild/${INDEX}/ebene/${name}.png?v=${STAPEL.kennung}`;
+const ebeneUrl = (name) => `/api/bild/${INDEX}/ebene/${name}.png?v=${STAPEL.kennung}-${D ? D.version : ""}`;
 
 /* -- Laden und Blättern ---------------------------------------------------- */
 let ladeNummer = 0;
@@ -610,6 +702,7 @@ function neuesBild(daten) {
   massstabZeichnen();
   ebenenSchalten();
   allesZeichnen();
+  markieren();
 }
 
 /* Alles, was sich durch eine Korrektur ändert. */
@@ -1282,10 +1375,12 @@ dunkel.addEventListener("click", diagrammSchliessen);
 document.addEventListener("keydown", (e) => {
   const imFeld = e.target.closest && e.target.closest("input, textarea, select");
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+    if (imFeld) return;              // im Eingabefeld gehört Strg+Z dem Feld
     e.preventDefault();
     senden("rueckgaengig");
   } else if (e.key === "Escape") {
     if (!dunkel.hidden) diagrammSchliessen();
+    else if (schublade.classList.contains("offen")) menueSchalten(false);
     else if (werkzeug) werkzeugSetzen(werkzeug);
     else loesen();
   } else if (!imFeld && !e.ctrlKey && !e.altKey && !e.metaKey) {
@@ -1308,6 +1403,332 @@ try { gemerkt = localStorage.getItem("poren-thema"); } catch (e) { /* egal */ }
 themaSetzen(gemerkt || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
 themaknopf.addEventListener("click", () =>
   themaSetzen(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark"));
+
+/* -- Einstellungen ----------------------------------------------------------
+   Das Menü bearbeitet einen Entwurf. Erst "Bild neu laden" schickt ihn an den Server:
+   der speichert die Abweichungen vom Standard (einstellungen_eigene.yaml), baut die
+   Pipeline neu auf und rechnet das angezeigte Bild neu. Schlüssel wie
+   "specimen.method"; Filter stehen unter ihrem Namen: "analysis.filters.edge.enabled". */
+const schublade = $("schublade");
+const ABSCHNITTE = { scale: "1. Maßstab", specimen: "2. Probe / Einbettmittel",
+  pore: "3. Porendetektion", analysis: "4. Filter", corrections: "5. Korrekturen" };
+let E = null;            // {werte, standard, hilfe, auswahl, ganzzahl, eigene_datei}
+let ENTWURF = null;      // was im Menü steht
+let GANZ = new Set();
+const UNGUELTIG = new Set();
+const OFFEN = new Set(["analysis"]);   // aufgeklappte Abschnitte
+const SETZER = new Map();              // Schlüssel -> Funktion, die das Feld neu füllt
+let menueRechnet = false;
+
+const kopie = (o) => JSON.parse(JSON.stringify(o));
+const gleich = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+/** Wert unter einem Schlüssel - in Filterlisten wird über den Namen gesucht. */
+function beiSchluessel(wurzel, schluessel) {
+  let k = wurzel;
+  for (const t of schluessel.split(".")) {
+    if (k === null || k === undefined) return undefined;
+    k = Array.isArray(k) ? k.find((f) => f && f.name === t) : k[t];
+  }
+  return k;
+}
+function setzeBei(wurzel, schluessel, wert) {
+  const teile = schluessel.split(".");
+  let k = wurzel;
+  for (const t of teile.slice(0, -1)) k = Array.isArray(k) ? k.find((f) => f && f.name === t) : k[t];
+  k[teile[teile.length - 1]] = wert;
+}
+function el(tag, attr, ...kinder) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attr || {})) {
+    if (k === "text") e.textContent = v;
+    else if (v !== null && v !== undefined && v !== false) e.setAttribute(k, v === true ? "" : v);
+  }
+  for (const kind of kinder) if (kind) e.append(kind);
+  return e;
+}
+const textVon = (v) => typeof v === "string" ? v : JSON.stringify(v);
+
+function menueSchalten(an) {
+  schublade.classList.toggle("offen", an);
+  document.body.classList.toggle("menue-offen", an);
+  $("menueknopf").classList.toggle("an", an);
+  $("menueknopf").setAttribute("aria-expanded", String(an));
+  try { localStorage.setItem("poren-menue", an ? "1" : "0"); } catch (e) { /* egal */ }
+  if (an && !E) einstellungenHolen();
+  // Das Bild wird schmaler oder breiter - Leinwand neu zeichnen.
+  setTimeout(() => { porenZeichnen(); auswahlZeichnen(); lupeZeichnen(); }, 200);
+}
+$("menueknopf").addEventListener("click", () => menueSchalten(!schublade.classList.contains("offen")));
+$("e-zu").addEventListener("click", () => menueSchalten(false));
+
+/** ``nurStand``: nur den gespeicherten Stand auffrischen, den Entwurf behalten. */
+async function einstellungenHolen(nurStand = false) {
+  try {
+    const antwort = await fetch("/api/einstellungen");
+    if (!antwort.ok) throw new Error(await antwort.text());
+    E = await antwort.json();
+    GANZ = new Set(E.ganzzahl);
+    if (nurStand) { markieren(); return; }
+    ENTWURF = kopie(E.werte);
+    UNGUELTIG.clear();
+    menueAufbauen();
+  } catch (e) {
+    if (nurStand) return;
+    $("e-inhalt").innerHTML = "";
+    $("e-inhalt").append(el("div", { class: "leer", text: "Einstellungen nicht geladen: " + e.message }));
+  }
+}
+
+/* -- Aufbau ------------------------------------------------------------------ */
+function menueAufbauen() {
+  SETZER.clear();
+  const inhalt = $("e-inhalt");
+  inhalt.innerHTML = "";
+  const allgemein = Object.keys(ENTWURF).filter((k) => !isPlainObject(ENTWURF[k]));
+  if (allgemein.length) {
+    inhalt.append(abschnitt("_allgemein", "Allgemein", allgemein.map((k) => feld(k, k))));
+  }
+  for (const [k, v] of Object.entries(ENTWURF)) {
+    if (!isPlainObject(v)) continue;
+    inhalt.append(abschnitt(k, ABSCHNITTE[k] || k, gruppeninhalt(v, k)));
+  }
+  sucheAnwenden();
+  markieren();
+}
+const isPlainObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+const istFilterliste = (v) => Array.isArray(v) && v.every((f) => isPlainObject(f) && "name" in f);
+
+function abschnitt(schluessel, titel, kinder) {
+  const d = el("details", { class: "e-abschnitt", "data-abschnitt": schluessel, open: OFFEN.has(schluessel) },
+    el("summary", {}, el("span", { text: titel }), el("span", { class: "e-zaehler", hidden: true })),
+    el("div", { class: "e-koerper" }, ...kinder));
+  d.addEventListener("toggle", () => { d.open ? OFFEN.add(schluessel) : OFFEN.delete(schluessel); });
+  return d;
+}
+
+function gruppeninhalt(objekt, pfad) {
+  const kinder = [];
+  for (const [k, v] of Object.entries(objekt)) {
+    const schluessel = `${pfad}.${k}`;
+    if (istFilterliste(v)) {
+      for (const f of v) kinder.push(filterzeile(`${schluessel}.${f.name}`, f));
+    } else if (isPlainObject(v) && Object.keys(v).length) {
+      const hilfe = E.hilfe[schluessel];
+      kinder.push(el("div", { class: "e-gruppe", "data-suche": (schluessel + " " + (hilfe || "")).toLowerCase() },
+        el("div", { class: "e-gruppenkopf", text: k }),
+        hilfe ? el("div", { class: "e-hilfe", text: hilfe }) : null,
+        ...gruppeninhalt(v, schluessel)));
+    } else {
+      kinder.push(feld(schluessel, k));
+    }
+  }
+  return kinder;
+}
+
+function filterzeile(schluessel, f) {
+  const box = el("input", { type: "checkbox", "aria-label": `Filter ${f.name} an` });
+  box.checked = !!f.enabled;
+  const hilfe = E.hilfe[schluessel];
+  const zeile = el("div", { class: "e-filter" + (f.enabled ? "" : " aus"),
+                            "data-schluessel": schluessel + ".enabled",
+                            "data-suche": (schluessel + " " + (hilfe || "")).toLowerCase() },
+    el("label", { class: "e-filterkopf" }, box, el("span", { text: f.name }), punkt(schluessel + ".enabled")),
+    hilfe ? el("div", { class: "e-hilfe", text: hilfe }) : null,
+    ...Object.keys(f.params || {}).map((p) => feld(`${schluessel}.params.${p}`, p)));
+  box.addEventListener("change", () => {
+    setzeBei(ENTWURF, schluessel + ".enabled", box.checked);
+    zeile.classList.toggle("aus", !box.checked);
+    markieren();
+  });
+  SETZER.set(schluessel + ".enabled", (w) => { box.checked = !!w; zeile.classList.toggle("aus", !w); });
+  return zeile;
+}
+
+/** Punkt neben dem Namen: zeigt "weicht vom Standard ab", ein Klick setzt zurück. */
+function punkt(schluessel) {
+  const p = el("button", { type: "button", class: "e-punkt" });
+  const standard = beiSchluessel(E.standard, schluessel);
+  p.title = "Weicht vom Standard ab (" + textVon(standard) + ") – Klick setzt zurück";
+  p.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setzeBei(ENTWURF, schluessel, kopie(standard));
+    (SETZER.get(schluessel) || (() => {}))(standard);
+    UNGUELTIG.delete(schluessel);
+    markieren();
+  });
+  return p;
+}
+
+function feld(schluessel, name) {
+  const wert = beiSchluessel(ENTWURF, schluessel);
+  const id = "e-" + schluessel.replace(/\W/g, "_");
+  const hilfe = E.hilfe[schluessel];
+  const auswahl = E.auswahl[schluessel];
+  let eingabe, lesen, schreiben;
+
+  if (typeof wert === "boolean") {
+    eingabe = el("input", { type: "checkbox", id });
+    lesen = () => eingabe.checked;
+    schreiben = (w) => { eingabe.checked = !!w; };
+  } else if (typeof wert === "number") {
+    const ganz = GANZ.has(schluessel);
+    eingabe = el("input", { type: "number", id, step: ganz ? "1" : "any" });
+    lesen = () => {
+      if (eingabe.value.trim() === "") return undefined;
+      const z = Number(eingabe.value);
+      return Number.isFinite(z) && (!ganz || Number.isInteger(z)) ? z : undefined;
+    };
+    schreiben = (w) => { eingabe.value = String(w); };
+  } else if (typeof wert === "string" && auswahl) {
+    const optionen = auswahl.includes(wert) ? auswahl : [wert, ...auswahl];
+    eingabe = el("select", { id }, ...optionen.map((o) => el("option", { value: o, text: o })));
+    lesen = () => eingabe.value;
+    schreiben = (w) => { eingabe.value = w; };
+  } else if (typeof wert === "string" || wert === null) {
+    eingabe = el("input", { type: "text", id });
+    lesen = () => eingabe.value;
+    schreiben = (w) => { eingabe.value = w === null ? "" : w; };
+  } else {
+    // Listen und Zuordnungen (z. B. OCR-Engines) als JSON.
+    eingabe = el("input", { type: "text", id, title: "JSON, z. B. [\"a\", \"b\"] oder {\"a\": 1}" });
+    const art = Array.isArray(wert);
+    lesen = () => {
+      try { const v = JSON.parse(eingabe.value); return (Array.isArray(v) === art && typeof v === "object" && v !== null) ? v : undefined; }
+      catch (e) { return undefined; }
+    };
+    schreiben = (w) => { eingabe.value = JSON.stringify(w); };
+  }
+  schreiben(wert);
+
+  const zeile = el("div", { class: "e-feld", "data-schluessel": schluessel,
+                            "data-suche": (schluessel + " " + (hilfe || "")).toLowerCase() },
+    el("label", { class: "e-name", for: id }, el("span", { text: name }), punkt(schluessel)),
+    eingabe,
+    hilfe ? el("div", { class: "e-hilfe", text: hilfe }) : null);
+
+  const uebernehmen = () => {
+    const v = lesen();
+    const ok = v !== undefined;
+    eingabe.classList.toggle("ungueltig", !ok);
+    if (ok) { UNGUELTIG.delete(schluessel); setzeBei(ENTWURF, schluessel, v); }
+    else UNGUELTIG.add(schluessel);
+    markieren();
+  };
+  eingabe.addEventListener(eingabe.type === "checkbox" || eingabe.tagName === "SELECT" ? "change" : "input", uebernehmen);
+  SETZER.set(schluessel, (w) => { schreiben(w); eingabe.classList.remove("ungueltig"); });
+  return zeile;
+}
+
+/* -- Markierungen und Status ---------------------------------------------------- */
+function markieren() {
+  if (!E) return;
+  let abweichend = 0;
+  for (const z of $("e-inhalt").querySelectorAll("[data-schluessel]")) {
+    const s = z.dataset.schluessel;
+    const anders = !gleich(beiSchluessel(ENTWURF, s), beiSchluessel(E.standard, s));
+    z.classList.toggle("abweichend", anders);
+    if (anders) abweichend++;
+  }
+  for (const d of $("e-inhalt").querySelectorAll(".e-abschnitt")) {
+    const n = d.querySelectorAll(".abweichend").length;
+    const zaehler = d.querySelector(".e-zaehler");
+    zaehler.hidden = !n;
+    zaehler.textContent = n + " geändert";
+  }
+  const offen = !gleich(ENTWURF, E.werte);
+  const knopf = $("e-neu-laden");
+  knopf.disabled = menueRechnet || UNGUELTIG.size > 0 || !D;
+  knopf.classList.toggle("faellig", offen);
+  $("e-verwerfen").disabled = menueRechnet || (!offen && !UNGUELTIG.size);
+  $("e-standard").disabled = menueRechnet;
+  const status = $("e-status");
+  status.classList.toggle("fehler", UNGUELTIG.size > 0);
+  status.textContent = UNGUELTIG.size
+    ? `${UNGUELTIG.size} Feld(er) ungültig – bitte korrigieren`
+    : (abweichend ? `${abweichend} Wert(e) weichen vom Standard ab` : "Alles auf Standard (einstellungen.yaml)")
+      + (offen ? " · noch nicht übernommen – „Bild neu laden“ drücken" : "");
+}
+
+function sucheAnwenden() {
+  const q = $("e-suche").value.trim().toLowerCase();
+  const inhalt = $("e-inhalt");
+  for (const z of inhalt.querySelectorAll(".e-feld, .e-filter")) {
+    // Ein Treffer im Filterkopf zeigt den ganzen Filter samt Parametern.
+    const filter = z.closest(".e-filter");
+    const treffer = !q || z.dataset.suche.includes(q) || (filter && filter.dataset.suche.includes(q));
+    z.hidden = !treffer;
+  }
+  for (const f of inhalt.querySelectorAll(".e-filter")) {
+    if (f.querySelector(".e-feld:not([hidden])")) f.hidden = false;
+  }
+  for (const g of [...inhalt.querySelectorAll(".e-gruppe")].reverse()) {
+    g.hidden = !!q && !g.dataset.suche.includes(q) && !g.querySelector(".e-feld:not([hidden]), .e-filter:not([hidden])");
+    if (q && g.dataset.suche.includes(q)) g.querySelectorAll("[hidden]").forEach((x) => { x.hidden = false; });
+  }
+  for (const d of inhalt.querySelectorAll(".e-abschnitt")) {
+    const sichtbar = !!d.querySelector(".e-feld:not([hidden]), .e-filter:not([hidden])");
+    d.hidden = !!q && !sichtbar;
+    if (q) d.open = sichtbar;
+    else d.open = OFFEN.has(d.dataset.abschnitt);
+  }
+}
+$("e-suche").addEventListener("input", sucheAnwenden);
+
+function meldungZeigen(text, fehler) {
+  const m = $("e-meldung");
+  m.hidden = !text;
+  m.textContent = text || "";
+  m.classList.toggle("fehler", !!fehler);
+}
+
+/* -- Knöpfe ------------------------------------------------------------------- */
+$("e-standard").addEventListener("click", () => {
+  ENTWURF = kopie(E.standard);
+  UNGUELTIG.clear();
+  menueAufbauen();
+  meldungZeigen("Alle Felder auf Standard gesetzt. Übernommen wird erst mit „Bild neu laden“.");
+});
+$("e-verwerfen").addEventListener("click", () => {
+  ENTWURF = kopie(E.werte);
+  UNGUELTIG.clear();
+  menueAufbauen();
+  meldungZeigen("");
+});
+$("e-neu-laden").addEventListener("click", async () => {
+  if (menueRechnet || UNGUELTIG.size || !D) return;
+  menueRechnet = true;
+  const knopf = $("e-neu-laden");
+  knopf.textContent = "rechnet …";
+  document.body.classList.add("laedt");
+  markieren();
+  meldungZeigen("");
+  const bild = INDEX;
+  try {
+    const antwort = await fetch(`/api/bild/${bild}/neu_laden`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ werte: ENTWURF }),
+    });
+    if (!antwort.ok) throw new Error(await antwort.text());
+    const { aenderungen } = await antwort.json();
+    meldungZeigen(aenderungen.length
+      ? "Übernommen und gespeichert:\n" + aenderungen.join("\n")
+      : "Keine Änderung – Bild mit denselben Einstellungen neu ausgewertet.");
+    await einstellungenHolen();
+    await bildLaden(bild);
+  } catch (e) {
+    meldungZeigen("Nicht übernommen: " + e.message, true);
+    // Gespeichert kann trotzdem schon sein (etwa wenn erst das Rechnen scheitert).
+    await einstellungenHolen(true);
+  } finally {
+    menueRechnet = false;
+    knopf.textContent = "Bild neu laden";
+    document.body.classList.remove("laedt");
+    markieren();
+  }
+});
+
+try { if (localStorage.getItem("poren-menue") === "1") menueSchalten(true); } catch (e) { /* egal */ }
 
 /* -- Start ----------------------------------------------------------------- */
 (async function start() {

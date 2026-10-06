@@ -21,11 +21,24 @@ Einlesepfad (Bilderordner) und Zielpfad wählen, **Start**. Im Zielordner landen
 
 | Datei | Inhalt |
 |---|---|
-| `<bild>_ergebnis.png` | links das Original, rechts dasselbe mit den gezählten Poren **rot** |
-| `poren.csv` | eine Zeile je gezählter Pore |
+| `poren.csv` | eine Zeile je gezählter Pore, alle Bilder |
 | `bilder.csv` | eine Zeile je Bild (Porosität, Porenzahl, Maßstab, …) |
 | `verworfen.csv` | eine Zeile je verworfenem Objekt, mit Grund |
-| `korrekturen/` | manuelle Korrekturen aus dem Viewer, eine JSON je Bild |
+| `einstellungen_log.txt` | je Laufstart und je übernommener Änderung im Viewer: was geändert wurde und was vom Standard abweicht |
+| `<bild>/` | ein Ordner je Bild, benannt nach dem Bild (siehe unten) |
+| `auswertungen/` | Ergebnisse der zusätzlichen Auswertungsmodule |
+
+Im Ordner jedes Bildes:
+
+| Datei | Inhalt |
+|---|---|
+| `<bild>_ergebnis.png` | links das Original, rechts dasselbe mit den gezählten Poren **rot** |
+| `poren.csv`, `kennzahlen.csv`, `verworfen.csv` | die Tabellen nur für dieses Bild |
+| `einstellungen.yaml` | die vollständigen Einstellungen, mit denen das Ergebnis gerechnet wurde |
+| `log.txt` | jede Auswertung und Korrektur dieses Bildes mit Zeit und Ergebnis |
+| `<bild>_<prüfsumme>.json` | manuelle Korrekturen aus dem Viewer |
+
+Korrekturen aus älteren Läufen unter `korrekturen/` werden weiter gelesen.
 
 Ist **Viewer starten** angehakt, öffnet sich danach der Viewer im Browser. Blättern mit
 den Pfeilen oben oder den Pfeiltasten. Werkzeuge links neben dem Bild:
@@ -38,14 +51,33 @@ den Pfeilen oben oder den Pfeiltasten. Werkzeuge links neben dem Bild:
 | **Pfeil** | Rückgängig (auch `Strg+Z`) |
 | **Papierkorb** | alle Korrekturen an diesem Bild verwerfen |
 
-Jede Korrektur wird sofort im Zielordner unter `korrekturen/` gespeichert und schreibt CSVs und
+Jede Korrektur wird sofort im Ordner des Bildes gespeichert und schreibt CSVs und
 Ergebnisbild im Zielordner nach. Das Startfenster offen lassen, solange der Viewer
 gebraucht wird.
 
 ## Einstellungen
 
-Alle Parameter stehen in **`einstellungen.yaml`**, jeder mit kurzer Erklärung. Wichtigste
-Schalter:
+Alle Parameter stehen in **`einstellungen.yaml`**, jeder mit kurzer Erklärung. Das ist der
+**Standard**.
+
+Im Viewer öffnet der Knopf **Einstellungen** oben rechts ein Menü mit allen Parametern
+(Abschnitte zum Aufklappen, Suchfeld, Erklärung aus der YAML unter jedem Wert). Ein
+Punkt neben dem Namen zeigt einen Wert, der vom Standard abweicht; ein Klick darauf
+setzt ihn zurück.
+
+* **Bild neu laden** speichert die Werte, baut die Pipeline neu auf und wertet das
+  angezeigte Bild neu aus, ohne Neustart. Die übrigen Bilder werden neu gerechnet, sobald
+  man zu ihnen blättert. Auch Änderungen, die von Hand in den YAML-Dateien gemacht wurden,
+  greifen damit.
+* **Auf Standard zurücksetzen** füllt das Menü mit den Werten aus `einstellungen.yaml`;
+  übernommen wird mit *Bild neu laden*.
+
+Gespeichert werden nur die Abweichungen, in **`einstellungen_eigene.yaml`**. Die Datei
+gilt auch für den nächsten Lauf aus dem Startfenster. `einstellungen.yaml` selbst wird
+nie vom Programm geschrieben. Wer eine Abweichung zum neuen Standard machen will, trägt
+sie dort ein.
+
+Wichtigste Schalter:
 
 * `specimen.method` – Einbettmittel-Trennung: **`grabcut`** (Standard), `lasso`,
   `random_walker`, `watershed`, `chan_vese`, `boundary_path`, `largest_region`, `full_frame`

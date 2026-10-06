@@ -1,13 +1,18 @@
 """Stapel: einen Ordner auswerten, die Ergebnisse ablegen, die Bilder für den Viewer halten.
 
-* **Der Stapellauf** wertet alle Bilder eines Ordners aus und schreibt in den Zielordner:
-  ``poren.csv``, ``bilder.csv``, ``verworfen.csv`` und je Bild ``<name>_ergebnis.png``
-  (links Original, rechts mit den gezählten Poren rot). Manuelle Korrekturen liegen
-  unter ``korrekturen/`` im Zielordner, zusätzliche Auswertungen (``poren/auswertungen/``)
-  unter ``auswertungen/``.
+* **Der Stapellauf** wertet alle Bilder eines Ordners aus. Im Zielordner liegen danach
+  die Tabellen über alle Bilder (``poren.csv``, ``bilder.csv``, ``verworfen.csv``),
+  ``einstellungen_log.txt`` und je Bild ein Ordner ``<bild>/`` mit Ergebnisbild, den
+  Tabellen dieses Bildes, den manuellen Korrekturen, den verwendeten Einstellungen und
+  einem ``log.txt``. Zusätzliche Auswertungen (``poren/auswertungen/``) schreiben nach
+  ``auswertungen/``.
 * **Die Mappe** hält die ausgewerteten Bilder für den Viewer bereit. Wird dort eine Pore
   korrigiert, rechnet sie das Ergebnis dieses Bildes neu und schreibt CSVs und
   Ergebnisbild sofort nach. Was im Zielordner liegt, entspricht immer dem Viewer.
+* **Neue Einstellungen** (:meth:`Mappe.neu_laden`) bauen die Pipeline neu auf und rechnen
+  das angezeigte Bild sofort neu. Die übrigen Bilder gelten als veraltet und werden neu
+  gerechnet, sobald sie im Viewer geöffnet werden; bis dahin stehen in ihren Ordnern die
+  Ergebnisse mit den Einstellungen, die dort in ``einstellungen.yaml`` liegen.
 
 Speicher: Im Arbeitsspeicher stehen nur die zuletzt angesehenen Bilder (``IM_SPEICHER``).
 Jedes ausgewertete Bild wird außerdem komprimiert in einem temporären Ordner abgelegt -
@@ -25,8 +30,10 @@ from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
-from . import ausgabe, auswertungen
+from . import ausgabe, auswertungen, protokoll
+from . import einstellungen as einst
 from .bild import find_images
+from .korrekturen import CorrectionStore
 from .modelle import BatchResult, ImageResult
 from .pipeline import Pipeline
 from .viewer.sitzung import Grundlage, Sitzung, rechnen, sichern, wiederherstellen
@@ -44,10 +51,11 @@ class Mappe:
     def __init__(self, eingang: Path, ziel: Path) -> None:
         self.eingang = Path(eingang)
         self.ziel = Path(ziel)
-        self.pipeline = Pipeline()
-        # Korrekturen liegen im Zielordner - zusammen mit den Ergebnissen, die sie betreffen.
-        self.pipeline.config.corrections["directory"] = self.ziel / "korrekturen"
+        #: Die geltenden Einstellungen als einfaches dict - für Logs und Viewer-Menü.
+        self.einstellungen = einst.roh()
+        self.pipeline = Pipeline(einst.laden())
         self.bilder: list[Path] = []
+        self.ordner: list[Path] = []
         self.ergebnisse: list[ImageResult] = []
         self.fehler: list[tuple[Path, str]] = []
         #: Kennung des Laufs - der Browser hängt sie an Bildadressen (Cache).
@@ -56,8 +64,13 @@ class Mappe:
         self._ablage = Path(tempfile.mkdtemp(prefix="poren_"))
         weakref.finalize(self, shutil.rmtree, self._ablage, ignore_errors=True)
         self._sitzungen: OrderedDict[int, Sitzung] = OrderedDict()
+        #: Bilder, die noch mit älteren Einstellungen gerechnet sind.
+        self._veraltet: set[int] = set()
         # Eine Sperre für alles Rechnen: Vorladen und Anfrage dürfen sich nicht überholen.
         self._sperre = threading.RLock()
+
+        protokoll.lauf(self.ziel, f"Lauf gestartet - Einlesepfad {self.eingang}",
+                       self.einstellungen)
 
     # -- Aufbauen ------------------------------------------------------------------------
 
@@ -68,11 +81,11 @@ class Mappe:
             grundlage = rechnen(pfad, self.pipeline)
             sichern(grundlage, self._datei(index))
             self.bilder.append(pfad)
+            self.ordner.append(self._neuer_ordner(pfad))
             sitzung = self._merken(index, grundlage)
             ergebnis, ctx = sitzung.ergebnis()
             self.ergebnisse.append(ergebnis)
-            self._ergebnisbild(sitzung, ctx)
-            auswertungen.pro_bild(ctx, ergebnis, self.ziel)
+            self._bild_schreiben(index, sitzung, ctx, ergebnis, "ausgewertet")
             return ergebnis
 
     def batch(self) -> BatchResult:
@@ -89,8 +102,11 @@ class Mappe:
         return len(self.bilder)
 
     def sitzung(self, index: int) -> Sitzung:
-        """Die Sitzung eines Bildes - aus dem Speicher oder aus der Ablage geladen."""
+        """Die Sitzung eines Bildes - aus dem Speicher, aus der Ablage oder, wenn es mit
+        älteren Einstellungen gerechnet ist, neu gerechnet."""
         with self._sperre:
+            if index in self._veraltet:
+                return self._neu_rechnen(index, "neu ausgewertet (geänderte Einstellungen)")
             if index in self._sitzungen:
                 self._sitzungen.move_to_end(index)
                 return self._sitzungen[index]
@@ -102,16 +118,64 @@ class Mappe:
         if 0 <= index < len(self.bilder) and index not in self._sitzungen:
             threading.Thread(target=self._still_vorladen, args=(index,), daemon=True).start()
 
+    def neu_laden(self, index: int, werte: dict | None = None) -> list[str]:
+        """Einstellungen übernehmen: speichern, Pipeline neu aufbauen, Bild ``index`` neu
+        rechnen. Gibt die Änderungen gegenüber vorher zurück.
+
+        Ohne ``werte`` wird nur neu gelesen - so greifen auch Änderungen, die von Hand in
+        ``einstellungen.yaml`` gemacht wurden.
+        """
+        with self._sperre:
+            vorher = self.einstellungen
+            if werte is not None:
+                einst.speichern(werte)
+            neu = einst.roh()
+            # Erst aufbauen, dann übernehmen: scheitert der Aufbau (z. B. unbekanntes
+            # Verfahren), bleibt die alte Pipeline in Betrieb.
+            self.pipeline = Pipeline(einst.laden())
+            self.einstellungen = neu
+            aenderungen = einst.unterschiede(vorher, neu)
+            protokoll.lauf(self.ziel, "Einstellungen übernommen im Viewer "
+                           f"(Bild {self.bilder[index].name})", neu, vorher)
+            self._sitzungen.clear()
+            if aenderungen:
+                self._veraltet = set(range(len(self.bilder)))
+            self._neu_rechnen(index, "neu ausgewertet (Bild neu laden)")
+            return aenderungen
+
     # -- Intern --------------------------------------------------------------------------
 
     def _datei(self, index: int) -> Path:
         return self._ablage / f"{index:05d}.pkl.gz"
 
+    def _neuer_ordner(self, pfad: Path) -> Path:
+        """Ordner für ein Bild: sein Name ohne Endung. Gleichnamige Bilder (etwa aus
+        Unterordnern) bekommen eine Nummer angehängt."""
+        vergeben = {o.name.lower() for o in self.ordner}
+        name, nummer = pfad.stem, 2
+        while name.lower() in vergeben:
+            name, nummer = f"{pfad.stem}_{nummer}", nummer + 1
+        return self.ziel / name
+
     def _merken(self, index: int, grundlage: Grundlage) -> Sitzung:
-        sitzung = Sitzung(grundlage, bei_aenderung=lambda s: self._geaendert(index, s))
+        # Korrekturen liegen im Ordner des Bildes; der frühere gemeinsame Ordner
+        # korrekturen/ wird noch gelesen, damit alte Korrekturen nicht verloren gehen.
+        ablage = CorrectionStore(self.ordner[index], alt=self.ziel / "korrekturen")
+        sitzung = Sitzung(grundlage, ablage, bei_aenderung=lambda s: self._geaendert(index, s))
         self._sitzungen[index] = sitzung
         while len(self._sitzungen) > IM_SPEICHER:
             self._sitzungen.popitem(last=False)
+        return sitzung
+
+    def _neu_rechnen(self, index: int, ereignis: str) -> Sitzung:
+        grundlage = rechnen(self.bilder[index], self.pipeline)
+        sichern(grundlage, self._datei(index))
+        self._veraltet.discard(index)
+        sitzung = self._merken(index, grundlage)
+        ergebnis, ctx = sitzung.ergebnis()
+        self.ergebnisse[index] = ergebnis
+        self._bild_schreiben(index, sitzung, ctx, ergebnis, ereignis)
+        self.tabellen_schreiben()
         return sitzung
 
     def _still_vorladen(self, index: int) -> None:
@@ -120,18 +184,46 @@ class Mappe:
         except Exception:  # noqa: BLE001 - beim echten Aufruf kommt der Fehler wieder
             pass
 
-    def _ergebnisbild(self, sitzung: Sitzung, ctx) -> None:
+    def _bild_schreiben(self, index: int, sitzung: Sitzung, ctx, ergebnis: ImageResult,
+                        ereignis: str | None) -> None:
+        """Den Ordner eines Bildes schreiben. ``ereignis`` gesetzt heißt frisch gerechnet:
+        dann kommen die Einstellungen dazu und ins Log, was vom Standard abweicht."""
+        ordner = self.ordner[index]
+        ordner.mkdir(parents=True, exist_ok=True)
         bild = ctx.color if ctx.color is not None else ctx.gray
-        ausgabe.write_ergebnisbild(self.ziel, sitzung.g.bildpfad, bild, ctx.labels,
+        ausgabe.write_ergebnisbild(ordner, sitzung.g.bildpfad, bild, ctx.labels,
                                    [p.label for p in ctx.pores])
+        ausgabe.write_bild(ordner, ergebnis)
+        auswertungen.pro_bild(ctx, ergebnis, self.ziel)
+
+        zeilen = ["Ergebnis: " + _kurz(ergebnis)]
+        if sitzung.korrekturen:
+            zeilen.append(f"Manuelle Korrekturen: {len(sitzung.korrekturen)}")
+        if ereignis is None:
+            protokoll.bild(ordner, "Korrektur gespeichert", zeilen)
+            return
+        protokoll.bild_einstellungen(ordner, self.einstellungen)
+        abweichend = protokoll.abweichungen(self.einstellungen)
+        zeilen = [f"Bild: {sitzung.g.bildpfad}", *zeilen]
+        zeilen += (["Abweichungen vom Standard:"] + [f"  {z}" for z in abweichend]
+                   if abweichend else ["Einstellungen: Standard (einstellungen.yaml)"])
+        protokoll.bild(ordner, ereignis, zeilen)
 
     def _geaendert(self, index: int, sitzung: Sitzung) -> None:
         """Nach einer Korrektur: Ergebnis dieses Bildes neu, Zielordner nachschreiben."""
         ergebnis, ctx = sitzung.ergebnis()
         self.ergebnisse[index] = ergebnis
-        self._ergebnisbild(sitzung, ctx)
-        auswertungen.pro_bild(ctx, ergebnis, self.ziel)
+        self._bild_schreiben(index, sitzung, ctx, ergebnis, None)
         self.tabellen_schreiben()
+
+
+def _kurz(ergebnis: ImageResult) -> str:
+    teile = [f"{ergebnis.pore_count} Poren"]
+    if ergebnis.porosity_pct is not None:
+        teile.append(f"{ergebnis.porosity_pct:.3f} % Porosität".replace(".", ","))
+    if ergebnis.scale is None:
+        teile.append("ohne Maßstab")
+    return ", ".join(teile)
 
 
 def verarbeiten(eingang: Path, ziel: Path, melden: Meldung | None = None) -> Mappe:

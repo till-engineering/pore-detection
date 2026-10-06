@@ -254,6 +254,9 @@ class Pore:
     contrast: float                           # Abstand zum geschätzten Untergrund
     touches_image_edge: bool
     touches_specimen_edge: bool
+    # Kleinster Abstand der Pore zum Probenrand in Pixeln (0 = berührt ihn). ``None``,
+    # wenn die Probe keinen Rand hat - etwa bei full_frame.
+    specimen_edge_distance_px: float | None = None
     um_per_px: float | None = None
 
     # -- Formkennwerte (maßstabsunabhängig) --------------------------------------------

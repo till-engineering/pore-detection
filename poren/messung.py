@@ -41,6 +41,9 @@ def measure(
     from scipy import ndimage as ndi
 
     specimen_edge = ndi.binary_dilation(outside, iterations=1) & specimen
+    # Abstand jedes Probenpixels zur Nicht-Probe; ein Randpixel hat 1, daher später -1.
+    # Ohne Nicht-Probe gibt es keinen Rand und damit keinen Abstand.
+    edge_distance = ndi.distance_transform_edt(specimen) if outside.any() else None
 
     pores: list[Pore] = []
     for prop in regionprops(labels, intensity_image=gray):
@@ -55,6 +58,12 @@ def measure(
         )
 
         werte = contrast[min_row:max_row, min_col:max_col][region]
+
+        abstand = None
+        if edge_distance is not None:
+            innen = edge_distance[min_row:max_row, min_col:max_col][region]
+            innen = innen[innen > 0]
+            abstand = float(max(innen.min() - 1.0, 0.0)) if innen.size else 0.0
 
         pores.append(
             Pore(
@@ -77,6 +86,7 @@ def measure(
                 contrast=float(np.median(werte)) if werte.size else 0.0,
                 touches_image_edge=bool(touches_image),
                 touches_specimen_edge=touches_specimen,
+                specimen_edge_distance_px=abstand,
                 um_per_px=um_per_px,
             )
         )
