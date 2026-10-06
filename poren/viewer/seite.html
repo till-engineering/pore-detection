@@ -1,0 +1,1333 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schliffbild-Inspektor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#eceff3; --surface:#fff; --surface-2:#f5f7f9; --sunken:#e3e7ec;
+  --ink:#141820; --muted:#5d6775; --faint:#8a94a2; --line:#d5dae1;
+  --akzent:#0f6d8c; --akzent-weich:#d9edf4;
+  --pore:#ff1a1a; --verworfen:#b8722b; --harz:#7c5cd6; --ausschluss:#2f6fd0; --kandidat:#a89217;
+  --messung:#e2483a;
+  --entfernt:#d63370; --aufgenommen:#0c8599;
+  --dia-gez:#ff1a1a; --dia-verw:#b8722b;
+  --schatten:0 1px 2px rgba(20,24,32,.06), 0 4px 12px rgba(20,24,32,.05);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#10131a; --surface:#181d26; --surface-2:#1f2530; --sunken:#0b0e13;
+    --ink:#e7ecf2; --muted:#96a1b0; --faint:#6b7684; --line:#2c3543;
+    --akzent:#48aed0; --akzent-weich:#11323f;
+    --pore:#ff1a1a; --verworfen:#e09a52; --harz:#a78bf5; --ausschluss:#6398ea; --kandidat:#d9bf3e;
+    --messung:#ff6f5e;
+    --entfernt:#f06595; --aufgenommen:#22b8cf;
+    --schatten:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#10131a; --surface:#181d26; --surface-2:#1f2530; --sunken:#0b0e13;
+  --ink:#e7ecf2; --muted:#96a1b0; --faint:#6b7684; --line:#2c3543;
+  --akzent:#48aed0; --akzent-weich:#11323f;
+  --pore:#ff1a1a; --verworfen:#e09a52; --harz:#a78bf5; --ausschluss:#6398ea; --kandidat:#d9bf3e;
+  --messung:#ff6f5e;
+  --entfernt:#f06595; --aufgenommen:#22b8cf;
+  --schatten:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+[hidden]{display:none!important}
+body{
+  background:var(--ground); color:var(--ink);
+  font:400 14px/1.5 "IBM Plex Sans", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:"IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-variant-numeric:tabular-nums}
+:focus-visible{outline:2px solid var(--akzent); outline-offset:2px; border-radius:3px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important; animation:none!important}}
+body.laedt, body.laedt *{cursor:progress!important}
+
+/* -- Kopf ------------------------------------------------------------------ */
+.kopf{display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 18px;
+  padding:14px 20px; border-bottom:1px solid var(--line); background:var(--surface)}
+.kopf h1{margin:0; font-size:15px; font-weight:600; letter-spacing:-.01em}
+.kopf .datei{font-size:13px; color:var(--muted)}
+.bildnav{display:flex; align-items:center; gap:6px}
+.navpfeil{display:grid; place-items:center; width:28px; height:28px; border-radius:6px;
+  border:1px solid var(--line); background:var(--surface-2); color:var(--ink);
+  font:inherit; font-size:17px; line-height:1; cursor:pointer; padding:0}
+.navpfeil:hover{border-color:var(--akzent); color:var(--akzent)}
+.navpfeil:disabled{opacity:.35; pointer-events:none}
+.bildnav .stand{font-size:12px; color:var(--muted); min-width:7ch; text-align:center}
+.ladestand{font-size:12px; color:var(--akzent)}
+.kopf .kette{margin-left:auto; display:flex; align-items:center; gap:10px;
+  font-size:12px; color:var(--muted)}
+.pfeil{color:var(--faint)}
+.chip{padding:2px 8px; border:1px solid var(--line); border-radius:999px;
+  background:var(--surface-2); color:var(--ink); font-size:12px}
+.themeknopf{border:1px solid var(--line); background:var(--surface-2); color:var(--muted);
+  border-radius:6px; padding:4px 10px; font:inherit; font-size:12px; cursor:pointer}
+.themeknopf:hover{color:var(--ink); border-color:var(--akzent)}
+
+/* -- Grundraster ----------------------------------------------------------- */
+.raster{display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:18px;
+  padding:18px 20px 32px; align-items:start}
+.buehne{grid-column:1; grid-row:1}
+/* Kennzahlen und Ebenen enden mit der Unterkante des Bildfensters. */
+.tafel-oben{grid-column:2; grid-row:1; align-self:stretch; position:relative; min-width:0}
+.tafel-oben-innen{position:absolute; inset:0; display:flex; flex-direction:column; gap:14px}
+.tafel-oben .ebenenkarte{flex:1 1 auto; min-height:0; display:flex; flex-direction:column}
+.tafel-oben .ebenen{flex:1 1 auto; min-height:0; overflow-y:auto}
+.tafel{grid-column:2; grid-row:2}
+@media (max-width:900px){
+  .raster{grid-template-columns:minmax(0,1fr)}
+  .buehne,.tafel,.tafel-oben{grid-column:1; grid-row:auto}
+  .tafel-oben-innen{position:static}
+}
+
+/* -- Bühne ----------------------------------------------------------------- */
+.buehne{background:var(--surface); border:1px solid var(--line); border-radius:10px;
+  box-shadow:var(--schatten); overflow:hidden}
+.buehneninhalt{display:grid; grid-template-columns:minmax(0,1fr) clamp(300px,26vw,420px)}
+@media (max-width:820px){.buehneninhalt{grid-template-columns:minmax(0,1fr)}}
+.bildfeld{position:relative; background:var(--ground); display:flex; align-items:flex-start}
+.bildfeld > .stapel{flex:0 1 auto; min-width:0; margin:0 auto}
+/* Das Bild wird nie über seine Anzeigegröße gestreckt, nur bei Bedarf verkleinert. */
+.stapel{position:relative; line-height:0; max-width:100%}
+.stapel img{display:block; max-width:100%; height:auto; image-rendering:pixelated;
+  user-select:none; -webkit-user-drag:none}
+.stapel img.auflage{position:absolute; inset:0; width:100%; height:100%}
+.stapel canvas, .stapel svg{position:absolute; inset:0; width:100%; height:100%;
+  pointer-events:none; overflow:visible}
+#vektoren line{stroke:var(--messung); stroke-width:2; vector-effect:non-scaling-stroke;
+  stroke-linecap:round}
+#auswahl .umriss{fill:var(--akzent); fill-opacity:.18; stroke:var(--akzent); stroke-width:2;
+  vector-effect:non-scaling-stroke; stroke-linejoin:round}
+#auswahl .ring{fill:none; stroke:var(--akzent); stroke-width:1.5; vector-effect:non-scaling-stroke}
+#auswahl.fest .ring{stroke-width:2.5}
+.stapel.werkzeug-plus #auswahl .ring, .stapel.werkzeug-plus #auswahl .umriss{stroke:var(--aufgenommen)}
+.stapel.werkzeug-minus #auswahl .ring, .stapel.werkzeug-minus #auswahl .umriss{stroke:var(--entfernt)}
+.stapel.ueber-pore{cursor:pointer}
+.stapel.werkzeug-zeichnen{cursor:crosshair; touch-action:none}
+.stapel.wartet{cursor:progress}
+#zeichnung polygon{fill:var(--akzent); fill-opacity:.18; stroke:var(--akzent);
+  stroke-width:2; vector-effect:non-scaling-stroke; stroke-linejoin:round}
+
+.leiste{display:flex; flex-wrap:wrap; align-items:center; gap:14px;
+  padding:10px 16px; border-top:1px solid var(--line); background:var(--surface-2);
+  font-size:12px; color:var(--muted)}
+.regler{display:flex; align-items:center; gap:8px; margin-left:auto}
+.regler input{width:110px; accent-color:var(--akzent)}
+#korrekturstand{color:var(--muted)}
+#korrekturstand.fehler{color:var(--entfernt)}
+
+/* -- Werkzeugleiste: senkrecht links neben dem Bild ------------------------ */
+.werkzeuge{flex:none; position:sticky; top:10px; display:flex; flex-direction:column;
+  gap:4px; margin:10px; padding:5px; background:var(--surface);
+  border:1px solid var(--line); border-radius:9px; box-shadow:var(--schatten)}
+@media (max-width:600px){
+  .bildfeld{flex-direction:column; align-items:center}
+  .werkzeuge{position:static; flex-direction:row; align-self:flex-start}
+  .werkzeugtrenner{width:1px; height:auto; margin:2px 3px}
+}
+.werkzeug{width:34px; height:34px; padding:0; display:grid; place-items:center;
+  border:1px solid transparent; border-radius:6px; background:transparent;
+  color:var(--muted); cursor:pointer}
+.werkzeug svg{width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2;
+  stroke-linecap:round; stroke-linejoin:round}
+.werkzeug.klein svg{width:16px; height:16px}
+.werkzeug:hover{background:var(--surface-2); color:var(--ink); border-color:var(--line)}
+.werkzeug.an{color:#fff; border-color:transparent}
+.werkzeug.an[data-werkzeug="plus"]{background:var(--aufgenommen)}
+.werkzeug.an[data-werkzeug="minus"]{background:var(--entfernt)}
+.werkzeug.an[data-werkzeug="zeichnen"]{background:var(--akzent)}
+.werkzeug:disabled{opacity:.35; cursor:default; background:transparent; border-color:transparent}
+.werkzeugtrenner{height:1px; background:var(--line); margin:3px 2px}
+
+/* -- Nebenspalte: Maßstab und Lupe, so hoch wie das Bild ------------------- */
+.nebenspalte{position:relative; border-left:1px solid var(--line); min-width:0;
+  background:var(--surface)}
+.nebenspalte-innen{position:absolute; inset:0; display:flex; flex-direction:column;
+  overflow-y:auto}
+.nebenspalte-innen > #porenkarte{flex:1 1 auto; min-height:0; display:flex;
+  flex-direction:column}
+#porenkarte .plupe{flex:1 1 auto; min-height:0}
+.pfensterfeld{flex:1 1 0; min-height:140px; display:flex; justify-content:center;
+  container-type:size}
+@media (max-width:820px){
+  .nebenspalte{border-left:0; border-top:1px solid var(--line)}
+  .nebenspalte-innen{position:static; overflow:visible}
+  .pfensterfeld{flex:none; height:min(90vw, 420px)}
+}
+.spaltenblock{min-width:0}
+.spaltenblock + .spaltenblock{border-top:1px solid var(--line)}
+.spaltenkopf{padding:11px 14px; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.07em; color:var(--muted); border-bottom:1px solid var(--line)}
+.mkontrolle{display:flex; flex-direction:column; gap:9px; padding:11px 13px}
+.mbild{margin:0; display:flex; flex-direction:column; gap:5px; min-width:0; align-items:center}
+.mstapel{position:relative; line-height:0; display:inline-block; max-width:100%}
+.mbild img{display:block; max-width:100%; max-height:190px; width:auto; height:auto;
+  image-rendering:pixelated; border:1px solid var(--line); border-radius:5px;
+  background:var(--sunken)}
+#m-marken{position:absolute; inset:0; width:100%; height:100%; pointer-events:none;
+  overflow:visible}
+#m-marken line{stroke:var(--messung); stroke-width:2; vector-effect:non-scaling-stroke;
+  stroke-linecap:round}
+.mdaten{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:8px 12px; align-items:stretch; min-width:0}
+.gelesen{padding:6px 9px; border:1px solid var(--line); border-radius:7px;
+  background:var(--surface-2)}
+.gelesen .etikett{font-size:10px; text-transform:uppercase; letter-spacing:.07em;
+  color:var(--faint)}
+.gelesen .wert{font-size:16px; font-weight:500; letter-spacing:-.02em; line-height:1.3}
+.gelesen .herkunft{font-size:10px; color:var(--muted); margin-top:1px}
+
+/* Lupe: immer quadratisch, Bildpixel als Kästchen, Umrisse haarfein als Vektor. */
+.plupe{display:flex; flex-direction:column; gap:9px; padding:11px 13px}
+.pfenster{position:relative; width:min(100cqw, 100cqh); height:min(100cqw, 100cqh);
+  flex:none; overflow:hidden; border:1px solid var(--line); border-radius:5px;
+  background:var(--sunken)}
+.pfenster canvas{display:block; width:100%; height:100%}
+.plupe .feld{font-size:11px; color:var(--muted)}
+.plupe .feld input[type=range]{accent-color:var(--akzent)}
+.pfusszeile{font-size:10px; color:var(--faint); line-height:1.35}
+.gehalten{display:inline-block; margin-left:6px; padding:1px 7px; border-radius:999px;
+  background:var(--akzent-weich); color:var(--akzent); font-size:10px;
+  text-transform:uppercase; letter-spacing:.06em; vertical-align:middle}
+
+/* -- Diagramm -------------------------------------------------------------- */
+.diagrammraster{grid-column:1; grid-row:2; display:grid; gap:18px;
+  grid-template-columns:repeat(2, minmax(0,1fr)); align-items:start}
+@media (max-width:900px){.diagrammraster{grid-column:1; grid-row:auto;
+  grid-template-columns:minmax(0,1fr)}}
+.diagramm{position:relative; min-width:0; cursor:zoom-in}
+.diagramm .figur{padding:10px 12px 12px}
+.verdunkelung{position:fixed; inset:0; z-index:59; background:rgba(8,11,16,.55)}
+.diagramm.gross{position:fixed; inset:5vh 5vw; z-index:60; cursor:default;
+  overflow:auto; display:flex; flex-direction:column}
+.diagramm.gross .figur{flex:1; display:flex; flex-direction:column; justify-content:center;
+  padding:18px 24px 22px}
+.diagramm.gross .plotfeld svg{width:auto; height:70vh; max-width:100%; margin:0 auto}
+.zuknopf{position:absolute; top:7px; right:9px; z-index:2; display:none;
+  border:1px solid var(--line); background:var(--surface-2); color:var(--muted);
+  border-radius:6px; width:26px; height:26px; font:inherit; font-size:16px;
+  line-height:1; cursor:pointer}
+.diagramm.gross .zuknopf{display:block}
+.zuknopf:hover{color:var(--ink); border-color:var(--akzent)}
+.figur{margin:0; padding:12px 16px 14px}
+.figurkopf{display:flex; flex-direction:column; align-items:flex-start; gap:4px;
+  margin-bottom:8px; min-height:34px}
+.figurtitel{font-size:12px; color:var(--muted); line-height:1.3}
+.legende{display:flex; flex-wrap:wrap; gap:6px 14px; font-size:11px; color:var(--muted)}
+.legende .eintrag{display:flex; align-items:center; gap:6px}
+.patch{width:10px; height:10px; border-radius:1px; flex:none}
+.patch-gez{background:var(--dia-gez)}
+.patch-verw{background:var(--dia-verw)}
+.strich-legende{width:14px; height:0; border-top:2px solid var(--ink); opacity:.72; flex:none}
+.plotfeld{position:relative}
+#histogramm{display:block; width:100%; height:auto; overflow:visible}
+.gitter{stroke:var(--line); stroke-width:1; shape-rendering:crispEdges}
+.rahmen{stroke:var(--ink); stroke-width:1.2; fill:none; shape-rendering:crispEdges}
+.tick{stroke:var(--ink); stroke-width:1.1; shape-rendering:crispEdges}
+.tick-klein{stroke:var(--muted); stroke-width:0.8; shape-rendering:crispEdges}
+.ticktext{fill:var(--muted); font-size:11px; font-family:"IBM Plex Mono", monospace;
+  font-variant-numeric:tabular-nums}
+.achsentitel{fill:var(--ink); font-size:12px; font-family:"IBM Plex Sans", sans-serif}
+.dichte{fill:none; stroke:var(--ink); stroke-width:1.6; stroke-linejoin:round; opacity:.72}
+.teppich{stroke:var(--ink); stroke-width:0.7; opacity:.38}
+.balken-gez{fill:var(--dia-gez)}
+.balken-verw{fill:var(--dia-verw)}
+.quantil{stroke:var(--ink); stroke-width:1; stroke-dasharray:3 3; opacity:.55}
+.quantiltext{fill:var(--ink); font-size:10px; font-family:"IBM Plex Mono", monospace; opacity:.75}
+.klassenfeld{fill:transparent}
+.klassenfeld:hover{fill:var(--ink); fill-opacity:.055}
+.tooltip{position:absolute; pointer-events:none; z-index:5; min-width:132px;
+  padding:7px 9px; border:1px solid var(--line); border-radius:6px;
+  background:var(--surface); box-shadow:var(--schatten); font-size:11px; line-height:1.45}
+.tooltip .kopfzeile{font-family:"IBM Plex Mono", monospace; color:var(--muted); margin-bottom:3px}
+.tooltip .reihe{display:flex; align-items:center; gap:6px}
+.tooltip .reihe .zahl{margin-left:auto; font-family:"IBM Plex Mono", monospace;
+  font-variant-numeric:tabular-nums}
+.kennleiste{display:flex; flex-wrap:wrap; gap:6px 22px; margin-top:10px;
+  padding-top:10px; border-top:1px solid var(--line); font-size:11px; color:var(--muted)}
+.kennleiste b{font-weight:500; color:var(--ink); font-family:"IBM Plex Mono", monospace;
+  font-variant-numeric:tabular-nums}
+
+/* -- Tafel ----------------------------------------------------------------- */
+.tafel{display:flex; flex-direction:column; gap:14px; min-width:0}
+.karte{background:var(--surface); border:1px solid var(--line); border-radius:10px;
+  box-shadow:var(--schatten)}
+.karte > h2{margin:0; padding:11px 14px; font-size:11px; font-weight:600;
+  text-transform:uppercase; letter-spacing:.07em; color:var(--muted);
+  border-bottom:1px solid var(--line)}
+
+.zahlen{display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line)}
+.zahl{background:var(--surface); padding:11px 14px}
+.zahl .wert{font-size:19px; font-weight:500; letter-spacing:-.02em}
+.zahl .bez{font-size:11px; color:var(--muted); margin-top:1px}
+.zahl .neben{font-size:11px; color:var(--faint)}
+
+.ebenen{display:flex; flex-direction:column; gap:1px; padding:6px 8px}
+.ebene{display:flex; align-items:center; gap:8px; padding:3px 7px; border-radius:6px;
+  cursor:pointer; font-size:12px}
+.basiswahl{display:flex; gap:4px; padding:2px 0 4px}
+.basiswahl .ebene{flex:1 1 0; justify-content:center; padding:4px 6px;
+  border:1px solid var(--line); position:relative}
+.basiswahl .ebene input{position:absolute; opacity:0; pointer-events:none}
+.basiswahl .ebene:has(input:checked){background:var(--akzent-weich);
+  border-color:var(--akzent); color:var(--akzent); font-weight:500}
+.basiswahl .ebene:has(input:focus-visible){outline:2px solid var(--akzent); outline-offset:1px}
+.ebene:hover{background:var(--surface-2)}
+.ebene:has(input[type=checkbox]:checked){background:var(--akzent-weich)}
+.ebene:has(input[type=checkbox]:checked) > span:not(.punkt):not(.anzahl){font-weight:500}
+.ebene input{margin:0; accent-color:var(--akzent); flex:none}
+.punkt{width:10px; height:10px; border-radius:2px; flex:none}
+.ebene .anzahl{margin-left:auto; font-size:11px; color:var(--faint)}
+.trenner{height:1px; background:var(--line); margin:4px 7px}
+.gruppe{font-size:10px; text-transform:uppercase; letter-spacing:.07em; color:var(--faint);
+  padding:2px 7px 1px}
+
+.liste{max-height:520px; overflow-y:auto}
+.zeile{display:grid; grid-template-columns:14px 1fr auto; gap:9px; align-items:center;
+  padding:7px 14px; border-bottom:1px solid var(--line); cursor:pointer; font-size:12px}
+.zeile:last-child{border-bottom:0}
+.zeile:hover{background:var(--surface-2)}
+.zeile.aktiv{background:var(--akzent-weich)}
+.marke{width:8px; height:8px; border-radius:50%}
+.zeile .name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.zeile .grund{font-size:11px; color:var(--muted)}
+.zeile .mass{text-align:right; color:var(--muted)}
+
+/* -- Porenzeile über dem Bild: feste Breiten, damit nichts springt ---------- */
+.porenzeile{display:flex; flex-wrap:wrap; align-items:center; gap:4px 18px;
+  padding:8px 16px; min-height:38px; border-bottom:1px solid var(--line);
+  background:var(--surface-2); font-size:12px; color:var(--muted)}
+.porenzeile .pkopf{display:flex; align-items:center; gap:7px; min-width:15ch; color:var(--ink)}
+.porenzeile .pkopf b{font-weight:600}
+.porenzeile .pstatus{color:var(--muted)}
+.porenzeile .pw{display:flex; align-items:baseline; gap:5px; white-space:nowrap}
+.porenzeile .pw b{font-weight:500; color:var(--ink); min-width:5ch}
+.porenzeile .pgrund{color:var(--verworfen); white-space:nowrap; overflow:hidden;
+  text-overflow:ellipsis; max-width:100%}
+.porenzeile.leerzeile .pkopf, .porenzeile.leerzeile .pw b{color:var(--faint)}
+.leer{padding:14px; font-size:12px; color:var(--faint)}
+
+.stufen{padding:10px 14px; font-size:12px; display:flex; flex-direction:column; gap:5px}
+.stufe{display:grid; grid-template-columns:78px 1fr; gap:10px}
+.stufe dt{color:var(--muted)}
+.stufe dd{margin:0}
+.warnung{color:var(--verworfen)}
+</style>
+</head>
+<body>
+
+<header class="kopf">
+  <h1>Schliffbild-Inspektor</h1>
+  <nav class="bildnav" aria-label="Bilder des Laufs">
+    <button class="navpfeil" id="nav-zurueck" type="button" title="Vorheriges Bild (Pfeil links)" aria-label="Vorheriges Bild">‹</button>
+    <span class="stand mono" id="nav-stand"></span>
+    <button class="navpfeil" id="nav-vor" type="button" title="Nächstes Bild (Pfeil rechts)" aria-label="Nächstes Bild">›</button>
+  </nav>
+  <span class="datei mono" id="dateiname"></span>
+  <span class="datei mono" id="erzeugt"></span>
+  <span class="ladestand" id="ladestand" hidden>lädt …</span>
+  <div class="kette">
+    <span class="chip" id="v-massstab">Maßstab</span><span class="pfeil">→</span>
+    <span class="chip" id="v-probe">Probe</span><span class="pfeil">→</span>
+    <span class="chip" id="v-poren">Poren</span>
+    <button class="themeknopf" id="themeknopf" type="button">Dunkel</button>
+  </div>
+</header>
+
+<div class="verdunkelung" id="verdunkelung" hidden></div>
+<div class="raster">
+  <section class="buehne">
+   <div class="porenzeile leerzeile" id="detail" aria-live="polite"></div>
+   <div class="buehneninhalt">
+    <div class="bildfeld">
+      <div class="werkzeuge" role="toolbar" aria-label="Poren bearbeiten" aria-orientation="vertical">
+        <button class="werkzeug" type="button" data-werkzeug="plus" aria-pressed="false"
+                title="Pore aufnehmen – Klick auf eine verworfene Pore zählt sie">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></button>
+        <button class="werkzeug" type="button" data-werkzeug="minus" aria-pressed="false"
+                title="Pore entfernen – Klick auf eine gezählte Pore verwirft sie, eine eingezeichnete wird gelöscht">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12"/></svg></button>
+        <button class="werkzeug" type="button" data-werkzeug="zeichnen" aria-pressed="false"
+                title="Pore einzeichnen – Umriss mit gedrückter Maustaste ziehen">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 16l1-4 8-8 3 3-8 8-4 1zM11 6l3 3"/></svg></button>
+        <div class="werkzeugtrenner"></div>
+        <button class="werkzeug klein" type="button" id="rueckgaengig" title="Rückgängig (Strg+Z)">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 5L3 9l4 4M3 9h9a4 4 0 010 8h-2"/></svg></button>
+        <button class="werkzeug klein" type="button" id="zuruecksetzen" title="Alle Korrekturen an diesem Bild verwerfen">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10"/></svg></button>
+      </div>
+      <div class="stapel" id="stapel">
+        <img id="basis" alt="Schliffbild" draggable="false">
+        <img class="auflage" id="l-harz" alt="" hidden>
+        <img class="auflage" id="l-ausschluss" alt="" hidden>
+        <img class="auflage" id="l-kandidaten" alt="" hidden>
+        <canvas id="porenleinwand"></canvas>
+        <svg id="vektoren" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
+        <svg id="auswahl" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
+        <svg id="zeichnung" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
+      </div>
+    </div>
+
+    <div class="nebenspalte"><div class="nebenspalte-innen">
+      <section class="spaltenblock" id="massstabkarte">
+        <div class="spaltenkopf">Maßstab — optische Kontrolle</div>
+        <div class="mkontrolle" id="m-mit">
+          <figure class="mbild">
+            <div class="mstapel">
+              <img id="m-ausschnitt" alt="Vergrößerter Ausschnitt des Maßstabsbalkens">
+              <svg id="m-marken" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
+            </div>
+          </figure>
+          <div class="mdaten" id="m-daten"></div>
+        </div>
+        <div class="leer" id="m-ohne" hidden>Kein Maßstab erkannt – es wird in Pixeln gemessen.</div>
+      </section>
+
+      <section class="spaltenblock" id="porenkarte">
+        <div class="spaltenkopf">Pore — optische Kontrolle</div>
+        <div class="plupe" id="plupe" hidden>
+          <div class="pfensterfeld"><div class="pfenster" id="p-fenster">
+            <canvas id="p-leinwand"></canvas>
+          </div></div>
+          <label class="feld">Umfeld
+            <input type="range" id="p-umfeld" min="1.5" max="12" step="0.5" value="3">
+            <span class="mono" id="p-umfeldwert">3,0</span> ×
+          </label>
+          <div class="pfusszeile" id="p-lupe"></div>
+        </div>
+        <div class="leer" id="plupe-leer">Auf eine Pore im Bild oder in der Liste
+          zeigen. Ein Klick hält sie fest.</div>
+      </section>
+    </div></div>
+   </div>
+
+    <div class="leiste">
+      <span class="mono" id="bildmasse"></span>
+      <span class="mono" id="aufloesung"></span>
+      <span class="mono" id="korrekturstand"></span>
+      <label class="regler">Deckkraft
+        <input type="range" id="deckkraft" min="20" max="100" value="100" step="5">
+        <span class="mono" id="deckkraftwert">100 %</span>
+      </label>
+    </div>
+  </section>
+
+  <div class="diagrammraster">
+    <section class="karte diagramm" id="histogrammkarte">
+      <button class="zuknopf" type="button" aria-label="Schließen">×</button>
+      <h2>Größenverteilung der Poren</h2>
+      <figure class="figur">
+        <figcaption class="figurkopf">
+          <span class="figurtitel" id="h-titel"></span>
+          <span class="legende">
+            <span class="eintrag"><span class="patch patch-gez"></span>gezählt</span>
+            <span class="eintrag"><span class="patch patch-verw"></span>verworfen</span>
+            <span class="eintrag"><span class="strich-legende"></span>Dichte</span>
+          </span>
+        </figcaption>
+        <div class="plotfeld">
+          <svg id="histogramm" xmlns="http://www.w3.org/2000/svg" role="img"
+               aria-label="Häufigkeitsverteilung der Porenfläche"></svg>
+          <div class="tooltip" id="h-tooltip" hidden></div>
+        </div>
+        <div class="kennleiste" id="h-kenn"></div>
+      </figure>
+      <div class="leer" id="h-leer" hidden>Keine Poren zum Auswerten.</div>
+    </section>
+
+    <section class="karte">
+      <h2>Was das Verfahren gemeldet hat</h2>
+      <dl class="stufen" id="stufen"></dl>
+    </section>
+  </div>
+
+  <aside class="tafel-oben"><div class="tafel-oben-innen">
+    <div class="karte">
+      <h2>Kennzahlen</h2>
+      <div class="zahlen" id="kennzahlen"></div>
+    </div>
+
+    <div class="karte ebenenkarte">
+      <h2>Ebenen</h2>
+      <div class="ebenen">
+        <div class="gruppe">Grundbild</div>
+        <div class="basiswahl">
+          <label class="ebene" title="Das Schliffbild"><input type="radio" name="basis" value="original" checked>
+            <span>Original</span></label>
+          <label class="ebene" title="Geschätzter Untergrund"><input type="radio" name="basis" value="untergrund">
+            <span>Untergrund</span></label>
+          <label class="ebene" title="Kontrast zum Untergrund"><input type="radio" name="basis" value="kontrast">
+            <span>Kontrast</span></label>
+        </div>
+        <div class="trenner"></div>
+        <div class="gruppe">Overlay</div>
+        <label class="ebene"><input type="checkbox" id="c-harz">
+          <span class="punkt" style="background:var(--harz)"></span><span>Einbettmittel</span>
+          <span class="anzahl"></span></label>
+        <label class="ebene" title="Gemessene Balkenstrecke und der ausgeschlossene Bereich des Maßstabs"><input type="checkbox" id="c-massstab" checked>
+          <span class="punkt" style="background:linear-gradient(135deg, var(--messung) 50%, var(--ausschluss) 50%)"></span><span>Overlay Maßstab</span>
+          <span class="anzahl" id="n-massstab"></span></label>
+        <label class="ebene"><input type="checkbox" id="c-kandidaten">
+          <span class="punkt" style="background:var(--kandidat)"></span><span>Kandidaten</span>
+          <span class="anzahl" id="n-kandidaten"></span></label>
+        <label class="ebene"><input type="checkbox" id="c-verworfen" checked>
+          <span class="punkt" style="background:var(--verworfen)"></span><span>Verworfen</span>
+          <span class="anzahl" id="n-verworfen"></span></label>
+        <label class="ebene"><input type="checkbox" id="c-entfernt" checked>
+          <span class="punkt" style="background:var(--entfernt)"></span><span>Von Hand entfernt</span>
+          <span class="anzahl" id="n-entfernt"></span></label>
+        <label class="ebene"><input type="checkbox" id="c-aufgenommen" checked>
+          <span class="punkt" style="background:var(--aufgenommen)"></span><span>Von Hand aufgenommen</span>
+          <span class="anzahl" id="n-aufgenommen"></span></label>
+        <label class="ebene"><input type="checkbox" id="c-poren" checked>
+          <span class="punkt" style="background:var(--pore)"></span><span>Poren</span>
+          <span class="anzahl" id="n-poren"></span></label>
+      </div>
+    </div>
+  </div></aside>
+
+  <aside class="tafel">
+    <div class="karte">
+      <h2>Poren nach Fläche</h2>
+      <div class="liste" id="liste"></div>
+    </div>
+  </aside>
+</div>
+
+<script>
+"use strict";
+/* Die Seite wird einmal geladen. Alles Weitere holt sie beim Server:
+   /api/bild/<n> liefert Kennzahlen, Porenliste und Umrisse, die Bildebenen kommen
+   einzeln als PNG - und nur, wenn sie eingeschaltet sind. Die Poren zeichnet der
+   Browser selbst auf eine Leinwand; eine Korrektur schickt nur neue Daten. */
+
+const $ = (id) => document.getElementById(id);
+const nz = (w, n = 1, e = "-") => (w === null || w === undefined) ? e : w.toFixed(n);
+const SVGNS = "http://www.w3.org/2000/svg";
+
+let STAPEL = null;      // {anzahl, kennung, namen}
+let INDEX = 0;          // aktuelles Bild
+let D = null;           // Daten des aktuellen Bildes
+let PFADE = new Map();  // Label -> Path2D (Bildkoordinaten)
+let RASTER = new Map(); // Suchraster für "welche Pore liegt unter der Maus"
+let aktiv = null;       // Index in D.poren
+let fest = false;       // Auswahl festgehalten?
+let werkzeug = null;    // "plus" | "minus" | "zeichnen" | null
+let wartet = false;
+const RASTERWEITE = 64;
+const PRUEF = document.createElement("canvas").getContext("2d");
+
+/* SVG-Inhalt über createElementNS setzen - per innerHTML landen Elemente je nach
+   Browser im falschen Namespace und werden nie gezeichnet. */
+function svgSetzen(ziel, elemente) {
+  while (ziel.firstChild) ziel.removeChild(ziel.firstChild);
+  for (const [tag, attr] of elemente) {
+    const el = document.createElementNS(SVGNS, tag);
+    for (const [k, v] of Object.entries(attr)) el.setAttribute(k, v);
+    ziel.appendChild(el);
+  }
+}
+const farbeAus = (name) => getComputedStyle(document.documentElement).getPropertyValue("--" + name).trim();
+const deckkraft = () => parseInt($("deckkraft").value, 10) / 100;
+const ebeneUrl = (name) => `/api/bild/${INDEX}/ebene/${name}.png?v=${STAPEL.kennung}`;
+
+/* -- Laden und Blättern ---------------------------------------------------- */
+let ladeNummer = 0;
+async function bildLaden(i) {
+  if (!STAPEL || i < 0 || i >= STAPEL.anzahl) return;
+  const nummer = ++ladeNummer;
+  document.body.classList.add("laedt");
+  $("ladestand").textContent = "lädt …";
+  $("ladestand").hidden = false;
+  try {
+    const antwort = await fetch(`/api/bild/${i}`);
+    if (!antwort.ok) throw new Error(await antwort.text());
+    const daten = await antwort.json();
+    if (nummer !== ladeNummer) return;     // inzwischen weitergeblättert
+    INDEX = i;
+    history.replaceState(null, "", `#${i + 1}`);
+    neuesBild(daten);
+  } catch (e) {
+    if (nummer === ladeNummer) $("ladestand").textContent = "Fehler: " + e.message;
+    return;
+  } finally {
+    if (nummer === ladeNummer) document.body.classList.remove("laedt");
+  }
+  $("ladestand").hidden = true;
+}
+
+function navigationZeichnen() {
+  $("nav-stand").textContent = `${INDEX + 1} / ${STAPEL.anzahl}`;
+  $("nav-zurueck").disabled = INDEX <= 0;
+  $("nav-vor").disabled = INDEX >= STAPEL.anzahl - 1;
+  if (INDEX > 0) $("nav-zurueck").title = "Vorheriges Bild: " + STAPEL.namen[INDEX - 1];
+  if (INDEX < STAPEL.anzahl - 1) $("nav-vor").title = "Nächstes Bild: " + STAPEL.namen[INDEX + 1];
+}
+$("nav-zurueck").addEventListener("click", () => bildLaden(INDEX - 1));
+$("nav-vor").addEventListener("click", () => bildLaden(INDEX + 1));
+
+/* -- Ein neues Bild übernehmen --------------------------------------------- */
+function neuesBild(daten) {
+  D = daten;
+  aktiv = null;
+  fest = false;
+  PFADE = new Map();
+  pfadeAnlegen(D.umrisse);
+  pfadeAnlegen(D.umrisse_neu);
+
+  navigationZeichnen();
+  $("dateiname").textContent = D.bild;
+  $("erzeugt").textContent = "ausgewertet " + D.erzeugt;
+  $("bildmasse").textContent = `${D.breite} × ${D.hoehe} px`;
+  $("aufloesung").textContent = D.um_pro_px ? `${nz(D.um_pro_px, 3)} µm/px` : "ohne Maßstab – Werte in Pixeln";
+  $("v-probe").textContent = D.verfahren.probe;
+  $("v-poren").textContent = D.verfahren.poren;
+  $("v-massstab").textContent = D.massstab ? `${nz(D.massstab.um_pro_px, 2)} µm/px` : "kein Maßstab";
+
+  // Größe vorab festlegen, damit nichts springt, solange das Bild noch lädt.
+  const basis = $("basis");
+  basis.style.width = (D.breite * D.zoom) + "px";
+  basis.style.aspectRatio = `${D.breite} / ${D.hoehe}`;
+  for (const id of ["auswahl", "vektoren", "zeichnung"]) {
+    $(id).setAttribute("viewBox", `0 0 ${D.breite} ${D.hoehe}`);
+  }
+  for (const name of ["harz", "ausschluss", "kandidaten"]) {
+    $("l-" + name).removeAttribute("src");
+    delete $("l-" + name).dataset.url;
+  }
+  basis.src = ebeneUrl(document.querySelector("input[name=basis]:checked").value);
+
+  massstabZeichnen();
+  ebenenSchalten();
+  allesZeichnen();
+}
+
+/* Alles, was sich durch eine Korrektur ändert. */
+function allesZeichnen() {
+  rasterAnlegen();
+  kennzahlenZeichnen();
+  stufenZeichnen();
+  listeZeichnen();
+  histogrammZeichnen();
+  korrekturstandZeichnen();
+  porenZeichnen();
+  darstellen();
+}
+
+/* -- Umrisse als Path2D und Suchraster ------------------------------------- */
+function pfadeAnlegen(umrisse) {
+  for (const [label, zuege] of Object.entries(umrisse || {})) {
+    const pfad = new Path2D();
+    for (const z of zuege) {
+      pfad.moveTo(z[0], z[1]);
+      for (let k = 2; k < z.length; k += 2) pfad.lineTo(z[k], z[k + 1]);
+      pfad.closePath();
+    }
+    PFADE.set(Number(label), pfad);
+  }
+}
+
+function rasterAnlegen() {
+  RASTER = new Map();
+  D.poren.forEach((p, i) => {
+    const [x, y, w, h] = p.box;
+    for (let cx = Math.floor(x / RASTERWEITE); cx <= Math.floor((x + w) / RASTERWEITE); cx++) {
+      for (let cy = Math.floor(y / RASTERWEITE); cy <= Math.floor((y + h) / RASTERWEITE); cy++) {
+        const k = cx + "," + cy;
+        if (!RASTER.has(k)) RASTER.set(k, []);
+        RASTER.get(k).push(i);
+      }
+    }
+  });
+}
+
+/** Anzeigepixel je Bildpixel. */
+const skala = () => ($("basis").clientWidth || D.breite) / D.breite;
+
+/** Die Pore unter einem Bildpunkt: erst eine, die den Punkt enthält, sonst die nächste
+    in wenigen Anzeigepixeln Abstand (kleine Poren sind sonst kaum zu treffen). */
+function poreBei(x, y) {
+  const tol = Math.max(1.5, 6 / skala());
+  const gesehen = new Set();
+  let beste = null, besterAbstand = Infinity;
+  for (let cx = Math.floor((x - tol) / RASTERWEITE); cx <= Math.floor((x + tol) / RASTERWEITE); cx++) {
+    for (let cy = Math.floor((y - tol) / RASTERWEITE); cy <= Math.floor((y + tol) / RASTERWEITE); cy++) {
+      for (const i of RASTER.get(cx + "," + cy) || []) {
+        if (gesehen.has(i)) continue;
+        gesehen.add(i);
+        const [bx, by, bw, bh] = D.poren[i].box;
+        if (x < bx - tol || x > bx + bw + tol || y < by - tol || y > by + bh + tol) continue;
+        const pfad = PFADE.get(D.poren[i].label);
+        if (pfad && PRUEF.isPointInPath(pfad, x, y, "evenodd")) return i;
+        const abstand = Math.hypot(Math.max(bx - x, 0, x - bx - bw), Math.max(by - y, 0, y - by - bh));
+        if (abstand < besterAbstand) { besterAbstand = abstand; beste = i; }
+      }
+    }
+  }
+  return beste;
+}
+
+/* -- Poren auf die Leinwand ------------------------------------------------ */
+const ARTEN = [["verworfen", "c-verworfen"], ["entfernt", "c-entfernt"],
+               ["aufgenommen", "c-aufgenommen"], ["pore", "c-poren"]];
+/** Kategorie einer Pore - von Hand geänderte haben ihre eigene Farbe. */
+const art = (p) => p.manuell === "gezeichnet" ? "aufgenommen"
+  : p.manuell || (p.status === "behalten" ? "pore" : "verworfen");
+
+function porenZeichnen() {
+  const leinwand = $("porenleinwand"), basis = $("basis");
+  const w = basis.clientWidth, h = basis.clientHeight;
+  if (!D || !w || !h) return;
+  const dpr = window.devicePixelRatio || 1;
+  leinwand.width = Math.round(w * dpr);
+  leinwand.height = Math.round(h * dpr);
+  const g = leinwand.getContext("2d");
+  const s = (w * dpr) / D.breite;
+  g.setTransform(s, 0, 0, s, 0, 0);
+  g.lineJoin = "round";
+  for (const [name, schalter] of ARTEN) {
+    if (!$(schalter).checked) continue;
+    const farbe = farbeAus(name);
+    g.fillStyle = farbe;
+    g.strokeStyle = farbe;
+    // Gezählte Poren: kräftiger greller Rand, innen nur leicht eingefärbt.
+    const pore = name === "pore";
+    g.lineWidth = (pore ? 2 : 1.2) * dpr / s;
+    for (const p of D.poren) {
+      if (art(p) !== name) continue;
+      const pfad = PFADE.get(p.label);
+      if (!pfad) continue;
+      g.globalAlpha = pore ? 0.15 : 0.28;
+      g.fill(pfad, "evenodd");
+      g.globalAlpha = 1;
+      g.stroke(pfad);
+    }
+  }
+  leinwand.style.opacity = deckkraft();
+}
+
+/* -- Kennzahlen, Stufen, Liste --------------------------------------------- */
+const kachel = (wert, bez, neben) =>
+  `<div class="zahl"><div class="wert mono">${wert}</div>
+   <div class="bez">${bez}</div>${neben ? `<div class="neben mono">${neben}</div>` : ""}</div>`;
+function kennzahlenZeichnen() {
+  const k = D.kennzahlen;
+  $("kennzahlen").innerHTML =
+    kachel(k.porositaet === null ? "–" : nz(k.porositaet, 2) + " %", "Porosität",
+           k.porositaet_ohne_rand === null ? "" : nz(k.porositaet_ohne_rand, 2) + " % ohne Randporen") +
+    kachel(k.behalten, "Poren", `${k.kandidaten} Kandidaten, ${k.verworfen} verworfen`) +
+    kachel(k.groesste_um !== null ? nz(k.groesste_um, 1) + " µm" : nz(k.groesste_px, 0) + " px", "Größte Pore") +
+    kachel(k.dichte !== null ? nz(k.dichte, 0) : "–", "Poren / mm²",
+           k.probe_mm2 !== null ? nz(k.probe_mm2, 2) + " mm² Probe" : k.probe_px + " px Probe");
+  const kr = D.korrekturen;
+  $("n-kandidaten").textContent = k.kandidaten;
+  $("n-poren").textContent = k.behalten;
+  $("n-verworfen").textContent = k.verworfen;
+  $("n-entfernt").textContent = kr.entfernt;
+  $("n-aufgenommen").textContent = kr.aufgenommen + kr.gezeichnet;
+}
+
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function stufenZeichnen() {
+  $("stufen").innerHTML =
+    Object.entries(D.stufen).map(([n, t]) => `<div class="stufe"><dt>${esc(n)}</dt><dd>${esc(t)}</dd></div>`).join("") +
+    D.warnungen.map((w) => `<div class="stufe warnung"><dt>Warnung</dt><dd>${esc(w)}</dd></div>`).join("");
+}
+
+const mass = (p) => p.d_um !== null ? nz(p.d_um, 1) + " µm" : nz(p.d_px, 1) + " px";
+function listeZeichnen() {
+  $("liste").innerHTML = D.poren.map((p, i) => `
+    <div class="zeile" data-i="${i}">
+      <span class="marke" style="background:var(--${art(p)})"></span>
+      <span class="name">${p.status === "behalten"
+        ? "Pore " + p.label + (p.randbild ? " · angeschnitten" : "")
+          + (p.manuell === "aufgenommen" ? " · von Hand aufgenommen" : "")
+          + (p.manuell === "gezeichnet" ? " · eingezeichnet" : "")
+        : `<span class="grund">${esc(p.grund)}</span>`}</span>
+      <span class="mass mono">${mass(p)}</span>
+    </div>`).join("");
+}
+
+/* -- Maßstab --------------------------------------------------------------- */
+function massstabZeichnen() {
+  const m = D.massstab;
+  $("m-mit").hidden = !m;
+  $("m-ohne").hidden = !!m;
+  $("c-massstab").disabled = !m;
+  $("n-massstab").textContent = m ? nz(m.balken_px, 0) + " px" : "–";
+  const linien = (bb, dx, dy) => {
+    const y = bb.y - dy + bb.h / 2, x0 = bb.x - dx, x1 = x0 + bb.w, marke = Math.max(bb.h * 1.8, 3);
+    return [["line", { x1: x0, y1: y, x2: x1, y2: y }],
+            ["line", { x1: x0, y1: y - marke, x2: x0, y2: y + marke }],
+            ["line", { x1: x1, y1: y - marke, x2: x1, y2: y + marke }]];
+  };
+  svgSetzen($("vektoren"), m && m.balken_box ? linien(m.balken_box, 0, 0) : []);
+  if (!m) return;
+
+  $("m-ausschnitt").src = m.ausschnitt || "";
+  const am = m.ausschnitt_masse;
+  if (am && m.balken_box) {
+    $("m-marken").setAttribute("viewBox", `0 0 ${am.crop_w} ${am.crop_h}`);
+    $("m-marken").setAttribute("preserveAspectRatio", "none");
+    svgSetzen($("m-marken"), linien(m.balken_box, am.x0, am.y0));
+  } else {
+    svgSetzen($("m-marken"), []);
+  }
+  $("m-daten").innerHTML = `
+    <div class="gelesen"><div class="etikett">Beschriftung</div>
+      <div class="wert mono">${esc(m.beschriftung || "–")}</div>
+      <div class="herkunft">${nz(m.konfidenz * 100, 0)} % Konfidenz</div></div>
+    <div class="gelesen"><div class="etikett">Auflösung</div>
+      <div class="wert mono">${esc(m.aufloesung || "–")}</div></div>`;
+}
+
+/* -- Ebenen ---------------------------------------------------------------- */
+/** Eine Flächenebene zeigen und dafür erst jetzt laden. */
+function flaecheSchalten(name, an) {
+  const el = $("l-" + name);
+  if (an && el.dataset.url !== ebeneUrl(name)) {
+    el.dataset.url = ebeneUrl(name);
+    el.src = el.dataset.url;
+  }
+  el.hidden = !an;
+}
+
+function ebenenSchalten() {
+  if (!D) return;
+  const massstab = $("c-massstab").checked && !!D.massstab;
+  flaecheSchalten("harz", $("c-harz").checked);
+  flaecheSchalten("ausschluss", massstab);
+  flaecheSchalten("kandidaten", $("c-kandidaten").checked);
+  $("vektoren").style.display = massstab ? "" : "none";
+  porenZeichnen();
+  lupeZeichnen();
+}
+for (const id of ["c-harz", "c-massstab", "c-kandidaten", "c-verworfen", "c-entfernt", "c-aufgenommen", "c-poren"]) {
+  $(id).addEventListener("change", ebenenSchalten);
+}
+for (const radio of document.querySelectorAll("input[name=basis]")) {
+  radio.addEventListener("change", () => { if (D) $("basis").src = ebeneUrl(radio.value); });
+}
+$("deckkraft").addEventListener("input", () => {
+  const v = deckkraft();
+  $("deckkraftwert").textContent = Math.round(v * 100) + " %";
+  for (const name of ["harz", "ausschluss", "kandidaten"]) $("l-" + name).style.opacity = v;
+  $("porenleinwand").style.opacity = v;
+  lupeZeichnen();
+});
+// Lässt sich eine Ebene nicht laden, steht der Grund oben im Kopf statt still nichts.
+for (const id of ["basis", "l-harz", "l-ausschluss", "l-kandidaten"]) {
+  $(id).addEventListener("error", async (e) => {
+    const url = e.target.getAttribute("src");
+    if (!url || url.startsWith("data:")) return;
+    let grund = "";
+    try { const r = await fetch(url); grund = r.ok ? "Bild nicht darstellbar (zu groß?)" : await r.text(); }
+    catch (err) { grund = err.message; }
+    $("ladestand").hidden = false;
+    $("ladestand").textContent = "Ebene nicht geladen: " + grund;
+  });
+  $(id).addEventListener("load", () => {
+    if ($("ladestand").textContent.startsWith("Ebene nicht geladen")) $("ladestand").hidden = true;
+  });
+}
+// Geladene Bilder und geänderte Größe: Leinwand und Lupe neu zeichnen.
+for (const id of ["basis", "l-harz", "l-ausschluss", "l-kandidaten"]) {
+  $(id).addEventListener("load", () => { if (id === "basis") porenZeichnen(); lupeZeichnen(); });
+}
+new ResizeObserver(() => { porenZeichnen(); auswahlZeichnen(); }).observe($("basis"));
+
+/* -- Auswahl ----------------------------------------------------------------
+   Zeigen wählt, Klicken hält fest - sonst zöge jede Pore auf dem Weg der Maus zur
+   Lupe die Auswahl an sich. Zweiter Klick oder Esc löst. */
+function darstellen() {
+  $("liste").querySelectorAll(".zeile.aktiv").forEach((el) => el.classList.remove("aktiv"));
+  if (aktiv !== null) {
+    const zeile = $("liste").querySelector(`.zeile[data-i="${aktiv}"]`);
+    if (zeile) zeile.classList.add("aktiv");
+  }
+  porenzeileZeichnen(aktiv === null ? null : D.poren[aktiv]);
+  auswahlZeichnen();
+  $("plupe").hidden = aktiv === null;
+  $("plupe-leer").hidden = aktiv !== null;
+  lupeZeichnen();
+}
+
+/** Die ausgewählte Pore im Bild: ihr Umriss und ein Ring, damit auch eine Pore aus
+    drei Pixeln in der Gesamtansicht zu finden ist. */
+function auswahlZeichnen() {
+  const svg = $("auswahl");
+  svg.classList.toggle("fest", fest);
+  if (!D || aktiv === null) { svgSetzen(svg, []); return; }
+  const p = D.poren[aktiv];
+  const [x, y, w, h] = p.box;
+  const zuege = (D.umrisse[p.label] || D.umrisse_neu[p.label] || []);
+  const d = zuege.map((z) => {
+    let s = `M${z[0]} ${z[1]}`;
+    for (let k = 2; k < z.length; k += 2) s += `L${z[k]} ${z[k + 1]}`;
+    return s + "Z";
+  }).join("");
+  const r = Math.max(Math.hypot(w, h) / 2 + 2, 7 / skala());
+  svgSetzen(svg, [["path", { class: "umriss", d: d || "M0 0", "fill-rule": "evenodd" }],
+                  ["circle", { class: "ring", cx: x + w / 2, cy: y + h / 2, r }]]);
+}
+
+function porenzeileZeichnen(p) {
+  const w = (bez, wert) => `<span class="pw">${bez} <b class="mono">${wert}</b></span>`;
+  const el = $("detail");
+  el.classList.toggle("leerzeile", !p);
+  if (!p) {
+    el.innerHTML = `<span class="pkopf"><b>Pore –</b></span>`
+      + ["Ø", "Fläche", "Rundheit", "Solidität", "Kontrast", "Rand"].map((b) => w(b, "–")).join("");
+    return;
+  }
+  const status = (p.status === "behalten" ? "gezählt" : "verworfen")
+    + (p.manuell === "gezeichnet" ? " · eingezeichnet" : p.manuell ? " · von Hand" : "");
+  const rand = [p.randbild ? "Bild" : null, p.randprobe ? "Probe" : null].filter(Boolean).join(", ") || "frei";
+  el.innerHTML = `
+    <span class="pkopf">
+      <span class="marke" style="background:var(--${art(p)})"></span>
+      <b>Pore ${p.label}</b><span class="pstatus">${status}</span>
+      ${fest ? `<span class="gehalten">gehalten</span>` : ""}
+    </span>
+    ${w("Ø", mass(p))}
+    ${w("Fläche", p.flaeche_um2 !== null ? nz(p.flaeche_um2, 1) + " µm²" : nz(p.flaeche_px, 0) + " px")}
+    ${w("Rundheit", nz(p.rundheit, 2))}
+    ${w("Solidität", nz(p.solidity, 2))}
+    ${w("Kontrast", nz(p.kontrast, 0))}
+    ${w("Rand", rand)}
+    ${p.grund && p.manuell !== "entfernt" ? `<span class="pgrund" title="${esc(p.grund)}">${esc(p.grund)}</span>` : ""}`;
+}
+
+function waehlen(i) {
+  if (fest || i === aktiv) return;
+  aktiv = i;
+  darstellen();
+}
+function festhalten(i) {
+  if (fest && i === aktiv) { fest = false; aktiv = null; }
+  else { fest = true; aktiv = i; }
+  darstellen();
+}
+function loesen() {
+  if (!fest) return;
+  fest = false;
+  aktiv = null;
+  darstellen();
+}
+
+/* -- Maus über dem Bild ---------------------------------------------------- */
+const stapel = $("stapel");
+/** Bildkoordinaten eines Mausereignisses. */
+function bildpunkt(e) {
+  const r = $("basis").getBoundingClientRect();
+  if (!r.width) return null;
+  const x = (e.clientX - r.left) / r.width * D.breite;
+  const y = (e.clientY - r.top) / r.height * D.hoehe;
+  return [Math.min(Math.max(x, 0), D.breite), Math.min(Math.max(y, 0), D.hoehe)];
+}
+
+let mausAnstehend = null;
+stapel.addEventListener("mousemove", (e) => {
+  if (!D || zug || werkzeug === "zeichnen") return;
+  if (mausAnstehend) { mausAnstehend = e; return; }
+  mausAnstehend = e;
+  requestAnimationFrame(() => {
+    const p = bildpunkt(mausAnstehend);
+    mausAnstehend = null;
+    if (!p) return;
+    const i = poreBei(p[0], p[1]);
+    stapel.classList.toggle("ueber-pore", i !== null);
+    if (i !== null) waehlen(i);
+  });
+});
+stapel.addEventListener("click", (e) => {
+  if (!D || werkzeug === "zeichnen") return;
+  const p = bildpunkt(e);
+  const i = p ? poreBei(p[0], p[1]) : null;
+  if (i !== null) klicken(i);
+});
+$("liste").addEventListener("mouseover", (e) => {
+  const t = e.target.closest(".zeile"); if (t) waehlen(Number(t.dataset.i));
+});
+$("liste").addEventListener("click", (e) => {
+  const t = e.target.closest(".zeile"); if (t) klicken(Number(t.dataset.i));
+});
+
+/* -- Lupe auf die ausgewählte Pore -------------------------------------------
+   Ein quadratischer Ausschnitt, Bildpixel als Kästchen (keine Glättung), die Umrisse
+   darüber als haarfeine Linien - in jeder Vergrößerung einen Bildschirmpixel breit. */
+const PL = { fenster: $("p-fenster"), leinwand: $("p-leinwand"), umfeld: $("p-umfeld"),
+             umfeldwert: $("p-umfeldwert"), fuss: $("p-lupe") };
+
+function ausschnittZeichnen(g, bild, x0, y0, seite, f) {
+  if (!bild || bild.hidden || !bild.complete || !bild.naturalWidth) return;
+  const sx = Math.max(0, x0), sy = Math.max(0, y0);
+  const ex = Math.min(D.breite, x0 + seite), ey = Math.min(D.hoehe, y0 + seite);
+  if (ex <= sx || ey <= sy) return;
+  g.drawImage(bild, sx, sy, ex - sx, ey - sy, (sx - x0) * f, (sy - y0) * f, (ex - sx) * f, (ey - sy) * f);
+}
+
+function lupeZeichnen() {
+  if (!D || aktiv === null) return;
+  const seiteCss = PL.fenster.clientWidth;
+  if (!seiteCss) return;
+  const p = D.poren[aktiv];
+  const dpr = window.devicePixelRatio || 1;
+  PL.leinwand.width = PL.leinwand.height = Math.round(seiteCss * dpr);
+  const g = PL.leinwand.getContext("2d");
+
+  // Kantenlänge in Bildpixeln: größere Ausdehnung der Pore mal Umfeld.
+  const kern = Math.max(p.box[2], p.box[3], p.d_px || 1, 1);
+  const umfeld = parseFloat(PL.umfeld.value);
+  const seite = Math.max(Math.round(kern * umfeld), 9);
+  // Fenster im Bild halten; ist das Bild kleiner, mittig stellen.
+  const halten = (mitte, ganz) => ganz <= seite ? (ganz - seite) / 2
+    : Math.min(Math.max(mitte - seite / 2, 0), ganz - seite);
+  const x0 = halten(p.box[0] + p.box[2] / 2, D.breite);
+  const y0 = halten(p.box[1] + p.box[3] / 2, D.hoehe);
+  const f = PL.leinwand.width / seite;
+
+  g.imageSmoothingEnabled = false;
+  g.clearRect(0, 0, PL.leinwand.width, PL.leinwand.height);
+  ausschnittZeichnen(g, $("basis"), x0, y0, seite, f);
+  g.globalAlpha = deckkraft();
+  for (const name of ["harz", "ausschluss", "kandidaten"]) ausschnittZeichnen(g, $("l-" + name), x0, y0, seite, f);
+  g.globalAlpha = 1;
+
+  // Umrisse aller Poren im Ausschnitt, die ausgewählte zuletzt und kräftiger.
+  g.setTransform(f, 0, 0, f, -x0 * f, -y0 * f);
+  g.lineJoin = "round";
+  g.lineWidth = dpr / f;
+  for (const [name, schalter] of ARTEN) {
+    if (!$(schalter).checked) continue;
+    g.strokeStyle = farbeAus(name);
+    for (const q of D.poren) {
+      if (art(q) !== name) continue;
+      const b = q.box;
+      if (b[0] > x0 + seite || b[0] + b[2] < x0 || b[1] > y0 + seite || b[1] + b[3] < y0) continue;
+      const pfad = PFADE.get(q.label);
+      if (pfad) g.stroke(pfad);
+    }
+  }
+  const pfad = PFADE.get(p.label);
+  if (pfad) { g.strokeStyle = farbeAus("akzent"); g.lineWidth = 1.8 * dpr / f; g.stroke(pfad); }
+  g.setTransform(1, 0, 0, 1, 0, 0);
+
+  PL.umfeldwert.textContent = umfeld.toFixed(1).replace(".", ",");
+  const kante = D.um_pro_px ? ` = ${nz(seite * D.um_pro_px, 1)} µm` : "";
+  PL.fuss.textContent = `${nz(f / dpr, 1)}× · Ausschnitt ${seite} × ${seite} px${kante} · die ausgewählte Kontur blau`;
+}
+PL.umfeld.addEventListener("input", lupeZeichnen);
+new ResizeObserver(() => lupeZeichnen()).observe(PL.fenster);
+
+/* -- Histogramm --------------------------------------------------------------
+   Logarithmische Größenachse, eine Werteachse, Balken gestapelt (gezählt/verworfen),
+   dazu Dichtekurve und ein Strich je Einzelwert. */
+const HOCH = { "-3": "⁻³", "-2": "⁻²", "-1": "⁻¹", 0: "⁰", 1: "¹", 2: "²", 3: "³", 4: "⁴", 5: "⁵", 6: "⁶", 7: "⁷", 8: "⁸" };
+function zahl(w) {
+  if (w === null || w === undefined) return "–";
+  if (w >= 10000) return Math.round(w).toLocaleString("de-DE");
+  return nz(w, w < 100 ? 1 : 0);
+}
+
+function balkendiagramm(o) {
+  const svgEl = $(o.svg);
+  const B = 520, HH = 300;
+  const R = { oben: 14, rechts: 14, unten: 50, links: 52 };
+  const pb = B - R.links - R.rechts, ph = HH - R.oben - R.unten;
+  const lg = Math.log10;
+  const x0 = lg(o.kanten[0]), x1 = lg(o.kanten[o.kanten.length - 1]);
+  const px = (w) => R.links + (lg(w) - x0) / (x1 - x0) * pb;
+  const schritt = Math.max(1, Math.ceil(o.maximum / 5));
+  const yMax = schritt * Math.ceil(o.maximum / schritt) || 1;
+  const py = (n) => R.oben + ph - (n / yMax) * ph;
+  const u = R.oben + ph, rr = R.links + pb;
+  const t = [];
+  const L = (cls, a, b, c, d) => t.push(["line", { class: cls, x1: a, y1: b, x2: c, y2: d }]);
+
+  for (let n = 0; n <= yMax; n += schritt) {
+    const y = py(n);
+    L("gitter", R.links, y, rr, y);
+    L("tick", R.links, y, R.links - 5, y);
+    L("tick", rr, y, rr + 5, y);
+    t.push(["text", { class: "ticktext", x: R.links - 9, y: y + 3.5, "text-anchor": "end", _: n }]);
+  }
+  for (let e = Math.floor(x0); e <= Math.ceil(x1); e++) {
+    for (let f = 1; f <= 9; f++) {
+      const w = f * Math.pow(10, e);
+      if (lg(w) < x0 - 1e-9 || lg(w) > x1 + 1e-9) continue;
+      const x = px(w), gross = (f === 1 || f === 2 || f === 5), lang = gross ? 5 : 3;
+      const kl = gross ? "tick" : "tick-klein";
+      L(kl, x, u, x, u + lang);
+      L(kl, x, R.oben, x, R.oben - lang);
+      if (gross) t.push(["text", { class: "ticktext", x, y: u + 18, "text-anchor": "middle",
+                                   _: (f === 1 ? "" : f + "·") + "10" + (HOCH[e] ?? "^" + e) }]);
+    }
+  }
+  for (let i = 0; i < o.kanten.length - 1; i++) {
+    const links = px(o.kanten[i]), rechts = px(o.kanten[i + 1]);
+    const breite = Math.max(rechts - links - 1, 1);
+    let sockel = 0;
+    for (const serie of o.serien) {
+      const wert = serie.werte[i];
+      if (!wert) continue;
+      t.push(["rect", { class: serie.klasse, x: links, y: py(sockel + wert), width: breite, height: py(0) - py(wert) }]);
+      sockel += wert;
+    }
+  }
+  if (o.kurve && o.kurve.length > 1) {
+    const d = o.kurve.filter(([w]) => w && lg(w) >= x0 - 1e-9 && lg(w) <= x1 + 1e-9)
+      .map(([w, h], i) => `${i ? "L" : "M"}${px(w).toFixed(1)},${py(h).toFixed(1)}`).join(" ");
+    if (d) t.push(["path", { class: "dichte", d }]);
+  }
+  for (const w of (o.werte || [])) {
+    if (!w || lg(w) < x0 - 1e-9 || lg(w) > x1 + 1e-9) continue;
+    L("teppich", px(w), u, px(w), u - 6);
+  }
+  for (const mk of (o.marker || [])) {
+    if (!mk.wert || lg(mk.wert) < x0 || lg(mk.wert) > x1) continue;
+    const x = px(mk.wert);
+    L("quantil", x, R.oben, x, R.oben + ph);
+    t.push(["text", { class: "quantiltext", x: x + 4, y: R.oben + 9, _: mk.name }]);
+  }
+  t.push(["rect", { class: "rahmen", x: R.links, y: R.oben, width: pb, height: ph }]);
+  t.push(["text", { class: "achsentitel", x: R.links + pb / 2, y: HH - 5, "text-anchor": "middle", _: o.xTitel }]);
+  t.push(["text", { class: "achsentitel", transform: `translate(13,${R.oben + ph / 2}) rotate(-90)`, "text-anchor": "middle", _: "Anzahl n" }]);
+  for (let i = 0; i < o.kanten.length - 1; i++) {
+    const links = px(o.kanten[i]), rechts = px(o.kanten[i + 1]);
+    t.push(["rect", { class: "klassenfeld", "data-i": i, x: links, y: R.oben, width: Math.max(rechts - links, 1), height: ph }]);
+  }
+
+  svgEl.setAttribute("viewBox", `0 0 ${B} ${HH}`);
+  while (svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
+  for (const [tag, attr] of t) {
+    const el = document.createElementNS(SVGNS, tag);
+    for (const [k, v] of Object.entries(attr)) { if (k === "_") el.textContent = v; else el.setAttribute(k, v); }
+    svgEl.appendChild(el);
+  }
+
+  const tip = $(o.tooltip);
+  svgEl.onmouseleave = () => { tip.hidden = true; };
+  svgEl.onmousemove = (e) => {
+    const ziel = e.target.closest(".klassenfeld");
+    if (!ziel) { tip.hidden = true; return; }
+    const i = Number(ziel.dataset.i);
+    tip.innerHTML = `<div class="kopfzeile">${zahl(o.kanten[i])} – ${zahl(o.kanten[i + 1])} ${o.einheit}</div>` +
+      o.serien.map((s) => `<div class="reihe"><span class="patch ${s.patch}"></span>${s.name}
+         <span class="zahl">${s.werte[i]}</span></div>`).join("");
+    tip.hidden = false;
+    const kasten = svgEl.getBoundingClientRect();
+    const x = e.clientX - kasten.left, y = e.clientY - kasten.top;
+    tip.style.left = Math.min(x + 14, kasten.width - tip.offsetWidth - 4) + "px";
+    tip.style.top = Math.max(y - tip.offsetHeight - 10, 4) + "px";
+  };
+}
+
+function histogrammZeichnen() {
+  const H = D.histogramm;
+  const leer = !H || H.leer;
+  $("histogrammkarte").querySelector(".figur").hidden = leer;
+  $("h-leer").hidden = !leer;
+  if (leer) return;
+  const kw = H.kennwerte;
+  balkendiagramm({
+    svg: "histogramm", tooltip: "h-tooltip", einheit: H.einheit,
+    kanten: H.kanten, maximum: H.maximum, xTitel: `Porenfläche A [${H.einheit}]`,
+    serien: [
+      { werte: H.behalten, klasse: "balken-gez", patch: "patch-gez", name: "gezählt" },
+      { werte: H.verworfen, klasse: "balken-verw", patch: "patch-verw", name: "verworfen" },
+    ],
+    marker: [{ name: "D50", wert: kw.d50 }, { name: "D90", wert: kw.d90 }],
+    kurve: H.kurve, werte: H.werte,
+  });
+  $("h-titel").textContent = `${H.kanten.length - 1} log. Klassen (Freedman-Diaconis) · Kurve und Teppich zeigen die Verteilung klassenfrei`;
+  $("h-kenn").innerHTML =
+    `<span>n = <b>${kw.n}</b> gezählt</span>
+     <span>D10 <b>${zahl(kw.d10)}</b> ${H.einheit}</span>
+     <span>D50 <b>${zahl(kw.d50)}</b> ${H.einheit}</span>
+     <span>D90 <b>${zahl(kw.d90)}</b> ${H.einheit}</span>
+     <span>Spanne <b>${zahl(kw.min)}</b> – <b>${zahl(kw.max)}</b> ${H.einheit}</span>`;
+}
+
+/* -- Bearbeiten --------------------------------------------------------------
+   Der Browser rechnet nichts selbst: er schickt Pore oder Umriss, der Server wendet
+   die Korrektur an, speichert sie und liefert die neuen Daten. */
+function korrekturstandZeichnen(fehler) {
+  const kr = D.korrekturen;
+  const el = $("korrekturstand");
+  el.classList.toggle("fehler", !!fehler);
+  if (fehler) { el.textContent = fehler; return; }
+  const teile = [];
+  if (kr.entfernt) teile.push(`${kr.entfernt} entfernt`);
+  if (kr.aufgenommen) teile.push(`${kr.aufgenommen} aufgenommen`);
+  if (kr.gezeichnet) teile.push(`${kr.gezeichnet} eingezeichnet`);
+  if (kr.ohne_treffer) teile.push(`${kr.ohne_treffer} ohne Treffer`);
+  el.textContent = teile.length ? "von Hand: " + teile.join(" · ") : "keine Korrekturen";
+  $("zuruecksetzen").disabled = !(kr.entfernt + kr.aufgenommen + kr.gezeichnet + kr.ohne_treffer);
+}
+
+/** Neue Daten nach einer Korrektur übernehmen. Die Auswahl hängt am Label. */
+function aktualisieren(neu) {
+  const label = aktiv === null ? null : D.poren[aktiv].label;
+  Object.assign(D, neu);
+  pfadeAnlegen(D.umrisse_neu);
+  const i = label === null ? -1 : D.poren.findIndex((p) => p.label === label);
+  aktiv = i < 0 ? null : i;
+  if (aktiv === null) fest = false;
+  allesZeichnen();
+}
+
+async function senden(aktion, koerper) {
+  if (wartet || !D) return;
+  wartet = true;
+  stapel.classList.add("wartet");
+  const bild = INDEX;
+  try {
+    const antwort = await fetch(`/api/bild/${bild}/${aktion}`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(koerper || {}),
+    });
+    if (!antwort.ok) throw new Error(`Server meldet ${antwort.status}`);
+    const daten = await antwort.json();
+    if (bild === INDEX) aktualisieren(daten);
+  } catch (e) {
+    korrekturstandZeichnen("nicht gespeichert – " + e.message);
+  } finally {
+    wartet = false;
+    stapel.classList.remove("wartet");
+  }
+}
+
+/** Klick im Bild oder in der Liste: mit "+"/"−" ändern, sonst festhalten. */
+function klicken(i) {
+  if (werkzeug === "plus" || werkzeug === "minus") senden(werkzeug, { label: D.poren[i].label });
+  else festhalten(i);
+}
+
+function werkzeugSetzen(w) {
+  werkzeug = (w === werkzeug) ? null : w;
+  for (const knopf of document.querySelectorAll(".werkzeug[data-werkzeug]")) {
+    const an = knopf.dataset.werkzeug === werkzeug;
+    knopf.classList.toggle("an", an);
+    knopf.setAttribute("aria-pressed", String(an));
+  }
+  for (const name of ["plus", "minus", "zeichnen"]) stapel.classList.toggle("werkzeug-" + name, werkzeug === name);
+}
+for (const knopf of document.querySelectorAll(".werkzeug[data-werkzeug]")) {
+  knopf.addEventListener("click", () => werkzeugSetzen(knopf.dataset.werkzeug));
+}
+$("rueckgaengig").addEventListener("click", () => senden("rueckgaengig"));
+$("zuruecksetzen").addEventListener("click", () => {
+  if (confirm("Alle Korrekturen an diesem Bild verwerfen?")) senden("zuruecksetzen");
+});
+
+/* Zeichnen: Umriss mit gedrückter Maustaste ziehen, beim Loslassen schließt er sich. */
+let zug = null;
+function zugZeigen(punkte) {
+  svgSetzen($("zeichnung"), punkte && punkte.length > 1
+    ? [["polygon", { points: punkte.map((p) => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ") }]] : []);
+}
+function polygonflaeche(punkte) {
+  let a = 0;
+  for (let i = 0; i < punkte.length; i++) {
+    const [x1, y1] = punkte[i], [x2, y2] = punkte[(i + 1) % punkte.length];
+    a += x1 * y2 - x2 * y1;
+  }
+  return Math.abs(a) / 2;
+}
+stapel.addEventListener("pointerdown", (e) => {
+  if (werkzeug !== "zeichnen" || e.button !== 0 || wartet || !D) return;
+  const p = bildpunkt(e);
+  if (!p) return;
+  e.preventDefault();
+  stapel.setPointerCapture(e.pointerId);
+  zug = [p];
+});
+stapel.addEventListener("pointermove", (e) => {
+  if (!zug) return;
+  const p = bildpunkt(e), letzter = zug[zug.length - 1];
+  if (p && Math.hypot(p[0] - letzter[0], p[1] - letzter[1]) >= 0.5) { zug.push(p); zugZeigen(zug); }
+});
+stapel.addEventListener("pointerup", async () => {
+  if (!zug) return;
+  const punkte = zug;
+  zug = null;
+  if (punkte.length >= 3 && polygonflaeche(punkte) >= 2) {
+    await senden("zeichnen", { punkte: punkte.map(([x, y]) => [Math.round(x * 10) / 10, Math.round(y * 10) / 10]) });
+  }
+  zugZeigen(null);
+});
+stapel.addEventListener("pointercancel", () => { zug = null; zugZeigen(null); });
+
+/* -- Diagramm aufklappen ---------------------------------------------------- */
+const dunkel = $("verdunkelung"), hkarte = $("histogrammkarte");
+function diagrammSchliessen() { hkarte.classList.remove("gross"); dunkel.hidden = true; }
+hkarte.addEventListener("click", (e) => {
+  if (e.target.closest(".zuknopf")) { diagrammSchliessen(); return; }
+  if (!hkarte.classList.contains("gross")) { hkarte.classList.add("gross"); dunkel.hidden = false; }
+});
+dunkel.addEventListener("click", diagrammSchliessen);
+
+/* -- Tastatur -------------------------------------------------------------- */
+document.addEventListener("keydown", (e) => {
+  const imFeld = e.target.closest && e.target.closest("input, textarea, select");
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+    e.preventDefault();
+    senden("rueckgaengig");
+  } else if (e.key === "Escape") {
+    if (!dunkel.hidden) diagrammSchliessen();
+    else if (werkzeug) werkzeugSetzen(werkzeug);
+    else loesen();
+  } else if (!imFeld && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    if (e.key === "ArrowLeft") bildLaden(INDEX - 1);
+    else if (e.key === "ArrowRight") bildLaden(INDEX + 1);
+  }
+});
+
+/* -- Thema ----------------------------------------------------------------- */
+const themaknopf = $("themeknopf");
+function themaSetzen(t) {
+  document.documentElement.setAttribute("data-theme", t);
+  themaknopf.textContent = t === "dark" ? "Hell" : "Dunkel";
+  try { localStorage.setItem("poren-thema", t); } catch (e) { /* egal */ }
+  porenZeichnen();
+  lupeZeichnen();
+}
+let gemerkt = null;
+try { gemerkt = localStorage.getItem("poren-thema"); } catch (e) { /* egal */ }
+themaSetzen(gemerkt || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
+themaknopf.addEventListener("click", () =>
+  themaSetzen(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark"));
+
+/* -- Start ----------------------------------------------------------------- */
+(async function start() {
+  try {
+    const antwort = await fetch("/api/stapel");
+    if (!antwort.ok) throw new Error(await antwort.text());
+    STAPEL = await antwort.json();
+  } catch (e) {
+    $("ladestand").hidden = false;
+    $("ladestand").textContent = "Keine Daten: " + e.message;
+    return;
+  }
+  if (!STAPEL.anzahl) {
+    $("ladestand").hidden = false;
+    $("ladestand").textContent = "Keine ausgewerteten Bilder.";
+    return;
+  }
+  const ausAdresse = parseInt(location.hash.slice(1), 10) - 1;
+  bildLaden(Number.isFinite(ausAdresse) && ausAdresse >= 0 && ausAdresse < STAPEL.anzahl ? ausAdresse : 0);
+})();
+</script>
+</body>
+</html>

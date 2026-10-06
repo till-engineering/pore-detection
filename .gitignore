@@ -1,25 +1,19 @@
 __pycache__/
 *.py[cod]
-*.egg-info/
-build/
-dist/
-
 .venv/
-.pytest_cache/
-.ruff_cache/
-.mypy_cache/
 
-# Laufergebnisse und Zwischenstaende - werden jederzeit neu erzeugt
+# Laufergebnisse und lokale Arbeitsdaten
 data/runs/
-data/cache/
-!data/runs/.gitkeep
-!data/cache/.gitkeep
-
-# Lokale Arbeitsdaten - Korrekturen und Einstellungen des Startfensters
-data/korrekturen/
 data/start_einstellungen.json
 
 # Bilddaten bleiben lokal - bereits eingecheckte Bilder sind davon nicht betroffen
 test/Benchmark/
 *.tif
 *.tiff
+
+# Ausgabe von auswertung_testen.py
+test_ausgabe/
+
+# Alte lokale Korrekturen (vor dem Umbau) und lokale Skripte
+data/korrekturen/
+scripts/

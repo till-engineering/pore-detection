@@ -1,1 +1,0 @@
-"""Ausgabeformate des Berichts."""

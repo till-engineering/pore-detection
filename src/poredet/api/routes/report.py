@@ -1,1 +1,0 @@
-"""Bericht erzeugen und ausliefern."""

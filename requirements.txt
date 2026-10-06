@@ -1,0 +1,12 @@
+# Pore Detection - Abhängigkeiten
+# Installieren:  .venv\Scripts\python.exe -m pip install -r requirements.txt
+numpy
+opencv-python
+scipy
+scikit-image
+pyyaml
+# Liest die Beschriftung des Maßstabsbalkens (reines pip-Paket, keine Installation nötig)
+rapidocr-onnxruntime
+
+# Optional: zweite OCR-Meinung. Braucht zusätzlich eine installierte Tesseract-Binary.
+# pytesseract

@@ -1,1 +1,0 @@
-"""Konfigurationsprofile lesen, schreiben, validieren."""

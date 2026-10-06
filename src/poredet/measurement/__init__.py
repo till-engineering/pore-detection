@@ -1,1 +1,0 @@
-"""Aus Masken werden Zahlen."""

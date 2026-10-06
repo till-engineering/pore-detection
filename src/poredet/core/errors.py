@@ -1,1 +1,0 @@
-"""Fehlertypen der Anwendung."""

@@ -1,1 +1,0 @@
-"""Routen der Web-Schnittstelle."""
