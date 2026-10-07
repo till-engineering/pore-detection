@@ -15,7 +15,7 @@
   --pore:#ff1a1a; --verworfen:#b8722b; --harz:#7c5cd6; --ausschluss:#2f6fd0; --kandidat:#a89217;
   --messung:#e2483a;
   --entfernt:#d63370; --aufgenommen:#0c8599;
-  --dia-gez:#ff1a1a; --dia-verw:#b8722b;
+  --dia-gez:#ff1a1a;
   --schatten:0 1px 2px rgba(20,24,32,.06), 0 4px 12px rgba(20,24,32,.05);
 }
 @media (prefers-color-scheme:dark){
@@ -113,10 +113,12 @@ body.laedt, body.laedt *{cursor:progress!important}
 .stapel.werkzeug-plus #auswahl .ring, .stapel.werkzeug-plus #auswahl .umriss{stroke:var(--aufgenommen)}
 .stapel.werkzeug-minus #auswahl .ring, .stapel.werkzeug-minus #auswahl .umriss{stroke:var(--entfernt)}
 .stapel.ueber-pore{cursor:pointer}
-.stapel.werkzeug-zeichnen{cursor:crosshair; touch-action:none}
+.stapel.werkzeug-zeichnen, .stapel.werkzeug-bereich{cursor:crosshair; touch-action:none}
 .stapel.wartet{cursor:progress}
 #zeichnung polygon{fill:var(--akzent); fill-opacity:.18; stroke:var(--akzent);
   stroke-width:2; vector-effect:non-scaling-stroke; stroke-linejoin:round}
+.stapel.werkzeug-bereich #zeichnung polygon{fill:var(--entfernt); stroke:var(--entfernt);
+  stroke-dasharray:6 4}
 
 .leiste{display:flex; flex-wrap:wrap; align-items:center; gap:14px;
   padding:10px 16px; border-top:1px solid var(--line); background:var(--surface-2);
@@ -146,6 +148,7 @@ body.laedt, body.laedt *{cursor:progress!important}
 .werkzeug.an[data-werkzeug="plus"]{background:var(--aufgenommen)}
 .werkzeug.an[data-werkzeug="minus"]{background:var(--entfernt)}
 .werkzeug.an[data-werkzeug="zeichnen"]{background:var(--akzent)}
+.werkzeug.an[data-werkzeug="bereich"]{background:var(--entfernt)}
 .werkzeug:disabled{opacity:.35; cursor:default; background:transparent; border-color:transparent}
 .werkzeugtrenner{height:1px; background:var(--line); margin:3px 2px}
 
@@ -227,7 +230,6 @@ body.laedt, body.laedt *{cursor:progress!important}
 .legende .eintrag{display:flex; align-items:center; gap:6px}
 .patch{width:10px; height:10px; border-radius:1px; flex:none}
 .patch-gez{background:var(--dia-gez)}
-.patch-verw{background:var(--dia-verw)}
 .strich-legende{width:14px; height:0; border-top:2px solid var(--ink); opacity:.72; flex:none}
 .plotfeld{position:relative}
 #histogramm{display:block; width:100%; height:auto; overflow:visible}
@@ -241,7 +243,9 @@ body.laedt, body.laedt *{cursor:progress!important}
 .dichte{fill:none; stroke:var(--ink); stroke-width:1.6; stroke-linejoin:round; opacity:.72}
 .teppich{stroke:var(--ink); stroke-width:0.7; opacity:.38}
 .balken-gez{fill:var(--dia-gez)}
-.balken-verw{fill:var(--dia-verw)}
+.quantil.mittel{stroke:var(--akzent); stroke-dasharray:none; stroke-width:1.4; opacity:.9}
+.quantiltext.mittel{fill:var(--akzent); opacity:1}
+.strich-mittel{border-top-color:var(--akzent); opacity:.9}
 .quantil{stroke:var(--ink); stroke-width:1; stroke-dasharray:3 3; opacity:.55}
 .quantiltext{fill:var(--ink); font-size:10px; font-family:"IBM Plex Mono", monospace; opacity:.75}
 .klassenfeld{fill:transparent}
@@ -452,6 +456,9 @@ body.laedt, body.laedt *{cursor:progress!important}
         <button class="werkzeug" type="button" data-werkzeug="zeichnen" aria-pressed="false"
                 title="Pore einzeichnen – Umriss mit gedrückter Maustaste ziehen">
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 16l1-4 8-8 3 3-8 8-4 1zM11 6l3 3"/></svg></button>
+        <button class="werkzeug" type="button" data-werkzeug="bereich" aria-pressed="false"
+                title="Bereich entfernen – Umriss ziehen, alle gezählten Poren ganz darin werden entfernt">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h2M8 5h4M15 5h2v2M17 10v2M17 15v2h-2M12 17H8M5 17H3v-2M3 12v-2M3 7V5M7 10h6" stroke-linecap="round"/></svg></button>
         <div class="werkzeugtrenner"></div>
         <button class="werkzeug klein" type="button" id="rueckgaengig" title="Rückgängig (Strg+Z)">
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 5L3 9l4 4M3 9h9a4 4 0 010 8h-2"/></svg></button>
@@ -523,8 +530,8 @@ body.laedt, body.laedt *{cursor:progress!important}
           <span class="figurtitel" id="h-titel"></span>
           <span class="legende">
             <span class="eintrag"><span class="patch patch-gez"></span>gezählt</span>
-            <span class="eintrag"><span class="patch patch-verw"></span>verworfen</span>
             <span class="eintrag"><span class="strich-legende"></span>Dichte</span>
+            <span class="eintrag"><span class="strich-legende strich-mittel"></span>Mittelwert</span>
           </span>
         </figcaption>
         <div class="plotfeld">
@@ -614,7 +621,9 @@ let PFADE = new Map();  // Label -> Path2D (Bildkoordinaten)
 let RASTER = new Map(); // Suchraster für "welche Pore liegt unter der Maus"
 let aktiv = null;       // Index in D.poren
 let fest = false;       // Auswahl festgehalten?
-let werkzeug = null;    // "plus" | "minus" | "zeichnen" | null
+let werkzeug = null;    // "plus" | "minus" | "zeichnen" | "bereich" | null
+/** Werkzeuge, mit denen ein Umriss gezogen wird statt geklickt. */
+const zieht = () => werkzeug === "zeichnen" || werkzeug === "bereich";
 let wartet = false;
 const RASTERWEITE = 64;
 const PRUEF = document.createElement("canvas").getContext("2d");
@@ -816,11 +825,11 @@ const kachel = (wert, bez, neben) =>
 function kennzahlenZeichnen() {
   const k = D.kennzahlen;
   $("kennzahlen").innerHTML =
-    kachel(k.porositaet === null ? "–" : nz(k.porositaet, 2) + " %", "Porosität",
-           k.porositaet_ohne_rand === null ? "" : nz(k.porositaet_ohne_rand, 2) + " % ohne Randporen") +
+    kachel(k.porositaet === null ? "–" : nz(k.porositaet, 3) + " %", "Porosität",
+           k.porositaet_ohne_rand === null ? "" : nz(k.porositaet_ohne_rand, 3) + " % ohne Randporen") +
     kachel(k.behalten, "Poren", `${k.kandidaten} Kandidaten, ${k.verworfen} verworfen`) +
-    kachel(k.groesste_um !== null ? nz(k.groesste_um, 1) + " µm" : nz(k.groesste_px, 0) + " px", "Größte Pore") +
-    kachel(k.dichte !== null ? nz(k.dichte, 0) : "–", "Poren / mm²",
+    kachel(k.groesste_um !== null ? nz(k.groesste_um, 3) + " µm" : nz(k.groesste_px, 3) + " px", "Größte Pore") +
+    kachel(k.dichte !== null ? nz(k.dichte, 3) : "–", "Poren / mm²",
            k.probe_mm2 !== null ? nz(k.probe_mm2, 2) + " mm² Probe" : k.probe_px + " px Probe");
   const kr = D.korrekturen;
   $("n-kandidaten").textContent = k.kandidaten;
@@ -837,7 +846,7 @@ function stufenZeichnen() {
     D.warnungen.map((w) => `<div class="stufe warnung"><dt>Warnung</dt><dd>${esc(w)}</dd></div>`).join("");
 }
 
-const mass = (p) => p.d_um !== null ? nz(p.d_um, 1) + " µm" : nz(p.d_px, 1) + " px";
+const mass = (p) => p.d_um !== null ? nz(p.d_um, 3) + " µm" : nz(p.d_px, 3) + " px";
 function listeZeichnen() {
   $("liste").innerHTML = D.poren.map((p, i) => `
     <div class="zeile" data-i="${i}">
@@ -993,10 +1002,10 @@ function porenzeileZeichnen(p) {
       ${fest ? `<span class="gehalten">gehalten</span>` : ""}
     </span>
     ${w("Ø", mass(p))}
-    ${w("Fläche", p.flaeche_um2 !== null ? nz(p.flaeche_um2, 1) + " µm²" : nz(p.flaeche_px, 0) + " px")}
-    ${w("Rundheit", nz(p.rundheit, 2))}
-    ${w("Solidität", nz(p.solidity, 2))}
-    ${w("Kontrast", nz(p.kontrast, 0))}
+    ${w("Fläche", p.flaeche_um2 !== null ? nz(p.flaeche_um2, 3) + " µm²" : nz(p.flaeche_px, 3) + " px")}
+    ${w("Rundheit", nz(p.rundheit, 3))}
+    ${w("Solidität", nz(p.solidity, 3))}
+    ${w("Kontrast", nz(p.kontrast, 3))}
     ${w("Rand", rand)}
     ${p.grund && p.manuell !== "entfernt" ? `<span class="pgrund" title="${esc(p.grund)}">${esc(p.grund)}</span>` : ""}`;
 }
@@ -1031,7 +1040,7 @@ function bildpunkt(e) {
 
 let mausAnstehend = null;
 stapel.addEventListener("mousemove", (e) => {
-  if (!D || zug || werkzeug === "zeichnen") return;
+  if (!D || zug || zieht()) return;
   if (mausAnstehend) { mausAnstehend = e; return; }
   mausAnstehend = e;
   requestAnimationFrame(() => {
@@ -1044,7 +1053,7 @@ stapel.addEventListener("mousemove", (e) => {
   });
 });
 stapel.addEventListener("click", (e) => {
-  if (!D || werkzeug === "zeichnen") return;
+  if (!D || zieht()) return;
   const p = bildpunkt(e);
   const i = p ? poreBei(p[0], p[1]) : null;
   if (i !== null) klicken(i);
@@ -1124,13 +1133,12 @@ PL.umfeld.addEventListener("input", lupeZeichnen);
 new ResizeObserver(() => lupeZeichnen()).observe(PL.fenster);
 
 /* -- Histogramm --------------------------------------------------------------
-   Logarithmische Größenachse, eine Werteachse, Balken gestapelt (gezählt/verworfen),
-   dazu Dichtekurve und ein Strich je Einzelwert. */
+   Logarithmische Größenachse, eine Werteachse, Balken der gezählten Poren,
+   dazu Dichtekurve, ein Strich je Einzelwert, D50/D90 und Mittelwert. */
 const HOCH = { "-3": "⁻³", "-2": "⁻²", "-1": "⁻¹", 0: "⁰", 1: "¹", 2: "²", 3: "³", 4: "⁴", 5: "⁵", 6: "⁶", 7: "⁷", 8: "⁸" };
 function zahl(w) {
   if (w === null || w === undefined) return "–";
-  if (w >= 10000) return Math.round(w).toLocaleString("de-DE");
-  return nz(w, w < 100 ? 1 : 0);
+  return nz(w, 3);
 }
 
 function balkendiagramm(o) {
@@ -1190,8 +1198,9 @@ function balkendiagramm(o) {
   for (const mk of (o.marker || [])) {
     if (!mk.wert || lg(mk.wert) < x0 || lg(mk.wert) > x1) continue;
     const x = px(mk.wert);
-    L("quantil", x, R.oben, x, R.oben + ph);
-    t.push(["text", { class: "quantiltext", x: x + 4, y: R.oben + 9, _: mk.name }]);
+    const kl = mk.klasse ? " " + mk.klasse : "";
+    L("quantil" + kl, x, R.oben, x, R.oben + ph);
+    t.push(["text", { class: "quantiltext" + kl, x: x + 4, y: R.oben + 9 + (mk.versatz || 0), _: mk.name }]);
   }
   t.push(["rect", { class: "rahmen", x: R.links, y: R.oben, width: pb, height: ph }]);
   t.push(["text", { class: "achsentitel", x: R.links + pb / 2, y: HH - 5, "text-anchor": "middle", _: o.xTitel }]);
@@ -1236,16 +1245,15 @@ function histogrammZeichnen() {
   balkendiagramm({
     svg: "histogramm", tooltip: "h-tooltip", einheit: H.einheit,
     kanten: H.kanten, maximum: H.maximum, xTitel: `Porenfläche A [${H.einheit}]`,
-    serien: [
-      { werte: H.behalten, klasse: "balken-gez", patch: "patch-gez", name: "gezählt" },
-      { werte: H.verworfen, klasse: "balken-verw", patch: "patch-verw", name: "verworfen" },
-    ],
-    marker: [{ name: "D50", wert: kw.d50 }, { name: "D90", wert: kw.d90 }],
+    serien: [{ werte: H.anzahlen, klasse: "balken-gez", patch: "patch-gez", name: "gezählt" }],
+    marker: [{ name: "D50", wert: kw.d50 }, { name: "D90", wert: kw.d90 },
+             { name: "Mittel", wert: kw.mittel, klasse: "mittel", versatz: 12 }],
     kurve: H.kurve, werte: H.werte,
   });
   $("h-titel").textContent = `${H.kanten.length - 1} log. Klassen (Freedman-Diaconis) · Kurve und Teppich zeigen die Verteilung klassenfrei`;
   $("h-kenn").innerHTML =
     `<span>n = <b>${kw.n}</b> gezählt</span>
+     <span>Mittel <b>${zahl(kw.mittel)}</b> ${H.einheit}</span>
      <span>D10 <b>${zahl(kw.d10)}</b> ${H.einheit}</span>
      <span>D50 <b>${zahl(kw.d50)}</b> ${H.einheit}</span>
      <span>D90 <b>${zahl(kw.d90)}</b> ${H.einheit}</span>
@@ -1314,7 +1322,7 @@ function werkzeugSetzen(w) {
     knopf.classList.toggle("an", an);
     knopf.setAttribute("aria-pressed", String(an));
   }
-  for (const name of ["plus", "minus", "zeichnen"]) stapel.classList.toggle("werkzeug-" + name, werkzeug === name);
+  for (const name of ["plus", "minus", "zeichnen", "bereich"]) stapel.classList.toggle("werkzeug-" + name, werkzeug === name);
 }
 for (const knopf of document.querySelectorAll(".werkzeug[data-werkzeug]")) {
   knopf.addEventListener("click", () => werkzeugSetzen(knopf.dataset.werkzeug));
@@ -1324,7 +1332,7 @@ $("zuruecksetzen").addEventListener("click", () => {
   if (confirm("Alle Korrekturen an diesem Bild verwerfen?")) senden("zuruecksetzen");
 });
 
-/* Zeichnen: Umriss mit gedrückter Maustaste ziehen, beim Loslassen schließt er sich. */
+/* Zeichnen und Bereich: Umriss mit gedrückter Maustaste ziehen, beim Loslassen schließt er sich. */
 let zug = null;
 function zugZeigen(punkte) {
   svgSetzen($("zeichnung"), punkte && punkte.length > 1
@@ -1339,7 +1347,7 @@ function polygonflaeche(punkte) {
   return Math.abs(a) / 2;
 }
 stapel.addEventListener("pointerdown", (e) => {
-  if (werkzeug !== "zeichnen" || e.button !== 0 || wartet || !D) return;
+  if (!zieht() || e.button !== 0 || wartet || !D) return;
   const p = bildpunkt(e);
   if (!p) return;
   e.preventDefault();
@@ -1356,7 +1364,7 @@ stapel.addEventListener("pointerup", async () => {
   const punkte = zug;
   zug = null;
   if (punkte.length >= 3 && polygonflaeche(punkte) >= 2) {
-    await senden("zeichnen", { punkte: punkte.map(([x, y]) => [Math.round(x * 10) / 10, Math.round(y * 10) / 10]) });
+    await senden(werkzeug, { punkte: punkte.map(([x, y]) => [Math.round(x * 10) / 10, Math.round(y * 10) / 10]) });
   }
   zugZeigen(null);
 });

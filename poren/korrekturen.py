@@ -1,4 +1,5 @@
-"""Manuelle Korrektur: Poren von Hand entfernen, wieder aufnehmen oder einzeichnen.
+"""Manuelle Korrektur: Poren von Hand entfernen, wieder aufnehmen, einzeichnen oder
+einen Bereich ziehen, in dem alle Poren entfernt werden.
 
 Kernfeature, keine Notlösung - aus demselben Grund wie der manuelle Maßstab: eine
 Erkennung ohne Korrekturweg wird in der Praxis nicht akzeptiert. Irgendein Bild hat
@@ -21,7 +22,8 @@ dieser Stelle noch gibt. Gibt es sie nicht mehr, wird das gemeldet und nicht ger
 mit dem Grund :data:`MANUAL_FILTER` - genau wie jede andere verworfene Pore mit ihrem
 Grund. Eine wieder aufgenommene verliert ihren Verwerfungsgrund; dass sie von Hand
 zurückkam, steht in :class:`CorrectionOutcome`. Eine eingezeichnete Pore durchläuft
-keine Filter: wer sie zeichnet, hat bereits entschieden, dass sie eine ist.
+keine Filter: wer sie zeichnet, hat bereits entschieden, dass sie eine ist. Ein
+gezogener Bereich entfernt jede gezählte Pore, die **ganz** darin liegt.
 
 Vermessen wird eine eingezeichnete Pore nicht hier, sondern über die Funktion, die der
 Aufrufer mitgibt - dieselbe Vermessung wie für jede erkannte Pore. Das Modul bleibt so
@@ -58,6 +60,7 @@ class Action(str, Enum):
     REMOVE = "entfernen"
     RESTORE = "aufnehmen"
     DRAW = "zeichnen"
+    AREA = "bereich"
 
 
 @dataclass(frozen=True)
@@ -65,7 +68,7 @@ class PoreCorrection:
     """Eine Korrektur in Bildkoordinaten (nicht Anzeige).
 
     ``x, y`` ist der Ankerpunkt, über den die Pore getroffen wird. Beim Einzeichnen
-    kommt der Umriss als Polygon dazu.
+    und beim Bereich kommt der Umriss als Polygon dazu.
     """
 
     action: Action
@@ -87,11 +90,20 @@ class PoreCorrection:
     @classmethod
     def drawn(cls, points: Sequence[Sequence[float]]) -> PoreCorrection:
         """Eine eingezeichnete Pore aus ihrem Umriss."""
+        return cls._umriss(Action.DRAW, points)
+
+    @classmethod
+    def area(cls, points: Sequence[Sequence[float]]) -> PoreCorrection:
+        """Ein Bereich, in dem alle Poren entfernt werden."""
+        return cls._umriss(Action.AREA, points)
+
+    @classmethod
+    def _umriss(cls, action: Action, points: Sequence[Sequence[float]]) -> PoreCorrection:
         punkte = tuple((float(px), float(py)) for px, py in points)
         if len(punkte) < 3:
             raise ValueError("Ein Umriss braucht mindestens drei Punkte")
         xs, ys = zip(*punkte, strict=True)
-        return cls(Action.DRAW, sum(xs) / len(xs), sum(ys) / len(ys), punkte)
+        return cls(action, sum(xs) / len(xs), sum(ys) / len(ys), punkte)
 
 
 @dataclass
@@ -168,6 +180,13 @@ def interior_point(labels: np.ndarray, label: int) -> tuple[float, float] | None
     return float(x - 1 + spalten.start), float(y - 1 + zeilen.start)
 
 
+def labels_inside(labels: np.ndarray, region: np.ndarray) -> list[int]:
+    """Die Objekte, die mit allen Pixeln in ``region`` liegen."""
+    gesamt = np.bincount(labels.ravel())
+    drin = np.bincount(labels[region], minlength=len(gesamt))
+    return [int(label) for label in np.nonzero((drin == gesamt) & (gesamt > 0))[0] if label > 0]
+
+
 def rasterize(points: Sequence[tuple[float, float]], shape: tuple[int, int]) -> np.ndarray:
     """Den Umriss als gefüllte Maske. Pixel zählen, deren Mitte im Polygon liegt."""
     maske = np.zeros(shape, dtype=np.uint8)
@@ -191,10 +210,12 @@ def apply(
 ) -> CorrectionOutcome:
     """Korrekturen anwenden. Die Eingaben bleiben unverändert.
 
-    Eingezeichnete Poren kommen zuerst, dann Entfernen und Aufnehmen in der
-    gespeicherten Reihenfolge. ``allowed`` begrenzt eine Zeichnung auf die auswertbare
-    Fläche - eine Pore im Einbettmittel gäbe es für die Porosität nicht. Ohne
-    ``measure`` lässt sich nichts einzeichnen; solche Korrekturen gelten als verfehlt.
+    Alle Korrekturen greifen in der gespeicherten Reihenfolge - also so, wie sie
+    gemacht wurden: eine Pore, die nach einem Bereich in ihn hineingezeichnet wird,
+    bleibt stehen; eine, die vorher dort war, wird entfernt. ``allowed`` begrenzt eine
+    Zeichnung auf die auswertbare Fläche - eine Pore im Einbettmittel gäbe es für die
+    Porosität nicht. Ohne ``measure`` lässt sich nichts einzeichnen; solche Korrekturen
+    gelten als verfehlt.
     """
     gezaehlt: dict[int, Pore] = {p.label: p for p in pores}
     verworfen: dict[int, RejectedPore] = {r.pore.label: r for r in rejected}
@@ -203,42 +224,47 @@ def apply(
     labels = labels.copy()
 
     for index, korrektur in enumerate(corrections):
-        if korrektur.action is not Action.DRAW:
-            continue
-        if measure is None:
-            missed.append(korrektur)
-            continue
-        region = rasterize(korrektur.points, labels.shape)
-        if allowed is not None:
-            region &= allowed
-        if not region.any():
-            missed.append(korrektur)
-            continue
-
-        # Eine Zeichnung über einer erkannten Pore ersetzt sie: meist ist die Pore
-        # gefunden, aber zu klein geraten, und der Umriss sagt, wie groß sie wirklich
-        # ist. Die überdeckten Poren gehen ganz in der neuen auf.
-        neu = int(labels.max()) + 1
-        for alt in np.unique(labels[region]):
-            if alt == 0:
-                continue
-            labels[labels == alt] = neu
-            gezaehlt.pop(int(alt), None)
-            verworfen.pop(int(alt), None)
-            drawn.pop(int(alt), None)
-        labels[region] = neu
-
-        vermessen = measure(np.where(labels == neu, neu, 0).astype(labels.dtype))
-        if not vermessen:
-            missed.append(korrektur)
-            labels[labels == neu] = 0
-            continue
-        gezaehlt[neu] = vermessen[0]
-        drawn[neu] = index
-
-    for korrektur in corrections:
         if korrektur.action is Action.DRAW:
+            region = None if measure is None else rasterize(korrektur.points, labels.shape)
+            if region is not None and allowed is not None:
+                region &= allowed
+            if region is None or not region.any():
+                missed.append(korrektur)
+                continue
+
+            # Eine Zeichnung über einer erkannten Pore ersetzt sie: meist ist die Pore
+            # gefunden, aber zu klein geraten, und der Umriss sagt, wie groß sie wirklich
+            # ist. Die überdeckten Poren gehen ganz in der neuen auf.
+            neu = int(labels.max()) + 1
+            for alt in np.unique(labels[region]):
+                if alt == 0:
+                    continue
+                labels[labels == alt] = neu
+                gezaehlt.pop(int(alt), None)
+                verworfen.pop(int(alt), None)
+                drawn.pop(int(alt), None)
+            labels[region] = neu
+
+            vermessen = measure(np.where(labels == neu, neu, 0).astype(labels.dtype))
+            if not vermessen:
+                missed.append(korrektur)
+                labels[labels == neu] = 0
+                continue
+            gezaehlt[neu] = vermessen[0]
+            drawn[neu] = index
             continue
+
+        if korrektur.action is Action.AREA:
+            region = rasterize(korrektur.points, labels.shape)
+            drin = [label for label in labels_inside(labels, region) if label in gezaehlt]
+            for label in drin:
+                verworfen[label] = RejectedPore(gezaehlt.pop(label), MANUAL_FILTER,
+                                                "von Hand entfernt (Bereich)")
+                drawn.pop(label, None)
+            if not drin:
+                missed.append(korrektur)
+            continue
+
         label = label_at(labels, korrektur.x, korrektur.y)
         if korrektur.action is Action.REMOVE and label in gezaehlt:
             pore = gezaehlt.pop(label)
@@ -280,7 +306,9 @@ def set_counted(
     ``pores``, ``rejected`` und ``labels`` sind das **automatische** Ergebnis. Frühere
     Korrekturen an derselben Pore werden ersetzt, nicht gestapelt; entspricht der
     gewünschte Zustand dem automatischen, bleibt gar keine stehen - die Datei enthält
-    so nur echte Abweichungen. Eingezeichnete Poren bleiben unberührt.
+    so nur echte Abweichungen. Eingezeichnete Poren und Bereiche bleiben unberührt; gibt
+    es einen Bereich, wird die Korrektur immer gespeichert, denn er kann die Pore
+    bereits entfernt haben.
     """
     label = label_at(labels, x, y)
     bekannt = {p.label for p in pores} | {r.pore.label for r in rejected}
@@ -288,9 +316,9 @@ def set_counted(
         return list(corrections)
 
     uebrige = [c for c in corrections
-               if c.action is Action.DRAW or label_at(labels, c.x, c.y) != label]
+               if c.action in (Action.DRAW, Action.AREA) or label_at(labels, c.x, c.y) != label]
     war_gezaehlt = label in {p.label for p in pores}
-    if war_gezaehlt == counted:
+    if war_gezaehlt == counted and not any(c.action is Action.AREA for c in uebrige):
         return uebrige
     aktion = Action.RESTORE if counted else Action.REMOVE
     return [*uebrige, PoreCorrection(aktion, x, y)]

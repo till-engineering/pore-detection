@@ -33,6 +33,8 @@ Im Ordner jedes Bildes:
 | Datei | Inhalt |
 |---|---|
 | `<bild>_ergebnis.png` | links das Original, rechts dasselbe mit den gezählten Poren **rot** |
+| `<bild>_maske.png` | Maske: **schwarz** Einbettmittel, Maßstab und gezählte Poren, **weiß** die übrige Probe |
+| `<bild>_histogramm.png` | Größenverteilung der gezählten Poren (wie im Viewer, mit D50, D90 und Mittelwert) |
 | `poren.csv`, `kennzahlen.csv`, `verworfen.csv` | die Tabellen nur für dieses Bild |
 | `einstellungen.yaml` | die vollständigen Einstellungen, mit denen das Ergebnis gerechnet wurde |
 | `log.txt` | jede Auswertung und Korrektur dieses Bildes mit Zeit und Ergebnis |
@@ -48,6 +50,7 @@ den Pfeilen oben oder den Pfeiltasten. Werkzeuge links neben dem Bild:
 | **+** | Klick auf eine verworfene Pore zählt sie |
 | **−** | Klick auf eine gezählte Pore verwirft sie; eine eingezeichnete wird gelöscht |
 | **Stift** | Umriss einer übersehenen Pore mit gedrückter Maustaste ziehen |
+| **Gestrichelter Rahmen** | Bereich mit gedrückter Maustaste umfahren – jede gezählte Pore, die ganz darin liegt, wird entfernt |
 | **Pfeil** | Rückgängig (auch `Strg+Z`) |
 | **Papierkorb** | alle Korrekturen an diesem Bild verwerfen |
 
@@ -94,10 +97,11 @@ poren/
   massstab/              Maßstabsbalken finden und Beschriftung lesen (OCR)
   einbettmittel/         Probe vom Einbettmittel trennen (ein Verfahren je Datei)
   detektion/             Porendetektion (ein Verfahren je Datei) + Aufräumen/Trennen/Zusammenführen
-  messung.py             Kennwerte je Pore
+  formeln.py             alle Formeln der Kennwerte (Porosität, Rundheit, Mittelwert, ...)
+  messung.py             Grundmessung je Pore aus der Pixelmaske
   filter.py              Filter: was als Pore zählt, mit Grund je verworfenem Objekt
-  korrekturen.py         manuelle Korrekturen (entfernen, aufnehmen, einzeichnen)
-  ausgabe.py             CSVs und Ergebnisbild
+  korrekturen.py         manuelle Korrekturen (entfernen, aufnehmen, einzeichnen, Bereich)
+  ausgabe.py             CSVs, Ergebnisbild, Maske, Histogramm
   auswertungen/          zusätzliche Auswertungsmodule (je Datei eins, werden automatisch gefunden)
   stapel.py              Ordner auswerten, Ergebnisse für den Viewer halten
   viewer/                Browser-Viewer: server.py, sitzung.py, seite.html

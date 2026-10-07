@@ -16,10 +16,10 @@ Konfiguration - am Code ändert sich nichts.
 
 from __future__ import annotations
 
-import math
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from . import formeln
 from .einstellungen import Abschnitt
 from .modelle import Pore, RejectedPore
 
@@ -200,14 +200,8 @@ MIN_PIXELS_FOR_SHAPE = 25
 
 
 def roundness(pore: Pore) -> float | None:
-    """Flächenbezogene Rundheit ``4A/(π·d_feret²)`` - 1,0 für den Kreis.
-
-    Robust gegen Pixelierung, weil weder Umfang noch Randverlauf eingehen. ``None``, wenn
-    kein Feret-Durchmesser vorliegt.
-    """
-    if pore.feret_max_px <= 0:
-        return None
-    return float(4.0 * pore.area_px / (math.pi * pore.feret_max_px ** 2))
+    """Flächenbezogene Rundheit - siehe :func:`formeln.rundheit_feret`."""
+    return formeln.rundheit_feret(pore.area_px, pore.feret_max_px)
 
 
 def _too_small_for_shape(pore: Pore) -> bool:

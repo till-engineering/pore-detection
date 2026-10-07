@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from . import formeln
 from .modelle import BBox, Pore
 
 
@@ -74,11 +75,11 @@ def measure(
                 centroid_px=(float(prop.centroid[1]), float(prop.centroid[0])),
                 bbox=BBox(int(min_col), int(min_row),
                           int(max_col - min_col), int(max_row - min_row)),
-                equivalent_diameter_px=float(prop.equivalent_diameter_area),
+                equivalent_diameter_px=formeln.aequivalentdurchmesser(float(prop.area)),
                 major_axis_px=float(prop.axis_major_length),
                 minor_axis_px=float(prop.axis_minor_length),
                 feret_max_px=float(getattr(prop, "feret_diameter_max", 0.0) or 0.0),
-                solidity=float(prop.solidity),
+                solidity=formeln.soliditaet(float(prop.area), float(prop.area_convex)),
                 eccentricity=float(prop.eccentricity),
                 orientation_deg=float(np.degrees(prop.orientation)),
                 mean_intensity=float(prop.intensity_mean),

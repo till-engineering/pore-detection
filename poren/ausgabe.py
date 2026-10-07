@@ -8,7 +8,9 @@ Im Zielordner, über alle Bilder:
 
 Je Bild im Unterordner ``<bild>/`` (:func:`write_bild`):
 
-* ``<bild>_ergebnis.png``  links das Original, rechts dasselbe mit den gezählten Poren rot
+* ``<bild>_ergebnis.png``    links das Original, rechts dasselbe mit den gezählten Poren rot
+* ``<bild>_maske.png``       schwarz: Einbettmittel, Maßstab und gezählte Poren; weiß: Probe
+* ``<bild>_histogramm.png``  Größenverteilung der gezählten Poren, wie im Viewer
 * ``poren.csv``, ``kennzahlen.csv``, ``verworfen.csv``  dieselben Tabellen nur für dieses Bild
 
 Geschrieben wird mit Semikolon und Dezimalkomma - so öffnet Excel auf einem deutschen
@@ -23,8 +25,9 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from . import verteilung as vert
 from .filter import roundness
-from .modelle import BatchResult, ImageResult
+from .modelle import BatchResult, ImageResult, Pore
 
 PORE_COLUMNS = [
     "bild", "label", "flaeche_px", "flaeche_um2", "aequivalentdurchmesser_px",
@@ -155,6 +158,8 @@ def write_bild(ordner: str | Path, result: ImageResult) -> None:
 ROT = (0, 0, 255)
 #: Weißer Steg zwischen den beiden Bildhälften, in Pixeln.
 LUECKE_PX = 10
+#: Farben des Histogramms - dieselben wie im Viewer.
+ROT_HEX, TINTE, AKZENT = "#ff1a1a", "#141820", "#0f6d8c"
 
 
 def ergebnisbild_pfad(ziel: str | Path, bildpfad: str | Path) -> Path:
@@ -176,11 +181,83 @@ def write_ergebnisbild(ziel: str | Path, bildpfad: str | Path, bild: np.ndarray,
     luecke = np.full((links.shape[0], LUECKE_PX, 3), 255, dtype=np.uint8)
     gesamt = np.hstack([links, luecke, rechts])
 
-    pfad = ergebnisbild_pfad(ziel, bildpfad)
+    return _png_schreiben(ergebnisbild_pfad(ziel, bildpfad), gesamt)
+
+
+def write_maske(ziel: str | Path, bildpfad: str | Path, specimen: np.ndarray,
+                labels: np.ndarray, poren_labels: list[int]) -> Path:
+    """Schwarz-Weiß-Maske: alles außerhalb der Probe (Einbettmittel, Maßstab) und die
+    gezählten Poren schwarz, die übrige Probe weiß. Verworfene Poren bleiben weiß."""
+    maske = np.where(specimen, 255, 0).astype(np.uint8)
+    maske[np.isin(labels, [label for label in poren_labels if label > 0])] = 0
+    return _png_schreiben(Path(ziel) / f"{Path(bildpfad).stem}_maske.png", maske)
+
+
+def write_histogramm(ziel: str | Path, bildpfad: str | Path, pores: list[Pore],
+                     um_per_px: float | None) -> Path:
+    """Größenverteilung der gezählten Poren als PNG - dasselbe Diagramm wie im Viewer."""
+    import matplotlib
+    matplotlib.use("Agg")
+    from matplotlib import pyplot as plt
+
+    if um_per_px:
+        H = vert.flaechenhistogramm([p.area_um2 for p in pores], "µm²")
+    else:
+        H = vert.flaechenhistogramm([p.area_px for p in pores], "px")
+    einheit = H["einheit"]
+
+    fig, ax = plt.subplots(figsize=(7, 4.2), dpi=150)
+    if H["leer"]:
+        ax.text(0.5, 0.5, "Keine Poren zum Auswerten", ha="center", va="center",
+                transform=ax.transAxes, color="#5d6775")
+        ax.set_xticks([])
+        ax.set_yticks([])
+    else:
+        kanten, kw = np.asarray(H["kanten"]), H["kennwerte"]
+        ax.bar(kanten[:-1], H["anzahlen"], width=np.diff(kanten), align="edge",
+               color=ROT_HEX, edgecolor="white", linewidth=0.6, label="gezählt", zorder=2)
+        if H["kurve"]:
+            x, y = zip(*H["kurve"], strict=True)
+            ax.plot(x, y, color=TINTE, alpha=0.72, linewidth=1.6, label="Dichte", zorder=3)
+        ax.vlines(H["werte"], 0, H["maximum"] * 0.03, color=TINTE, alpha=0.38,
+                  linewidth=0.7, zorder=3)
+        for name, wert, stil, farbe in (("D50", kw["d50"], (0, (3, 3)), TINTE),
+                                        ("D90", kw["d90"], (0, (3, 3)), TINTE),
+                                        ("Mittel", kw["mittel"], "-", AKZENT)):
+            ax.axvline(wert, color=farbe, linestyle=stil, linewidth=1.2, alpha=0.8, zorder=4)
+            ax.annotate(name, (wert, 1), xycoords=("data", "axes fraction"),
+                        xytext=(3, -10), textcoords="offset points", fontsize=8, color=farbe)
+        ax.set_xscale("log")
+        ax.set_xlim(kanten[0], kanten[-1])
+        ax.set_ylim(0, H["maximum"] * 1.08 or 1)
+        ax.yaxis.get_major_locator().set_params(integer=True)
+        ax.grid(axis="y", color="#d5dae1", linewidth=0.8, zorder=0)
+        ax.set_xlabel(f"Porenfläche A [{einheit}]")
+        ax.set_ylabel("Anzahl n")
+        ax.legend(frameon=False, fontsize=8, loc="upper left", bbox_to_anchor=(0, 0.93))
+        fig.text(0.5, 0.015,
+                 f"n = {kw['n']}   Mittel {_num(kw['mittel'])}   D10 {_num(kw['d10'])}   "
+                 f"D50 {_num(kw['d50'])}   D90 {_num(kw['d90'])} {einheit}",
+                 ha="center", fontsize=8.5, color="#5d6775")
+    ax.set_title(f"Größenverteilung der Poren - {Path(bildpfad).name}", fontsize=10)
+    for seite in ("top", "right"):
+        ax.spines[seite].set_visible(False)
+    fig.tight_layout(rect=(0, 0.04, 1, 1))
+
+    pfad = Path(ziel) / f"{Path(bildpfad).stem}_histogramm.png"
+    pfad.parent.mkdir(parents=True, exist_ok=True)
+    # Über eine offene Datei statt Pfad - so wie bei cv2 keine Probleme mit Umlauten.
+    with pfad.open("wb") as datei:
+        fig.savefig(datei, format="png")
+    plt.close(fig)
+    return pfad
+
+
+def _png_schreiben(pfad: Path, bild: np.ndarray) -> Path:
     pfad.parent.mkdir(parents=True, exist_ok=True)
     # Über imencode + tofile statt imwrite: cv2.imwrite scheitert an Umlauten im Pfad.
-    ok, puffer = cv2.imencode(".png", gesamt, [cv2.IMWRITE_PNG_COMPRESSION, 3])
+    ok, puffer = cv2.imencode(".png", bild, [cv2.IMWRITE_PNG_COMPRESSION, 3])
     if not ok:
-        raise OSError(f"Ergebnisbild für {Path(bildpfad).name} ließ sich nicht kodieren")
+        raise OSError(f"{pfad.name} ließ sich nicht kodieren")
     puffer.tofile(str(pfad))
     return pfad

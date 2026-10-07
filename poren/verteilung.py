@@ -14,8 +14,9 @@ D50 und D90 tun das nicht. D90 heißt: 90 % der Poren sind kleiner als dieser We
 Aussage, die in der Abnahme gebraucht wird.
 
 Die Klassengrenzen entstehen **einmal für alle Gruppen** (:func:`kanten`), damit
-gezählte und verworfene Poren im selben Diagramm übereinander liegen können. Getrennt
-berechnete Kanten wären nicht vergleichbar.
+mehrere Gruppen im selben Diagramm übereinander liegen können. Getrennt berechnete
+Kanten wären nicht vergleichbar. Das Porendiagramm (:func:`flaechenhistogramm`) zeigt
+nur die gezählten Poren.
 """
 
 from __future__ import annotations
@@ -23,6 +24,8 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass
+
+from .formeln import mittelwert, quantil
 
 
 @dataclass(frozen=True)
@@ -188,35 +191,37 @@ def verteilen(
     return Verteilung(tuple(grenzen), tuple(anzahlen), logarithmisch)
 
 
-def quantil(werte: Sequence[float], anteil: float) -> float | None:
-    """Lineare Interpolation zwischen den Rangplätzen - wie ``numpy.percentile``.
-
-    Hier ohne numpy, weil das Modul sonst nichts davon braucht und die Verteilung auch
-    aus dem Bericht heraus aufgerufen wird.
-    """
-    sortiert = sorted(float(w) for w in werte if w is not None)
-    if not sortiert:
-        return None
-    if len(sortiert) == 1:
-        return sortiert[0]
-
-    platz = anteil * (len(sortiert) - 1)
-    unten = math.floor(platz)
-    oben = min(unten + 1, len(sortiert) - 1)
-    rest = platz - unten
-    return sortiert[unten] * (1 - rest) + sortiert[oben] * rest
-
-
 def kennwerte(werte: Sequence[float]) -> dict[str, float | None]:
-    """D10, D50, D90 und Spannweite - die Zahlen, die neben dem Diagramm stehen."""
+    """Mittelwert, D10, D50, D90 und Spannweite - die Zahlen, die neben dem Diagramm stehen."""
     brauchbar = [float(w) for w in werte if w is not None]
     if not brauchbar:
-        return {"n": 0, "d10": None, "d50": None, "d90": None, "min": None, "max": None}
+        return {"n": 0, "mittel": None, "d10": None, "d50": None, "d90": None,
+                "min": None, "max": None}
     return {
         "n": len(brauchbar),
+        "mittel": mittelwert(brauchbar),
         "d10": quantil(brauchbar, 0.10),
         "d50": quantil(brauchbar, 0.50),
         "d90": quantil(brauchbar, 0.90),
         "min": min(brauchbar),
         "max": max(brauchbar),
+    }
+
+
+def flaechenhistogramm(flaechen: Sequence[float], einheit: str) -> dict:
+    """Häufigkeitsverteilung der Porenfläche der gezählten Poren - für Viewer und PNG."""
+    werte = [float(w) for w in flaechen if w]
+    if not werte:
+        return {"leer": True, "einheit": einheit}
+    grenzen = kanten(werte, klassen=klassenzahl(werte), logarithmisch=True)
+    verteilung = verteilen(werte, grenzen)
+    return {
+        "leer": False,
+        "einheit": einheit,
+        "kanten": list(grenzen),
+        "anzahlen": list(verteilung.anzahlen),
+        "maximum": verteilung.maximum,
+        "kennwerte": kennwerte(werte),
+        "kurve": [list(p) for p in dichtekurve(werte, grenzen)],
+        "werte": sorted(werte),
     }

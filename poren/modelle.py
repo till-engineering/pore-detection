@@ -18,6 +18,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from . import formeln
 from .einheiten import format_um
 
 # --------------------------------------------------------------------------------------
@@ -263,17 +264,13 @@ class Pore:
 
     @property
     def circularity(self) -> float:
-        """4πA / U² - 1,0 für den perfekten Kreis, kleiner für zerklüftete Formen."""
-        if self.perimeter_px <= 0:
-            return 0.0
-        return float(4.0 * math.pi * self.area_px / (self.perimeter_px ** 2))
+        """4πA / U² - siehe :func:`formeln.zirkularitaet`."""
+        return formeln.zirkularitaet(self.area_px, self.perimeter_px)
 
     @property
     def aspect_ratio(self) -> float:
-        """Haupt- durch Nebenachse. Groß bei Kratzern und Schleifriefen."""
-        if self.minor_axis_px <= 0:
-            return math.inf
-        return float(self.major_axis_px / self.minor_axis_px)
+        """Haupt- durch Nebenachse - siehe :func:`formeln.seitenverhaeltnis`."""
+        return formeln.seitenverhaeltnis(self.major_axis_px, self.minor_axis_px)
 
     @property
     def touches_any_edge(self) -> bool:
@@ -282,13 +279,11 @@ class Pore:
     # -- Physikalische Werte (None ohne Maßstab) ----------------------------------------
 
     def _um(self, value: float) -> float | None:
-        return None if self.um_per_px is None else value * self.um_per_px
+        return formeln.laenge_um(value, self.um_per_px)
 
     @property
     def area_um2(self) -> float | None:
-        if self.um_per_px is None:
-            return None
-        return self.area_px * self.um_per_px * self.um_per_px
+        return formeln.flaeche_um2(self.area_px, self.um_per_px)
 
     @property
     def perimeter_um(self) -> float | None:
@@ -379,17 +374,13 @@ class ImageResult:
         vom Anteil des Einbettmittels abhängig und damit von der Bildausschnittswahl -
         also keine Werkstoffkennzahl mehr.
         """
-        if self.specimen_area_px <= 0:
-            return None
-        return 100.0 * self.pore_area_px / self.specimen_area_px
+        return formeln.porositaet_pct(self.pore_area_px, self.specimen_area_px)
 
     @property
     def porosity_pct_excl_edge(self) -> float | None:
         """Wie :attr:`porosity_pct`, aber ohne angeschnittene Poren."""
-        if self.specimen_area_px <= 0:
-            return None
         area = sum(p.area_px for p in self.pores if not p.touches_any_edge)
-        return 100.0 * area / self.specimen_area_px
+        return formeln.porositaet_pct(area, self.specimen_area_px)
 
     # -- Kennwerte ----------------------------------------------------------------------
 
@@ -406,10 +397,7 @@ class ImageResult:
 
     @property
     def pore_density_per_mm2(self) -> float | None:
-        area = self.specimen_area_mm2
-        if not area:
-            return None
-        return self.pore_count / area
+        return formeln.porendichte(self.pore_count, self.specimen_area_mm2)
 
     @property
     def specimen_frac(self) -> float:

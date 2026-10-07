@@ -306,35 +306,16 @@ def korrigiert(g: Grundlage, korrekturen: list[manuell.PoreCorrection]) -> Pipel
 
 
 def _flaechenhistogramm(poren: list[dict], um_per_px: float | None) -> dict:
-    """Häufigkeitsverteilung der Porenfläche, gezählte und verworfene getrennt.
-
-    Beide Gruppen bekommen dieselben Klassengrenzen (über alle Objekte), sonst
-    verschöbe sich die Achse, sobald ein Filter anders eingestellt wird.
-    """
+    """Häufigkeitsverteilung der Porenfläche - nur gezählte Poren, Zahlen gerundet fürs JSON."""
     feld = "flaeche_um2" if um_per_px else "flaeche_px"
-    einheit = "µm²" if um_per_px else "px"
-    alle = [p[feld] for p in poren if p[feld]]
-    behalten = [p[feld] for p in poren if p["status"] == "behalten" and p[feld]]
-    verworfen = [p[feld] for p in poren if p["status"] == "verworfen" and p[feld]]
-    if not alle:
-        return {"leer": True, "einheit": einheit}
-
-    grenzen = vert.kanten(alle, klassen=vert.klassenzahl(alle), logarithmisch=True)
-    v_behalten = vert.verteilen(behalten, grenzen)
-    v_verworfen = vert.verteilen(verworfen, grenzen)
-    kennwerte = {k: (_g(v) if k != "n" else v) for k, v in vert.kennwerte(behalten).items()}
-    return {
-        "leer": False,
-        "einheit": einheit,
-        "kanten": list(grenzen),
-        "behalten": list(v_behalten.anzahlen),
-        "verworfen": list(v_verworfen.anzahlen),
-        "maximum": max(a + b for a, b in
-                       zip(v_behalten.anzahlen, v_verworfen.anzahlen, strict=True)),
-        "kennwerte": kennwerte,
-        "kurve": [[_g(x), _g(y)] for x, y in vert.dichtekurve(behalten, grenzen)],
-        "werte": sorted(_g(w) for w in behalten),
-    }
+    H = vert.flaechenhistogramm([p[feld] for p in poren if p["status"] == "behalten"],
+                                "µm²" if um_per_px else "px")
+    if H["leer"]:
+        return H
+    H["kennwerte"] = {k: (_z(v) if k != "n" else v) for k, v in H["kennwerte"].items()}
+    H["kurve"] = [[_g(x), _g(y)] for x, y in H["kurve"]]
+    H["werte"] = [_g(w) for w in H["werte"]]
+    return H
 
 
 def darstellen(g: Grundlage, korrekturen: list[manuell.PoreCorrection]) -> dict:
@@ -354,10 +335,10 @@ def darstellen(g: Grundlage, korrekturen: list[manuell.PoreCorrection]) -> dict:
                         else "aufgenommen" if p.label in aufgenommen
                         else "gezeichnet" if p.label in gezeichnet else None),
             "box": [p.bbox.x, p.bbox.y, p.bbox.w, p.bbox.h],
-            "flaeche_px": _z(p.area_px, 1), "flaeche_um2": _g(p.area_um2),
+            "flaeche_px": _z(p.area_px), "flaeche_um2": _z(p.area_um2),
             "d_px": _z(p.equivalent_diameter_px), "d_um": _z(p.equivalent_diameter_um),
             "rundheit": _z(p.circularity), "solidity": _z(p.solidity),
-            "kontrast": _z(p.contrast, 1),
+            "kontrast": _z(p.contrast),
             "randbild": p.touches_image_edge, "randprobe": p.touches_specimen_edge,
         }
 
@@ -382,7 +363,7 @@ def darstellen(g: Grundlage, korrekturen: list[manuell.PoreCorrection]) -> dict:
             "porositaet_ohne_rand": _z(ergebnis.porosity_pct_excl_edge, 4),
             "probe_px": ergebnis.specimen_area_px,
             "probe_mm2": _z(ergebnis.specimen_area_mm2, 4),
-            "dichte": _z(ergebnis.pore_density_per_mm2, 1),
+            "dichte": _z(ergebnis.pore_density_per_mm2),
             "groesste_um": None if groesste is None else _z(groesste.equivalent_diameter_um),
             "groesste_px": None if groesste is None else _z(groesste.equivalent_diameter_px),
         },
@@ -437,6 +418,14 @@ class Sitzung:
         """Werkzeug "Zeichnen": der Umriss wird als neue Pore gezählt."""
         try:
             neu = manuell.PoreCorrection.drawn(punkte)
+        except ValueError:
+            return darstellen(self.g, self.korrekturen)
+        return self._setzen([*self.korrekturen, neu])
+
+    def bereich(self, punkte: list[list[float]]) -> dict:
+        """Werkzeug "Bereich": alle gezählten Poren, die ganz im Umriss liegen, entfernen."""
+        try:
+            neu = manuell.PoreCorrection.area(punkte)
         except ValueError:
             return darstellen(self.g, self.korrekturen)
         return self._setzen([*self.korrekturen, neu])

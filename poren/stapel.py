@@ -2,9 +2,9 @@
 
 * **Der Stapellauf** wertet alle Bilder eines Ordners aus. Im Zielordner liegen danach
   die Tabellen über alle Bilder (``poren.csv``, ``bilder.csv``, ``verworfen.csv``),
-  ``einstellungen_log.txt`` und je Bild ein Ordner ``<bild>/`` mit Ergebnisbild, den
-  Tabellen dieses Bildes, den manuellen Korrekturen, den verwendeten Einstellungen und
-  einem ``log.txt``. Zusätzliche Auswertungen (``poren/auswertungen/``) schreiben nach
+  ``einstellungen_log.txt`` und je Bild ein Ordner ``<bild>/`` mit Ergebnisbild, Maske,
+  Histogramm, den Tabellen dieses Bildes, den manuellen Korrekturen, den verwendeten
+  Einstellungen und einem ``log.txt``. Zusätzliche Auswertungen (``poren/auswertungen/``) schreiben nach
   ``auswertungen/``.
 * **Die Mappe** hält die ausgewerteten Bilder für den Viewer bereit. Wird dort eine Pore
   korrigiert, rechnet sie das Ergebnis dieses Bildes neu und schreibt CSVs und
@@ -191,8 +191,10 @@ class Mappe:
         ordner = self.ordner[index]
         ordner.mkdir(parents=True, exist_ok=True)
         bild = ctx.color if ctx.color is not None else ctx.gray
-        ausgabe.write_ergebnisbild(ordner, sitzung.g.bildpfad, bild, ctx.labels,
-                                   [p.label for p in ctx.pores])
+        gezaehlt = [p.label for p in ctx.pores]
+        ausgabe.write_ergebnisbild(ordner, sitzung.g.bildpfad, bild, ctx.labels, gezaehlt)
+        ausgabe.write_maske(ordner, sitzung.g.bildpfad, ctx.specimen, ctx.labels, gezaehlt)
+        ausgabe.write_histogramm(ordner, sitzung.g.bildpfad, ctx.pores, ctx.um_per_px)
         ausgabe.write_bild(ordner, ergebnis)
         auswertungen.pro_bild(ctx, ergebnis, self.ziel)
 

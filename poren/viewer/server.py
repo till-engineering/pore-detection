@@ -7,7 +7,7 @@ Die Seite (``seite.html``) wird einmal geladen und holt sich dann alles einzeln:
     GET  /api/bild/<n>                   Kennzahlen, Porenliste, Umrisse (JSON)
     GET  /api/bild/<n>/ebene/<name>.png  eine Bildebene (original, untergrund, kontrast,
                                          harz, ausschluss, kandidaten)
-    POST /api/bild/<n>/<aktion>          plus | minus | zeichnen | rueckgaengig | zuruecksetzen
+    POST /api/bild/<n>/<aktion>          plus | minus | zeichnen | bereich | rueckgaengig | zuruecksetzen
     GET  /api/einstellungen              geltende Werte, Standard, Hilfetexte, Auswahllisten
     POST /api/bild/<n>/neu_laden         Einstellungen speichern, Pipeline neu, Bild neu rechnen
 
@@ -30,7 +30,7 @@ SEITE = Path(__file__).with_name("seite.html")
 
 _BILD = re.compile(r"^/api/bild/(\d+)$")
 _EBENE = re.compile(r"^/api/bild/(\d+)/ebene/(\w+)\.png$")
-_AKTION = re.compile(r"^/api/bild/(\d+)/(plus|minus|zeichnen|rueckgaengig|zuruecksetzen)$")
+_AKTION = re.compile(r"^/api/bild/(\d+)/(plus|minus|zeichnen|bereich|rueckgaengig|zuruecksetzen)$")
 _NEU_LADEN = re.compile(r"^/api/bild/(\d+)/neu_laden$")
 
 
@@ -150,8 +150,8 @@ def _handler(quelle: Callable[[], object]) -> type[BaseHTTPRequestHandler]:
                     sitzung = self._mappe(index).sitzung(index)
                     if aktion in ("plus", "minus"):
                         daten = getattr(sitzung, aktion)(int(koerper["label"]))
-                    elif aktion == "zeichnen":
-                        daten = sitzung.zeichnen(koerper["punkte"])
+                    elif aktion in ("zeichnen", "bereich"):
+                        daten = getattr(sitzung, aktion)(koerper["punkte"])
                     else:
                         daten = getattr(sitzung, aktion)()
                 self._json(daten)
