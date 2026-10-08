@@ -44,20 +44,24 @@ def flaeche_um2(flaeche_px: float, um_per_px: float | None) -> float | None:
 
 
 def zirkularitaet(flaeche: float, umfang: float) -> float:
-    """Rundheit über den Umfang: 4πA / U² - 1,0 für den Kreis, kleiner für zerklüftete
-    Formen. Spalte "rundheit" in poren.csv und "Rundheit" im Viewer."""
+    """Zirkularität über den Umfang: 4πA / U² - 1,0 für den Kreis, kleiner für
+    zerklüftete Formen. Spalte "zirkularitaet" in poren.csv und Filter "circularity".
+
+    Bei kleinen Poren über 1 möglich: der Umfang (skimage) läuft durch die Mitten der
+    Randpixel, die Fläche zählt die vollen Pixel - siehe :func:`rundheit_feret`."""
     if umfang <= 0:
         return 0.0
     return 4.0 * math.pi * flaeche / umfang ** 2
 
 
-def rundheit_feret(flaeche: float, feret_max: float) -> float | None:
+def rundheit_feret(flaeche: float, feret_max: float | None) -> float | None:
     """Rundheit über den Feret-Durchmesser: 4A / (π · F_max²) - 1,0 für den Kreis.
 
-    Robust gegen Pixelierung, weil weder Umfang noch Randverlauf eingehen. Genutzt vom
-    Filter "roundness" und in verworfen.csv. ``None`` ohne Feret-Durchmesser.
+    Robust gegen Pixelierung, weil weder Umfang noch Randverlauf eingehen. Spalte
+    "rundheit_feret" in poren.csv und verworfen.csv, "Rundheit" im Viewer, Filter
+    "roundness". ``None`` ohne Feret-Durchmesser.
     """
-    if feret_max <= 0:
+    if feret_max is None or feret_max <= 0:
         return None
     return 4.0 * flaeche / (math.pi * feret_max ** 2)
 

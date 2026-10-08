@@ -74,11 +74,11 @@ def _drop_small(mask: np.ndarray, min_area: float) -> np.ndarray:
 
     if not mask.any():
         return mask
-    count, labels, stats, _centroids = cv2.connectedComponentsWithStats(
+    _count, labels, stats, _centroids = cv2.connectedComponentsWithStats(
         mask.astype(np.uint8), 8
     )
-    out = np.zeros_like(mask)
-    for index in range(1, count):
-        if stats[index, cv2.CC_STAT_AREA] >= min_area:
-            out |= labels == index
+    # Nachschlagetabelle Label -> behalten, statt je Fleck einmal übers ganze Bild.
+    behalten = stats[:, cv2.CC_STAT_AREA] >= min_area
+    behalten[0] = False
+    out = behalten[labels]
     return out if out.any() else mask

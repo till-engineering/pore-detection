@@ -275,6 +275,14 @@ def apply(
             missed.append(korrektur)
         # Sonst ist die Pore schon im gewünschten Zustand - nichts zu tun.
 
+    # Von Hand aufgenommene Poren können aus der groben Messung stammen (früh
+    # verworfen, siehe messung.py) - gezählte Poren brauchen aber alle Kennwerte.
+    unvollstaendig = [label for label, p in gezaehlt.items() if not p.vollstaendig]
+    if unvollstaendig and measure is not None:
+        nur = np.where(np.isin(labels, unvollstaendig), labels, 0).astype(labels.dtype)
+        for pore in measure(nur):
+            gezaehlt[pore.label] = pore
+
     vorher_gezaehlt = {p.label for p in pores}
     return CorrectionOutcome(
         pores=sorted(gezaehlt.values(), key=lambda p: p.label),

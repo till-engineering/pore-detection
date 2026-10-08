@@ -67,8 +67,12 @@ def _bridge(merged: np.ndarray, original: np.ndarray, gap: int) -> np.ndarray:
     pad = gap + 1
     hoehe, breite = out.shape
 
+    zusammengesetzt = set(mehrteilig(merged, original).tolist())
+    if not zusammengesetzt:
+        return out
+
     for label, fenster in enumerate(ndi.find_objects(merged), start=1):
-        if fenster is None:
+        if fenster is None or label not in zusammengesetzt:
             continue
         zeilen, spalten = fenster
         ys = slice(max(0, zeilen.start - pad), min(hoehe, zeilen.stop + pad))
@@ -84,6 +88,18 @@ def _bridge(merged: np.ndarray, original: np.ndarray, gap: int) -> np.ndarray:
         out[ys, xs][geschlossen.astype(bool) & frei] = label
 
     return out
+
+
+def mehrteilig(gross: np.ndarray, teile: np.ndarray) -> np.ndarray:
+    """Labels in ``gross``, die mehr als ein Label aus ``teile`` überdecken.
+
+    In einem Zug über das ganze Bild - so muss nur angefasst werden, was wirklich aus
+    mehreren Teilen besteht, und nicht jede einzelne Pore.
+    """
+    beide = (gross > 0) & (teile > 0)
+    paare = np.unique(np.stack([gross[beide], teile[beide]]).astype(np.int64), axis=1)
+    werte, anzahl = np.unique(paare[0], return_counts=True)
+    return werte[anzahl > 1]
 
 
 def _renumber(labels: np.ndarray) -> np.ndarray:

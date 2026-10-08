@@ -24,7 +24,7 @@ import numpy as np
 
 from ..einheiten import ParsedLength, parse_length
 from ..einstellungen import Abschnitt
-from ..modelle import ScaleInfo, ScaleSource
+from ..modelle import BBox, ScaleInfo, ScaleSource
 from .geteilter_kasten import SplitBoxOverlayDetector
 from .kasten import BoxOverlayDetector, OverlayCandidate
 from .ocr import available_engines, patch_variants
@@ -49,6 +49,15 @@ class ScaleOutcome:
     def ok(self) -> bool:
         return self.scale is not None
 
+    @property
+    def overlay_box(self) -> BBox | None:
+        """Der Overlay-Kasten, der aus der Auswertung fällt - auch wenn die Beschriftung
+        nicht lesbar war oder der Maßstab fest vorgegeben ist. Der schwarze Balken ist
+        so oder so keine Pore."""
+        if self.scale is not None and self.scale.box is not None:
+            return self.scale.box
+        return self.candidates[0].box if self.candidates else None
+
 
 class ScaleResolver:
     """Führt Detektoren und OCR zu einem Maßstab zusammen."""
@@ -65,14 +74,16 @@ class ScaleResolver:
 
     def resolve(self, gray: np.ndarray, path: Path | None = None) -> ScaleOutcome:
         """Maßstab für ein Graustufenbild bestimmen."""
-        override = self._override_for(path)
-        if override is not None:
-            return ScaleOutcome(scale=override)
-
+        # Die Overlays werden auch bei fest vorgegebenem Maßstab gesucht: gelesen wird
+        # dann nichts, aber der Kasten muss trotzdem aus der Auswertung.
         candidates: list[OverlayCandidate] = []
         for detector in self.detectors:
             candidates.extend(detector.detect(gray, self.cfg))
         candidates.sort(key=lambda c: -c.geometry_score)
+
+        override = self._override_for(path)
+        if override is not None:
+            return ScaleOutcome(scale=override, candidates=candidates)
 
         outcome = ScaleOutcome(scale=None, candidates=candidates)
         if not candidates:
@@ -301,19 +312,22 @@ def _vote(readings: list[Reading]) -> tuple[Reading, float, str]:
 
 
 def overlay_mask(
-    shape: tuple[int, int], scale: ScaleInfo | None, pad: int = 0
+    shape: tuple[int, int], overlay: ScaleInfo | BBox | None, pad: int = 0
 ) -> np.ndarray:
     """Boolesche Maske in Bildgröße: ``True`` = gehört zum Overlay, nicht auswerten.
 
-    Ohne Ausschluss zählt der schwarze Balken als riesige Pore. Ohne Maßstab oder ohne
+    ``overlay`` ist der Kasten selbst (siehe :attr:`ScaleOutcome.overlay_box`) oder ein
+    Maßstab mit Kasten. Ohne Ausschluss zählt der schwarze Balken als riesige Pore. Ohne
     bekannten Kasten ist die Maske überall ``False``.
     """
     height, width = shape[:2]
     mask = np.zeros((height, width), dtype=bool)
-    if scale is None:
+    if isinstance(overlay, ScaleInfo):
+        overlay = overlay.box
+    if overlay is None:
         return mask
-    box = scale.exclusion_box(pad=pad, width=width, height=height)
-    if box is None or box.w <= 0 or box.h <= 0:
+    box = overlay.padded(pad, width, height)
+    if box.w <= 0 or box.h <= 0:
         return mask
     mask[box.slices()] = True
     return mask

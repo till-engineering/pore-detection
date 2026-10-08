@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import cv2
 import numpy as np
+from scipy import ndimage as ndi
 from scipy.ndimage import binary_fill_holes
 
 from ..einstellungen import Abschnitt
@@ -134,16 +135,12 @@ def keep_rim_like(resin: np.ndarray, cfg) -> tuple[np.ndarray, int]:
     )
     contact = np.bincount(border, minlength=count)
 
-    out = np.zeros_like(resin)
-    kept = 0
-    for index in range(1, count):
-        if stats[index, cv2.CC_STAT_AREA] / total < cfg.min_area_frac:
-            continue
-        if contact[index] / perimeter < cfg.min_border_contact_frac:
-            continue
-        out |= labels == index
-        kept += 1
-    return out, (count - 1) - kept
+    # Nachschlagetabelle Label -> behalten, statt je Fläche einmal übers ganze Bild.
+    behalten = ((stats[:, cv2.CC_STAT_AREA] / total >= cfg.min_area_frac)
+                & (contact / perimeter >= cfg.min_border_contact_frac))
+    behalten[0] = False
+    kept = int(behalten.sum())
+    return behalten[labels], (count - 1) - kept
 
 
 def fill_small_holes(mask: np.ndarray, max_hole_frac: float) -> np.ndarray:
@@ -160,14 +157,12 @@ def fill_small_holes(mask: np.ndarray, max_hole_frac: float) -> np.ndarray:
         return mask
 
     limit = max_hole_frac * mask.size
-    count, labels, stats, _centroids = cv2.connectedComponentsWithStats(
+    _count, labels, stats, _centroids = cv2.connectedComponentsWithStats(
         holes.astype(np.uint8), 8
     )
-    out = mask.copy()
-    for index in range(1, count):
-        if stats[index, cv2.CC_STAT_AREA] <= limit:
-            out |= labels == index
-    return out
+    klein = stats[:, cv2.CC_STAT_AREA] <= limit
+    klein[0] = False
+    return mask | klein[labels]
 
 
 def material_contrast(resin: np.ndarray, gray: np.ndarray) -> float:
@@ -200,21 +195,21 @@ def specimen_from_resin(
     areas = [(index, int(stats[index, cv2.CC_STAT_AREA])) for index in range(1, count)]
     areas.sort(key=lambda item: -item[1])
 
-    main = labels == areas[0][0]
-    main_gray = float(np.median(gray[main]))
+    # Die Mediane aller Teilflächen in einem Zug, statt je Insel einmal übers ganze Bild.
+    medianes = ndi.median(gray, labels, np.arange(1, count))
+    main_gray = float(medianes[areas[0][0] - 1])
     resin_gray = float(np.median(gray[resin])) if resin.any() else None
 
     kept: list[tuple[int, int]] = [areas[0]]
+    zum_harz = np.zeros(count, dtype=bool)
     reassigned = 0
     dropped = 0
-    out_resin = resin.copy()
 
     for index, area in areas[1:]:
-        region = labels == index
         if resin_gray is not None:
-            island_gray = float(np.median(gray[region]))
+            island_gray = float(medianes[index - 1])
             if abs(island_gray - resin_gray) < abs(island_gray - main_gray):
-                out_resin |= region
+                zum_harz[index] = True
                 reassigned += 1
                 continue
         if cfg.keep == "largest" or area / total < cfg.min_specimen_frac:
@@ -222,9 +217,10 @@ def specimen_from_resin(
             continue
         kept.append((index, area))
 
-    specimen = np.zeros_like(candidate)
-    for index, _area in kept:
-        specimen |= labels == index
+    out_resin = resin | zum_harz[labels]
+    zur_probe = np.zeros(count, dtype=bool)
+    zur_probe[[index for index, _area in kept]] = True
+    specimen = zur_probe[labels]
 
     notes: tuple[str, ...] = ()
     if reassigned:

@@ -32,7 +32,8 @@ from .modelle import BatchResult, ImageResult, Pore
 PORE_COLUMNS = [
     "bild", "label", "flaeche_px", "flaeche_um2", "aequivalentdurchmesser_px",
     "aequivalentdurchmesser_um", "umfang_px", "feret_max_px", "feret_max_um",
-    "hauptachse_px", "nebenachse_px", "rundheit", "seitenverhaeltnis", "soliditaet",
+    "hauptachse_px", "nebenachse_px", "zirkularitaet", "rundheit_feret",
+    "seitenverhaeltnis", "soliditaet",
     "exzentrizitaet", "orientierung_grad", "schwerpunkt_x_px", "schwerpunkt_y_px",
     "grauwert_mittel", "grauwert_min", "kontrast", "am_bildrand", "am_probenrand",
     "abstand_probenrand_px",
@@ -61,7 +62,8 @@ def write_pores(batch: BatchResult, path: str | Path) -> Path:
                     _num(pore.equivalent_diameter_px), _num(pore.equivalent_diameter_um),
                     _num(pore.perimeter_px), _num(pore.feret_max_px), _num(pore.feret_max_um),
                     _num(pore.major_axis_px), _num(pore.minor_axis_px),
-                    _num(pore.circularity), _num(pore.aspect_ratio), _num(pore.solidity),
+                    _num(pore.circularity), _num(roundness(pore)),
+                    _num(pore.aspect_ratio), _num(pore.solidity),
                     _num(pore.eccentricity), _num(pore.orientation_deg),
                     _num(pore.centroid_px[0]), _num(pore.centroid_px[1]),
                     _num(pore.mean_intensity), _num(pore.min_intensity), _num(pore.contrast),
@@ -109,7 +111,7 @@ def _bool(value: bool) -> str:
 
 REJECTED_COLUMNS = [
     "bild", "label", "filter", "grund", "flaeche_px", "durchmesser_px",
-    "seitenverhaeltnis", "soliditaet", "rundheit", "nebenachse_px",
+    "seitenverhaeltnis", "soliditaet", "rundheit_feret", "nebenachse_px",
 ]
 
 
@@ -117,7 +119,9 @@ def write_rejected(batch: BatchResult, path: str | Path) -> Path:
     """Eine Zeile je verworfener Pore - mit dem Grund.
 
     Die wichtigste der drei Tabellen beim Einstellen der Filter: sie beantwortet
-    "warum fehlt diese Pore?" ohne erneutes Durchrechnen.
+    "warum fehlt diese Pore?" ohne erneutes Durchrechnen. Seitenverhältnis, Solidität,
+    Rundheit und Nebenachse bleiben leer, wenn die Pore vor dem ersten Formfilter
+    verworfen wurde - sie werden dann gar nicht erst gemessen (siehe messung.py).
     """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)

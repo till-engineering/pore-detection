@@ -41,7 +41,7 @@ from .einstellungen import Abschnitt, laden
 from .filter import FilterContext
 from .filter import apply as apply_filters
 from .massstab import ScaleResolver, overlay_mask
-from .messung import measure
+from .messung import measure, measure_basis, vervollstaendigen
 from .modelle import ImageResult, Pore, RejectedPore, ScaleInfo
 
 log = logging.getLogger(__name__)
@@ -139,6 +139,14 @@ class Pipeline:
         outcome = self.scale_resolver.resolve(ctx.gray, ctx.path)
         ctx.scale = outcome.scale
 
+        # Stufe 2: der Overlay-Bereich fällt ab hier aus allem heraus - auch wenn die
+        # Beschriftung nicht lesbar war. Der Kasten ist gefunden, und sein schwarzer
+        # Balken wäre sonst die größte "Pore" des Bildes.
+        ctx.excluded = overlay_mask(ctx.shape, outcome.overlay_box,
+                                    pad=self.config.scale.exclusion_pad_px)
+        if ctx.excluded.any():
+            ctx.note("overlay", f"{ctx.excluded_area_px} px ausgeschlossen")
+
         if ctx.scale is None:
             grund = outcome.rejections[0] if outcome.rejections else "kein Overlay gefunden"
             ctx.note("massstab", f"nicht erkannt ({grund})")
@@ -146,17 +154,17 @@ class Pipeline:
                 raise ValueError(f"{ctx.path.name}: kein Maßstab erkannt - {grund}")
             ctx.warn("kein Maßstab erkannt - es wird in Pixeln gemessen, die physikalischen "
                      "Werte bleiben leer")
-            ctx.excluded = np.zeros(ctx.shape, dtype=bool)
+            if ctx.excluded.any():
+                ctx.warn("Maßstabskasten gefunden, aber nicht lesbar - er ist trotzdem von "
+                         "der Auswertung ausgeschlossen")
             return
 
-        ctx.note("massstab", f"{ctx.scale.um_per_px:.6g} µm/px aus \"{ctx.scale.label_text}\"")
+        if ctx.scale.label_text:
+            ctx.note("massstab", f"{ctx.scale.um_per_px:.6g} µm/px aus \"{ctx.scale.label_text}\"")
+        else:
+            ctx.note("massstab", f"{ctx.scale.um_per_px:.6g} µm/px (fest vorgegeben)")
         for warnung in ctx.scale.warnings:
             ctx.warn(f"Maßstab: {warnung}")
-
-        # Stufe 2: der Overlay-Bereich fällt ab hier aus allem heraus.
-        ctx.excluded = overlay_mask(ctx.shape, ctx.scale, pad=self.config.scale.exclusion_pad_px)
-        if ctx.excluded.any():
-            ctx.note("overlay", f"{ctx.excluded_area_px} px ausgeschlossen")
 
     # -- Stufe 3: Einbettmittel ----------------------------------------------------------
 
@@ -175,10 +183,24 @@ class Pipeline:
 
     # -- Stufe 4: Poren ------------------------------------------------------------------
 
+    def _untergrund_noetig(self) -> bool:
+        """Braucht etwas den geschätzten Untergrund? Die Porensuche über den lokalen
+        Kontrast und der Filter "contrast" - sonst nur der Kennwert Kontrast."""
+        if self.config.pore.method == "local_contrast":
+            return True
+        return any(f.name == "contrast" and f.enabled for f in self.config.analysis.filters)
+
     def _stage_detect(self, ctx: PipelineContext) -> None:
         pore_cfg = self.config.pore
-        ctx.background = estimate_background(ctx.gray, pore_cfg.local_contrast.background,
-                                            ctx.specimen)
+        untergrund_cfg = pore_cfg.local_contrast.background
+        if not self._untergrund_noetig() and untergrund_cfg.method != "aus":
+            # adaptive und threshold suchen auf dem Grauwert. Den Untergrund (closing ist
+            # die teuerste Rechnung im Programm) bräuchte dann nur der Kennwert Kontrast;
+            # der wird gegen die mittlere Probenhelligkeit gemessen.
+            untergrund_cfg = untergrund_cfg.kopie(method="aus")
+            ctx.note("untergrund", "nicht geschätzt (nicht gebraucht) - Kontrast gegen "
+                     "die mittlere Probenhelligkeit")
+        ctx.background = estimate_background(ctx.gray, untergrund_cfg, ctx.specimen)
         ctx.contrast = contrast_image(ctx.gray, ctx.background)
 
         result = self.detector.detect(
@@ -206,13 +228,22 @@ class Pipeline:
                  + (f", {zusaetzlich} durch Trennung" if zusaetzlich else "") + ")")
 
     def _stage_measure(self, ctx: PipelineContext) -> None:
-        pores = measure(ctx.labels, ctx.gray, ctx.contrast, ctx.specimen,
-                        um_per_px=ctx.um_per_px)
+        # Erst grob für alle Kandidaten, die Formwerte nur für die, die sie brauchen -
+        # siehe messung.py.
+        pores = measure_basis(ctx.labels, ctx.gray, ctx.contrast, ctx.specimen,
+                              um_per_px=ctx.um_per_px, overlay=ctx.excluded)
+
+        def voll(poren: list[Pore]) -> list[Pore]:
+            return vervollstaendigen(poren, ctx.labels, ctx.gray, ctx.contrast,
+                                     ctx.specimen, um_per_px=ctx.um_per_px,
+                                     overlay=ctx.excluded)
+
         # Angeschnittene Poren verwerfen: Filter "edge" in der einstellungen.yaml.
         ctx.pores, ctx.rejected = apply_filters(
             pores, self.config.analysis,
             FilterContext(image_area_px=ctx.width * ctx.height,
                           specimen_area_px=ctx.specimen_area_px, um_per_px=ctx.um_per_px),
+            vervollstaendigen=voll,
         )
         if ctx.rejected:
             gruende: dict[str, int] = {}
@@ -227,15 +258,19 @@ class Pipeline:
     ) -> None:
         cfg = self.config.corrections
         if corrections is None:
-            if not cfg.enabled:
+            # Ohne Ablageordner (der Stapellauf gibt die Korrekturen selbst mit, die
+            # einstellungen.yaml kennt keinen) gibt es auch nichts Gespeichertes.
+            ordner = cfg.get("directory")
+            if not cfg.enabled or not ordner:
                 return
-            corrections = manual.CorrectionStore(cfg.directory).load(ctx.path)
+            corrections = manual.CorrectionStore(ordner).load(ctx.path)
         if not corrections:
             return
 
         def vermessen(labels: np.ndarray) -> list:
             # Eingezeichnete Poren nehmen denselben Messweg wie erkannte.
-            return measure(labels, ctx.gray, ctx.contrast, ctx.specimen, um_per_px=ctx.um_per_px)
+            return measure(labels, ctx.gray, ctx.contrast, ctx.specimen,
+                           um_per_px=ctx.um_per_px, overlay=ctx.excluded)
 
         outcome = manual.apply(ctx.pores, ctx.rejected, ctx.labels, corrections,
                                measure=vermessen, allowed=ctx.specimen)

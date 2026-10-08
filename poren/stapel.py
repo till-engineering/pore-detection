@@ -41,6 +41,10 @@ from .viewer.sitzung import Grundlage, Sitzung, rechnen, sichern, wiederherstell
 #: So viele Bilder hält die Mappe fertig im Speicher.
 IM_SPEICHER = 3
 
+#: Warnung an Bildern, die noch mit älteren Einstellungen gerechnet sind.
+VERALTET = ("mit älteren Einstellungen gerechnet - im Viewer öffnen, dann wird es mit den "
+            "aktuellen neu gerechnet")
+
 #: Rückmeldung je Bild: (laufende Nummer ab 1, Gesamtzahl, Pfad, Ergebnis, Fehlertext).
 Meldung = Callable[[int, int, Path, ImageResult | None, str | None], None]
 
@@ -58,6 +62,9 @@ class Mappe:
         self.ordner: list[Path] = []
         self.ergebnisse: list[ImageResult] = []
         self.fehler: list[tuple[Path, str]] = []
+        #: Dateien, die sich nicht schreiben ließen (meist: in Excel geöffnet). Das
+        #: Rechnen ist davon nicht betroffen - nur die Ablage ist unvollständig.
+        self.schreibfehler: list[str] = []
         #: Kennung des Laufs - der Browser hängt sie an Bildadressen (Cache).
         self.kennung = datetime.now().strftime("%Y%m%d%H%M%S")
 
@@ -75,15 +82,26 @@ class Mappe:
     # -- Aufbauen ------------------------------------------------------------------------
 
     def aufnehmen(self, pfad: Path) -> ImageResult:
-        """Ein Bild auswerten, ablegen und exportieren. Wirft, wenn es nicht geht."""
+        """Ein Bild auswerten, ablegen und exportieren. Wirft, wenn es nicht geht.
+
+        Ins Verzeichnis der Mappe kommt das Bild erst, wenn sein Ergebnis feststeht -
+        ``bilder``, ``ordner`` und ``ergebnisse`` laufen sonst auseinander, und jeder
+        spätere Index zeigt auf das falsche Bild. Scheitert danach nur das Schreiben der
+        Dateien, ist das Bild trotzdem ausgewertet; der Grund steht in seinen Warnungen.
+        """
         with self._sperre:
             index = len(self.bilder)
             grundlage = rechnen(pfad, self.pipeline)
             sichern(grundlage, self._datei(index))
             self.bilder.append(pfad)
             self.ordner.append(self._neuer_ordner(pfad))
-            sitzung = self._merken(index, grundlage)
-            ergebnis, ctx = sitzung.ergebnis()
+            try:
+                sitzung = self._merken(index, grundlage)
+                ergebnis, ctx = sitzung.ergebnis()
+            except Exception:
+                del self.bilder[index:], self.ordner[index:]
+                self._sitzungen.pop(index, None)
+                raise
             self.ergebnisse.append(ergebnis)
             self._bild_schreiben(index, sitzung, ctx, ergebnis, "ausgewertet")
             return ergebnis
@@ -93,8 +111,25 @@ class Mappe:
                            failures=list(self.fehler))
 
     def tabellen_schreiben(self) -> None:
-        ausgabe.write_all(self.batch(), self.ziel)
+        batch = self.batch()
+        for datei, schreiben in (("poren.csv", ausgabe.write_pores),
+                                 ("bilder.csv", ausgabe.write_images),
+                                 ("verworfen.csv", ausgabe.write_rejected)):
+            self._schreiben(datei, schreiben, batch, self.ziel / datei)
         auswertungen.gesamt(self.ergebnisse, self.ziel)
+
+    def _schreiben(self, was: str, funktion: Callable, *argumente) -> bool:
+        """Eine Datei schreiben, ohne dass ein Fehler den Lauf abbricht. Eine in Excel
+        geöffnete CSV ist unter Windows gesperrt - das darf kein ausgewertetes Bild und
+        keine Korrektur kosten."""
+        try:
+            funktion(*argumente)
+            return True
+        except OSError as exc:
+            text = f"{was} nicht geschrieben ({type(exc).__name__}: {exc}) - in Excel geöffnet?"
+            self.schreibfehler.append(text)
+            print(text)
+            return False
 
     # -- Für den Viewer ------------------------------------------------------------------
 
@@ -140,6 +175,12 @@ class Mappe:
             self._sitzungen.clear()
             if aenderungen:
                 self._veraltet = set(range(len(self.bilder)))
+                # Die Tabellen über alle Bilder mischen jetzt alte und neue Einstellungen.
+                # Das muss dort sichtbar sein, bis das Bild neu gerechnet ist - dann
+                # ersetzt das neue Ergebnis das alte samt dieser Warnung.
+                for i in self._veraltet - {index}:
+                    if VERALTET not in self.ergebnisse[i].warnings:
+                        self.ergebnisse[i].warnings.append(VERALTET)
             self._neu_rechnen(index, "neu ausgewertet (Bild neu laden)")
             return aenderungen
 
@@ -180,7 +221,8 @@ class Mappe:
 
     def _still_vorladen(self, index: int) -> None:
         try:
-            self.sitzung(index)
+            # Die Umrisse gleich mit - der Stapellauf rechnet sie nicht vor.
+            self.sitzung(index).g.umrisse
         except Exception:  # noqa: BLE001 - beim echten Aufruf kommt der Fehler wieder
             pass
 
@@ -192,10 +234,14 @@ class Mappe:
         ordner.mkdir(parents=True, exist_ok=True)
         bild = ctx.color if ctx.color is not None else ctx.gray
         gezaehlt = [p.label for p in ctx.pores]
-        ausgabe.write_ergebnisbild(ordner, sitzung.g.bildpfad, bild, ctx.labels, gezaehlt)
-        ausgabe.write_maske(ordner, sitzung.g.bildpfad, ctx.specimen, ctx.labels, gezaehlt)
-        ausgabe.write_histogramm(ordner, sitzung.g.bildpfad, ctx.pores, ctx.um_per_px)
-        ausgabe.write_bild(ordner, ergebnis)
+        name = ordner.name
+        self._schreiben(f"{name}: Ergebnisbild", ausgabe.write_ergebnisbild,
+                        ordner, sitzung.g.bildpfad, bild, ctx.labels, gezaehlt)
+        self._schreiben(f"{name}: Maske", ausgabe.write_maske,
+                        ordner, sitzung.g.bildpfad, ctx.specimen, ctx.labels, gezaehlt)
+        self._schreiben(f"{name}: Histogramm", ausgabe.write_histogramm,
+                        ordner, sitzung.g.bildpfad, ctx.pores, ctx.um_per_px)
+        self._schreiben(f"{name}: Tabellen", ausgabe.write_bild, ordner, ergebnis)
         auswertungen.pro_bild(ctx, ergebnis, self.ziel)
 
         zeilen = ["Ergebnis: " + _kurz(ergebnis)]

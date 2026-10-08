@@ -240,16 +240,18 @@ class Pore:
 
     label: int
     area_px: float
-    perimeter_px: float
+    # Die Formwerte sind ``None``, solange die Pore nur grob vermessen ist - siehe
+    # messung.measure_basis. Gezählte Poren haben sie immer.
+    perimeter_px: float | None
     centroid_px: tuple[float, float]          # (x, y)
     bbox: BBox
     equivalent_diameter_px: float
-    major_axis_px: float
-    minor_axis_px: float
-    feret_max_px: float
-    solidity: float
-    eccentricity: float
-    orientation_deg: float
+    major_axis_px: float | None
+    minor_axis_px: float | None
+    feret_max_px: float | None
+    solidity: float | None
+    eccentricity: float | None
+    orientation_deg: float | None
     mean_intensity: float
     min_intensity: float
     contrast: float                           # Abstand zum geschätzten Untergrund
@@ -263,13 +265,22 @@ class Pore:
     # -- Formkennwerte (maßstabsunabhängig) --------------------------------------------
 
     @property
-    def circularity(self) -> float:
+    def vollstaendig(self) -> bool:
+        """Sind auch die Formwerte gemessen?"""
+        return self.feret_max_px is not None
+
+    @property
+    def circularity(self) -> float | None:
         """4πA / U² - siehe :func:`formeln.zirkularitaet`."""
+        if self.perimeter_px is None:
+            return None
         return formeln.zirkularitaet(self.area_px, self.perimeter_px)
 
     @property
-    def aspect_ratio(self) -> float:
+    def aspect_ratio(self) -> float | None:
         """Haupt- durch Nebenachse - siehe :func:`formeln.seitenverhaeltnis`."""
+        if self.major_axis_px is None or self.minor_axis_px is None:
+            return None
         return formeln.seitenverhaeltnis(self.major_axis_px, self.minor_axis_px)
 
     @property
@@ -278,8 +289,8 @@ class Pore:
 
     # -- Physikalische Werte (None ohne Maßstab) ----------------------------------------
 
-    def _um(self, value: float) -> float | None:
-        return formeln.laenge_um(value, self.um_per_px)
+    def _um(self, value: float | None) -> float | None:
+        return None if value is None else formeln.laenge_um(value, self.um_per_px)
 
     @property
     def area_um2(self) -> float | None:
@@ -378,9 +389,14 @@ class ImageResult:
 
     @property
     def porosity_pct_excl_edge(self) -> float | None:
-        """Wie :attr:`porosity_pct`, aber ohne angeschnittene Poren."""
-        area = sum(p.area_px for p in self.pores if not p.touches_any_edge)
-        return formeln.porositaet_pct(area, self.specimen_area_px)
+        """Wie :attr:`porosity_pct`, aber ohne angeschnittene Poren.
+
+        Die Fläche der angeschnittenen Poren fällt aus Zähler **und** Nenner. Nur aus dem
+        Zähler genommen, käme eine systematisch zu kleine Porosität heraus - ihre Fläche
+        stünde weiter als porenfreie Probe im Nenner.
+        """
+        rand = sum(p.area_px for p in self.pores if p.touches_any_edge)
+        return formeln.porositaet_pct(self.pore_area_px - rand, self.specimen_area_px - rand)
 
     # -- Kennwerte ----------------------------------------------------------------------
 

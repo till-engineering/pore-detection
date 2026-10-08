@@ -190,6 +190,15 @@ class Startfenster:
                         + (f", {fehler} gescheitert" if fehler else "")
                         + f" - Ergebnisse in {mappe.ziel}")
         self._schreiben(f"Fertig. Ergebnisse in {mappe.ziel}")
+        if mappe.schreibfehler:
+            self._schreiben("ACHTUNG - nicht alle Dateien geschrieben:\n  "
+                            + "\n  ".join(mappe.schreibfehler))
+            messagebox.showwarning(
+                "Dateien nicht geschrieben",
+                f"{len(mappe.schreibfehler)} Datei(en) ließen sich nicht schreiben - "
+                "vermutlich in Excel geöffnet. Datei schließen und den Lauf "
+                "wiederholen.\n\n"
+                + "\n".join(mappe.schreibfehler[:5]))
         self.knopf_start.configure(state="normal")
         self.knopf_ziel.configure(state="normal")
 

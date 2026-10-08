@@ -24,10 +24,10 @@ require_scale: false               # true = Bild abbrechen, wenn kein Massstab e
 # 1. MASSSTAB
 # --------------------------------------------------------------------------------------
 scale:
-  min_um_per_px: 1.0e-6            # harte Grenze: darunter verwerfen
-  max_um_per_px: 1.0e+12           # harte Grenze: darueber verwerfen
-  expected_min_um_per_px: 1.0e-3   # Erwartungsfenster: ausserhalb nur Warnung
-  expected_max_um_per_px: 1.0e+3
+  min_um_per_px: 1.0e-3            # harte Grenze: darunter verwerfen (kein Massstab statt
+  max_um_per_px: 1.0e+3            #   eines falschen - faengt "m"/"cm" statt "µm" ab)
+  expected_min_um_per_px: 1.0e-2   # Erwartungsfenster: ausserhalb nur Warnung
+  expected_max_um_per_px: 1.0e+2
   exclusion_pad_px: 4              # Rand um das Overlay, der aus der Analyse faellt
   overrides: {}                    # Regex auf Dateiname -> µm/px, z.B. {"^probe_7": 0.52}
 
@@ -133,6 +133,9 @@ pore:
   open_radius_px: 1                # entfernt Einzelpixel-Rauschen
   close_radius_px: 0               # morphologisches Schliessen (0 = aus)
   fill_holes: true                 # Loecher in Poren fuellen
+  fill_holes_max_ratio: 3.0        # nur Loecher bis x-mal der Flaeche der umgebenden Pore
+                                   # (0 = jedes Loch). Ein Ring aus Korngrenzen um ein Korn
+                                   # ist duenn, das Korn darin gross - es wird nicht gefuellt
   min_size_px: 4                   # Rauschgrenze in px
 
   local_contrast:                  # Pore = dunkler als ihre Umgebung (Standard)
@@ -150,7 +153,8 @@ pore:
     half_max_fraction: 0.5         #   half_max: Randlage zwischen Untergrund (0) und Kern (1)
     half_max_ring_px: 3            #   half_max: Ringbreite fuer den lokalen Untergrund
     background:                    # Untergrund, gegen den der Kontrast gemessen wird
-                                   # (gilt fuer alle Verfahren: Kontrast-Kennwert, Viewer-Ebenen)
+                                   # (geschaetzt nur bei local_contrast oder aktivem Filter contrast,
+                                   #  sonst wie "aus" - spart bei adaptive/threshold viel Zeit)
       method: closing              # closing     = Schliessung (schnell, aber Poren groesser als
                                    #               der Kernel verschwinden!)
                                    # flaechenfit = glatte Polynomflaeche ohne dunkle Bereiche

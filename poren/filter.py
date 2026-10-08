@@ -11,7 +11,9 @@ sie sich nur durch erneutes Durchrechnen beantworten. Die verworfenen Objekte we
 deshalb nicht gelöscht, sondern mitgeführt und im Kontrollbild grau eingezeichnet.
 
 Ein neuer Filter ist eine Funktion mit ``@register`` und ein Eintrag in der
-Konfiguration - am Code ändert sich nichts.
+Konfiguration - am Code ändert sich nichts. Braucht er Formwerte (Achsen, Umfang,
+Solidität, Feret), bekommt er ``@register(name, form=True)``: dann werden sie vor ihm
+nachgemessen. Ohne die Angabe sieht er nur die billigen Werte (siehe messung.py).
 """
 
 from __future__ import annotations
@@ -37,13 +39,17 @@ class FilterContext:
 FilterFn = Callable[[Pore, FilterContext, dict[str, float]], str | None]
 
 _FILTERS: dict[str, FilterFn] = {}
+#: Filter, die die teuren Formwerte brauchen.
+_FORM: set[str] = set()
 
 
-def register(name: str) -> Callable[[FilterFn], FilterFn]:
-    """Einen Filter unter einem Namen bekannt machen."""
+def register(name: str, form: bool = False) -> Callable[[FilterFn], FilterFn]:
+    """Einen Filter unter einem Namen bekannt machen. ``form``: er braucht Formwerte."""
 
     def decorator(fn: FilterFn) -> FilterFn:
         _FILTERS[name] = fn
+        if form:
+            _FORM.add(name)
         return fn
 
     return decorator
@@ -98,7 +104,7 @@ def _max_area(pore: Pore, ctx: FilterContext, params: dict[str, float]) -> str |
     return None
 
 
-@register("aspect_ratio")
+@register("aspect_ratio", form=True)
 def _aspect_ratio(pore: Pore, ctx: FilterContext, params: dict[str, float]) -> str | None:
     """Gegen Kratzer und Schleifriefen.
 
@@ -112,7 +118,7 @@ def _aspect_ratio(pore: Pore, ctx: FilterContext, params: dict[str, float]) -> s
     return None
 
 
-@register("circularity")
+@register("circularity", form=True)
 def _circularity(pore: Pore, ctx: FilterContext, params: dict[str, float]) -> str | None:
     """Gegen zerklüftete Gefügebestandteile. Vorsicht: Lunker sind selten rund."""
     grenze = params.get("min_circularity", 0.0)
@@ -121,7 +127,7 @@ def _circularity(pore: Pore, ctx: FilterContext, params: dict[str, float]) -> st
     return None
 
 
-@register("solidity")
+@register("solidity", form=True)
 def _solidity(pore: Pore, ctx: FilterContext, params: dict[str, float]) -> str | None:
     """Anteil an der eigenen konvexen Hülle - trennt kompakte von fransigen Objekten."""
     grenze = params.get("min_solidity", 0.0)
@@ -258,7 +264,7 @@ def _min_diameter(pore: Pore, ctx: FilterContext, params: dict[str, float]) -> s
 # --------------------------------------------------------------------------------------
 
 
-@register("scratch")
+@register("scratch", form=True)
 def _scratch(pore: Pore, ctx: FilterContext, params: dict[str, float]) -> str | None:
     """Schleifriefen und Kratzer - lang, dünn und gerade.
 
@@ -306,7 +312,7 @@ def _scratch(pore: Pore, ctx: FilterContext, params: dict[str, float]) -> str | 
 # --------------------------------------------------------------------------------------
 
 
-@register("roundness")
+@register("roundness", form=True)
 def _roundness(pore: Pore, ctx: FilterContext, params: dict[str, float]) -> str | None:
     """Flächenbezogene Rundheit - gegen langgestreckte und fransige Gebilde.
 
@@ -329,7 +335,7 @@ def _roundness(pore: Pore, ctx: FilterContext, params: dict[str, float]) -> str 
     return None
 
 
-@register("compactness")
+@register("compactness", form=True)
 def _compactness(pore: Pore, ctx: FilterContext, params: dict[str, float]) -> str | None:
     """Solidität als Anteil an der konvexen Hülle - gegen Korngrenzennetze.
 
@@ -404,12 +410,18 @@ def _edge(pore: Pore, ctx: FilterContext, params: dict[str, float]) -> str | Non
 
 
 def apply(
-    pores: list[Pore], cfg: Abschnitt, ctx: FilterContext
+    pores: list[Pore], cfg: Abschnitt, ctx: FilterContext,
+    vervollstaendigen: Callable[[list[Pore]], list[Pore]] | None = None,
 ) -> tuple[list[Pore], list[RejectedPore]]:
     """Alle aktiven Filter der Reihe nach anwenden.
 
     Eine Pore wird beim **ersten** Filter verworfen, der greift - der Grund ist damit
     eindeutig einem Kriterium zugeordnet und nicht eine Sammlung von Beanstandungen.
+
+    ``vervollstaendigen`` misst die Formwerte nach (messung.vervollstaendigen): vor dem
+    ersten Formfilter für alle Poren, die noch übrig sind, und am Ende für die gezählten.
+    Was vorher verworfen wird, bekommt nie Formwerte - das ist der Großteil der Zeit, die
+    sich so sparen lässt. Ohne ``vervollstaendigen`` müssen die Poren schon voll sein.
     """
     aktive: list[Abschnitt] = [f for f in cfg.filters if f.enabled]
     unbekannt = [f.name for f in aktive if f.name not in _FILTERS]
@@ -419,14 +431,22 @@ def apply(
             f"{', '.join(available())}"
         )
 
-    behalten: list[Pore] = []
+    # Filter für Filter statt Pore für Pore - das Ergebnis ist dasselbe, aber das
+    # Nachmessen geschieht so für alle übrigen Poren in einem Zug.
+    behalten: list[Pore] = list(pores)
     verworfen: list[RejectedPore] = []
-    for pore in pores:
-        for spec in aktive:
+    for spec in aktive:
+        if vervollstaendigen is not None and spec.name in _FORM:
+            behalten = vervollstaendigen(behalten)
+        uebrig: list[Pore] = []
+        for pore in behalten:
             grund = _FILTERS[spec.name](pore, ctx, spec.params)
-            if grund is not None:
+            if grund is None:
+                uebrig.append(pore)
+            else:
                 verworfen.append(RejectedPore(pore=pore, filter_name=spec.name, reason=grund))
-                break
-        else:
-            behalten.append(pore)
+        behalten = uebrig
+    if vervollstaendigen is not None:
+        behalten = vervollstaendigen(behalten)
+    verworfen.sort(key=lambda r: r.pore.label)
     return behalten, verworfen

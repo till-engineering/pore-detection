@@ -6,7 +6,8 @@ Zwei Windows-Eigenheiten sind hier bewusst behandelt:
   ANSI-API weiter. Der Testordner heißt "Maßstäbe_Bilder", der Fehler wäre also sofort
   da. Gelesen wird deshalb über ``np.fromfile`` und ``cv2.imdecode``.
 * Bilder mit mehr als 8 Bit werden auf 8 Bit normiert, damit alle Schwellen im Rest des
-  Programms denselben Wertebereich meinen.
+  Programms denselben Wertebereich meinen. 16-Bit-Dateien werden nach ihrer tatsächlichen
+  Bittiefe (12, 14 oder 16 Bit) umgerechnet, nicht pauschal durch 257 geteilt.
 """
 
 from __future__ import annotations
@@ -94,7 +95,15 @@ def _to_uint8(image: np.ndarray) -> np.ndarray:
     if image.dtype == np.uint8:
         return image
     if image.dtype == np.uint16:
-        return (image // 257).astype(np.uint8)
+        # Viele Mikroskopkameras speichern 12 oder 14 Bit in einer 16-Bit-Datei. Durch
+        # 257 geteilt würde ein 12-Bit-Bild (bis 4095) zu 0…15 - fast schwarz, mit 16
+        # Graustufen, und jede absolute Schwelle (Kastenweiß 255) ginge ins Leere.
+        # Die Bittiefe wird deshalb am größten Wert erkannt: bis 255 sind es 8-Bit-Daten
+        # in einer 16-Bit-Datei, bis 4095 gilt 12 Bit, bis 16383 gilt 14 Bit, darüber 16.
+        hoechster = int(image.max()) if image.size else 0
+        verschiebung = (0 if hoechster < 256 else 4 if hoechster < 4096
+                        else 6 if hoechster < 16384 else 8)
+        return (image >> verschiebung).astype(np.uint8)
     info_max = float(np.nanmax(image)) if image.size else 1.0
     if info_max <= 0:
         return np.zeros(image.shape, dtype=np.uint8)

@@ -1,9 +1,9 @@
 """Maßstab aus dem eingebrannten Balken.
 
     ergebnis = ScaleResolver(cfg.scale).resolve(gray, pfad)
+    nicht_werten = overlay_mask(gray.shape, ergebnis.overlay_box, pad=4)
     if ergebnis.scale:
         durchmesser_um = ergebnis.scale.to_um(durchmesser_px)
-        nicht_werten   = overlay_mask(gray.shape, ergebnis.scale, pad=4)
 
 Ohne erkannten Maßstab ist ``ergebnis.scale`` ``None``. Dann wird in Pixeln weiter
 gemessen und die physikalischen Werte bleiben leer - es wird nirgends ein Faktor

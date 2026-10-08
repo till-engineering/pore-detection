@@ -32,6 +32,7 @@ from .. import korrekturen as manuell
 from .. import verteilung as vert
 from ..bild import read_image
 from ..einheiten import UNIT_FACTORS_UM, UNIT_SYMBOLS, format_um
+from ..filter import roundness
 from ..modelle import ImageResult
 from ..pipeline import Pipeline, PipelineContext
 
@@ -186,9 +187,17 @@ class Grundlage:
     bildpfad: Path
     pipeline: Pipeline
     ctx: PipelineContext
-    umrisse: dict[int, list]
     fest: dict
+    #: Umrisse aller Objekte - erst gerechnet, wenn der Viewer sie braucht (teuer bei
+    #: vielen Kandidaten, und im Stapellauf ohne Viewer ganz umsonst).
+    _umrisse: dict[int, list] | None = None
     _pngs: dict[str, bytes] = field(default_factory=dict)
+
+    @property
+    def umrisse(self) -> dict[int, list]:
+        if self._umrisse is None:
+            self._umrisse = umrisse(self.ctx.labels)
+        return self._umrisse
 
     def ebene(self, name: str) -> bytes:
         """Eine Bildebene als PNG - beim ersten Abruf kodiert, danach aus dem Speicher."""
@@ -259,7 +268,7 @@ def rechnen(bildpfad: Path, pipeline: Pipeline) -> Grundlage:
     ctx = pipeline.analyse(bildpfad, corrections=[])
     ctx.background = None          # steckt in gray + contrast, spart Speicher
     return Grundlage(bildpfad=bildpfad, pipeline=pipeline, ctx=ctx,
-                     umrisse=umrisse(ctx.labels), fest=_fest(bildpfad, pipeline, ctx))
+                     fest=_fest(bildpfad, pipeline, ctx))
 
 
 #: Felder, die beim Ablegen wegfallen: die Bilddaten kommen wieder aus der Datei,
@@ -274,7 +283,7 @@ def sichern(g: Grundlage, datei: Path) -> None:
         setattr(ctx, name, None)
     untergrund = (g.ctx.gray + g.ctx.contrast).astype(np.float16)
     with gzip.open(datei, "wb", compresslevel=1) as f:
-        pickle.dump({"ctx": ctx, "untergrund": untergrund, "umrisse": g.umrisse,
+        pickle.dump({"ctx": ctx, "untergrund": untergrund, "umrisse": g._umrisse,
                      "fest": g.fest}, f, protocol=pickle.HIGHEST_PROTOCOL)
 
 
@@ -287,7 +296,7 @@ def wiederherstellen(datei: Path, bildpfad: Path, pipeline: Pipeline) -> Grundla
     ctx.gray, ctx.color = bild.gray, bild.color
     ctx.contrast = daten["untergrund"].astype(np.float32) - bild.gray.astype(np.float32)
     return Grundlage(bildpfad=bildpfad, pipeline=pipeline, ctx=ctx,
-                     umrisse=daten["umrisse"], fest=daten["fest"])
+                     fest=daten["fest"], _umrisse=daten["umrisse"])
 
 
 # --------------------------------------------------------------------------------------
@@ -305,14 +314,18 @@ def korrigiert(g: Grundlage, korrekturen: list[manuell.PoreCorrection]) -> Pipel
     return ctx
 
 
-def _flaechenhistogramm(poren: list[dict], um_per_px: float | None) -> dict:
-    """Häufigkeitsverteilung der Porenfläche - nur gezählte Poren, Zahlen gerundet fürs JSON."""
-    feld = "flaeche_um2" if um_per_px else "flaeche_px"
-    H = vert.flaechenhistogramm([p[feld] for p in poren if p["status"] == "behalten"],
-                                "µm²" if um_per_px else "px")
+def _flaechenhistogramm(poren: list, um_per_px: float | None) -> dict:
+    """Häufigkeitsverteilung der Porenfläche der gezählten Poren - aus den ungerundeten
+    Flächen wie im PNG-Histogramm. Erst das Ergebnis wird fürs JSON gerundet, und zwar
+    auf gültige Stellen: bei hoher Vergrößerung wären kleine Poren auf drei
+    Nachkommastellen in µm² sonst 0 und fielen aus dem Diagramm."""
+    if um_per_px:
+        H = vert.flaechenhistogramm([p.area_um2 for p in poren], "µm²")
+    else:
+        H = vert.flaechenhistogramm([p.area_px for p in poren], "px")
     if H["leer"]:
         return H
-    H["kennwerte"] = {k: (_z(v) if k != "n" else v) for k, v in H["kennwerte"].items()}
+    H["kennwerte"] = {k: (_g(v) if k != "n" else v) for k, v in H["kennwerte"].items()}
     H["kurve"] = [[_g(x), _g(y)] for x, y in H["kurve"]]
     H["werte"] = [_g(w) for w in H["werte"]]
     return H
@@ -337,7 +350,8 @@ def darstellen(g: Grundlage, korrekturen: list[manuell.PoreCorrection]) -> dict:
             "box": [p.bbox.x, p.bbox.y, p.bbox.w, p.bbox.h],
             "flaeche_px": _z(p.area_px), "flaeche_um2": _z(p.area_um2),
             "d_px": _z(p.equivalent_diameter_px), "d_um": _z(p.equivalent_diameter_um),
-            "rundheit": _z(p.circularity), "solidity": _z(p.solidity),
+            # Dieselbe Rundheit wie im Filter "roundness" und in den Verwerfungsgründen.
+            "rundheit": _z(roundness(p)), "solidity": _z(p.solidity),
             "kontrast": _z(p.contrast),
             "randbild": p.touches_image_edge, "randprobe": p.touches_specimen_edge,
         }
@@ -374,7 +388,7 @@ def darstellen(g: Grundlage, korrekturen: list[manuell.PoreCorrection]) -> dict:
         },
         "poren": poren,
         "umrisse_neu": neue_umrisse,
-        "histogramm": _flaechenhistogramm(poren, ctx.um_per_px),
+        "histogramm": _flaechenhistogramm(ctx.pores, ctx.um_per_px),
     }
 
 
