@@ -151,8 +151,11 @@ class Viewer:
     :meth:`zeigen` sichtbar und beim Schließen nur wieder versteckt - beendet wird es
     erst mit dem Startfenster (:meth:`beenden`)."""
 
-    def __init__(self, quelle: Callable[[], object]) -> None:
+    def __init__(self, quelle: Callable[[], object], beenden_beim_schliessen: bool = False) -> None:
+        """``beenden_beim_schliessen``: Schließen beendet den Viewer, statt ihn zu
+        verstecken - für einen Aufruf ohne Startfenster (``synthetik_testen.py``)."""
         self._quelle = quelle
+        self._beenden_beim_schliessen = beenden_beim_schliessen
         self._fenster = None
         self._bereit = threading.Event()
         self._ende = False
@@ -188,6 +191,10 @@ class Viewer:
         mappe = self._quelle()
         kennung = getattr(mappe, "kennung", None)
         if kennung != self._kennung:
+            # Erst wenn die leere Startseite geladen ist: WebView2 lädt sie, sobald es
+            # bereit ist - und überschriebe damit eine Seite, die vorher kam. Das Fenster
+            # bliebe weiß. (Im Startfenster liegt der Lauf dazwischen, im Testskript nicht.)
+            self._fenster.events.loaded.wait(60)
             self._fenster.load_html(_seite())
             self._kennung = kennung
         self._fenster.show()
@@ -201,7 +208,8 @@ class Viewer:
     def _schliessen(self):
         """Schließen heißt verstecken - die Mappe und das Fenster bleiben, bis das
         Startfenster endet. ``False`` bricht das Schließen ab."""
-        if self._ende:
+        if self._ende or self._beenden_beim_schliessen:
+            self._ende = True
             return True
         threading.Thread(target=self._fenster.hide, daemon=True).start()
         return False

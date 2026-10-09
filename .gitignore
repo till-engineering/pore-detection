@@ -17,3 +17,6 @@ test_ausgabe/
 # Alte lokale Korrekturen (vor dem Umbau) und lokale Skripte
 data/korrekturen/
 scripts/
+
+# Synthetische Prüfung (synthetik_testen.py) - wird bei jedem Lauf geleert
+test_synthetik/

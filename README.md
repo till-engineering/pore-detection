@@ -91,6 +91,21 @@ Wichtigste Schalter:
 * `pore.method` – Porendetektion: **`local_contrast`** (Standard), `threshold`, `adaptive`
 * `analysis.filters` – welche Filter in welcher Reihenfolge greifen, an/aus und Grenzen
 
+## Synthetische Prüfung
+
+```powershell
+.venv\Scripts\python.exe synthetik_testen.py 6            # 6 neue Bilder
+.venv\Scripts\python.exe synthetik_testen.py 6 --seed 42  # dieselben Bilder wie ein früherer Lauf
+```
+
+Erzeugt Bilder mit bekannten Poren (Kreise, Ellipsen, Rechtecke, Polygone, dazu
+Grenzfälle) in heller Probe hinter einem gewellten Einbettmittelrand, wertet sie mit den
+**Standardeinstellungen** aus und prüft automatisch: Probenmaske, jede Form (gefunden,
+zerteilt, Größe), Falschfunde, Porosität – und ob Maske, Ergebnisbild, CSV und JSON
+zueinander und zu den Pixeln passen. Der Bericht liegt danach als `test_synthetik/bericht.html`
+(und `bericht.txt`) im Ordner, anschließend öffnet sich der Viewer. Der Ordner wird bei jedem
+Lauf geleert. Option `--ohne-viewer`. Rückgabewert 1, wenn ein FEHLER auftrat.
+
 ## Aufbau
 
 ```
