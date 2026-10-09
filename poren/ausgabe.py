@@ -12,22 +12,33 @@ Je Bild im Unterordner ``<bild>/`` (:func:`write_bild`):
 * ``<bild>_maske.png``       schwarz: Einbettmittel, Maßstab und gezählte Poren; weiß: Probe
 * ``<bild>_histogramm.png``  Größenverteilung der gezählten Poren, wie im Viewer
 * ``poren.csv``, ``kennzahlen.csv``, ``verworfen.csv``  dieselben Tabellen nur für dieses Bild
+* ``daten/poren.json``, ``daten/einbettmittel.json``  für die maschinelle Weiterverarbeitung,
+  mit Umrissen (:func:`write_daten`)
 
 Geschrieben wird mit Semikolon und Dezimalkomma - so öffnet Excel auf einem deutschen
-System die Datei ohne Nachfrage und ohne dass aus "1.5" ein Datum wird.
+System die Datei ohne Nachfrage und ohne dass aus "1.5" ein Datum wird. Die JSON-Dateien
+dagegen haben Punkt als Dezimaltrenner, wie JSON es verlangt.
 """
 
 from __future__ import annotations
 
 import csv
+import json
+import math
+from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
+from scipy import ndimage as ndi
 
 from . import verteilung as vert
 from .filter import roundness
 from .modelle import BatchResult, ImageResult, Pore
+
+if TYPE_CHECKING:
+    from .pipeline import PipelineContext
 
 PORE_COLUMNS = [
     "bild", "label", "flaeche_px", "flaeche_um2", "aequivalentdurchmesser_px",
@@ -264,4 +275,200 @@ def _png_schreiben(pfad: Path, bild: np.ndarray) -> Path:
     if not ok:
         raise OSError(f"{pfad.name} ließ sich nicht kodieren")
     puffer.tofile(str(pfad))
+    return pfad
+
+
+# --------------------------------------------------------------------------------------
+# JSON für die maschinelle Weiterverarbeitung
+# --------------------------------------------------------------------------------------
+
+#: Unterordner im Ordner eines Bildes.
+DATEN_ORDNER = "daten"
+#: Steigt, wenn sich der Aufbau der JSON-Dateien so ändert, dass Leser angepasst werden müssen.
+DATEN_FORMAT = 1
+
+_KOORDINATEN = (
+    "Pixel, Ursprung oben links, x nach rechts, y nach unten. Umrisse sind geschlossene "
+    "Polygone durch die Mitten der Randpixel ('aussen' durch die der Fläche, jedes Loch "
+    "durch die des Lochs). Pixelmaske eines Bereichs: cv2.fillPoly(aussen, 1), danach "
+    "cv2.fillPoly(loch, 0) für jedes Loch; die Gesamtmaske ist die Vereinigung aller "
+    "Bereiche. Werte in µm = Pixel * um_pro_px."
+)
+
+
+def write_daten(ordner: str | Path, ctx: PipelineContext, result: ImageResult,
+                einbettmittel: bool = True) -> Path:
+    """``daten/poren.json`` und ``daten/einbettmittel.json`` in den Ordner eines Bildes.
+
+    ``ctx`` liefert das Label-Bild und die Einbettmittelmaske - mit angewandten
+    Korrekturen, also so, wie das Bild im Viewer steht. Das Einbettmittel ändert sich
+    durch eine Korrektur nicht; ``einbettmittel=False`` spart dann das Nachschreiben.
+    """
+    ziel = Path(ordner) / DATEN_ORDNER
+    ziel.mkdir(parents=True, exist_ok=True)
+    kopf = _kopf(result)
+
+    # Nur die gezählten Poren - verworfene stehen in verworfen.csv.
+    korrektur = ctx.extras.get("korrekturen", {})
+    manuell = {label: art for art, schluessel in (("aufgenommen", "aufgenommen"),
+                                                  ("eingezeichnet", "gezeichnet"))
+               for label in korrektur.get(schluessel, [])}
+    gezaehlt = [p.label for p in result.pores]
+    umrisse = _umrisse_je_label(np.where(np.isin(ctx.labels, gezaehlt), ctx.labels, 0))
+    _json_schreiben(ziel / "poren.json", {
+        **kopf,
+        "porenzahl": len(result.pores),
+        "porositaet_pct": _wert(result.porosity_pct),
+        "poren": [_pore_json(p, manuell, umrisse) for p in result.pores],
+    })
+
+    if einbettmittel:
+        maske = ctx.resin if ctx.resin is not None else np.zeros(ctx.shape, dtype=bool)
+        flaeche = int(maske.sum())
+        um = result.scale.um_per_px if result.scale else None
+        _json_schreiben(ziel / "einbettmittel.json", {
+            **kopf,
+            "flaeche_px": flaeche,
+            "flaeche_um2": _wert(flaeche * um * um if um else None),
+            "anteil_bild": _wert(flaeche / (result.width * result.height)),
+            "probenflaeche_px": result.specimen_area_px,
+            "bereiche": _bereiche(maske),
+        })
+    return ziel
+
+
+def _kopf(result: ImageResult) -> dict:
+    """Was jede Datei für sich lesbar macht: Bild, Größe, Maßstab, Koordinatensystem."""
+    scale = result.scale
+    return {
+        "format": DATEN_FORMAT,
+        "bild": result.name,
+        "erzeugt": datetime.now().isoformat(timespec="seconds"),
+        "breite_px": result.width,
+        "hoehe_px": result.height,
+        "um_pro_px": _wert(scale.um_per_px if scale else None),
+        "massstab_text": scale.label_text if scale else None,
+        "koordinaten": _KOORDINATEN,
+    }
+
+
+def _pore_json(pore: Pore, manuell: dict[int, str], umrisse: dict[int, list[dict]]) -> dict:
+    um = pore.um_per_px
+    x, y = pore.centroid_px
+    return {
+        "label": pore.label,
+        # "aufgenommen" (von Hand gezählt), "eingezeichnet" oder null (automatisch).
+        "manuell": manuell.get(pore.label),
+        "schwerpunkt_px": [_wert(x), _wert(y)],
+        "schwerpunkt_um": [_wert(x * um), _wert(y * um)] if um else None,
+        "bbox_px": {"x": pore.bbox.x, "y": pore.bbox.y, "breite": pore.bbox.w,
+                    "hoehe": pore.bbox.h},
+        "flaeche_px": _wert(pore.area_px),
+        "flaeche_um2": _wert(pore.area_um2),
+        "aequivalentdurchmesser_px": _wert(pore.equivalent_diameter_px),
+        "aequivalentdurchmesser_um": _wert(pore.equivalent_diameter_um),
+        "umfang_px": _wert(pore.perimeter_px),
+        "feret_max_px": _wert(pore.feret_max_px),
+        "feret_max_um": _wert(pore.feret_max_um),
+        "hauptachse_px": _wert(pore.major_axis_px),
+        "nebenachse_px": _wert(pore.minor_axis_px),
+        "zirkularitaet": _wert(pore.circularity),
+        "rundheit_feret": _wert(roundness(pore)),
+        "seitenverhaeltnis": _wert(pore.aspect_ratio),
+        "soliditaet": _wert(pore.solidity),
+        "exzentrizitaet": _wert(pore.eccentricity),
+        "orientierung_grad": _wert(pore.orientation_deg),
+        "grauwert_mittel": _wert(pore.mean_intensity),
+        "grauwert_min": _wert(pore.min_intensity),
+        "kontrast": _wert(pore.contrast),
+        "am_bildrand": pore.touches_image_edge,
+        "am_probenrand": pore.touches_specimen_edge,
+        "abstand_probenrand_px": _wert(pore.specimen_edge_distance_px),
+        "umriss": umrisse.get(pore.label, []),
+    }
+
+
+def _umrisse_je_label(labels: np.ndarray) -> dict[int, list[dict]]:
+    """Umrisse aller Objekte des Label-Bildes, je Objekt nur im eigenen Ausschnitt
+    gesucht - das ganze Bild je Pore abzusuchen wäre bei tausend Poren zu langsam."""
+    ergebnis: dict[int, list[dict]] = {}
+    for label, fenster in enumerate(ndi.find_objects(labels), start=1):
+        if fenster is None:
+            continue
+        maske = labels[fenster] == label
+        ergebnis[label] = _bereiche(maske, versatz=(fenster[1].start, fenster[0].start))
+    return ergebnis
+
+
+def _bereiche(maske: np.ndarray, versatz: tuple[int, int] = (0, 0)) -> list[dict]:
+    """Zusammenhängende Flächen einer Maske als ``{"aussen": [[x, y], ...],
+    "loecher": [[[x, y], ...], ...]}``.
+
+    Beide Umrisse laufen durch die Mitten **ihrer eigenen** Randpixel - der äußere durch
+    die Randpixel der Fläche, ein Loch durch die Randpixel des Lochs. So ergibt
+    ``fillPoly(aussen, 1)`` und danach ``fillPoly(loch, 0)`` genau die Fläche. Eine Insel
+    in einem Loch ist eine eigene Fläche; die Maske ist die Vereinigung aller Flächen.
+    """
+    if not maske.any():
+        return []
+    # Fläche 8er-, Hintergrund 4er-Nachbarschaft - so trennt findContours auch.
+    flaechen, _ = ndi.label(maske, structure=np.ones((3, 3), dtype=bool))
+    loecher, _ = ndi.label(~maske)
+    hoehe, breite = maske.shape
+
+    bereiche: dict[int, dict] = {}
+    for nummer, fenster in enumerate(ndi.find_objects(flaechen), start=1):
+        if fenster is not None:
+            bereiche[nummer] = {"aussen": _umriss(flaechen[fenster] == nummer, fenster, versatz),
+                                "loecher": []}
+
+    for nummer, fenster in enumerate(ndi.find_objects(loecher), start=1):
+        if fenster is None:
+            continue
+        zeilen, spalten = fenster
+        # Hintergrund am Rand ist kein Loch - er ist nach außen offen.
+        if (zeilen.start == 0 or spalten.start == 0
+                or zeilen.stop == hoehe or spalten.stop == breite):
+            continue
+        # Zu welcher Fläche das Loch gehört: die Fläche, die es umgibt - ein Pixel
+        # über seinen Ausschnitt hinaus liegt sie ringsum.
+        gross = (slice(zeilen.start - 1, zeilen.stop + 1),
+                 slice(spalten.start - 1, spalten.stop + 1))
+        loch = loecher[gross] == nummer
+        ring = ndi.binary_dilation(loch, structure=np.ones((3, 3), dtype=bool)) & ~loch
+        umgebend = flaechen[gross][ring]
+        umgebend = umgebend[umgebend > 0]
+        if len(umgebend) == 0:
+            continue
+        besitzer = int(np.bincount(umgebend).argmax())
+        bereiche[besitzer]["loecher"].append(_umriss(loecher[fenster] == nummer, fenster, versatz))
+    return list(bereiche.values())
+
+
+def _umriss(maske: np.ndarray, fenster: tuple[slice, slice],
+            versatz: tuple[int, int]) -> list[list[int]]:
+    """Der äußere Umriss einer zusammenhängenden Maske im Ausschnitt ``fenster``."""
+    konturen, _ = cv2.findContours(
+        maske.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE,
+        offset=(fenster[1].start + versatz[0], fenster[0].start + versatz[1]))
+    return max(konturen, key=len).reshape(-1, 2).tolist()
+
+
+def _wert(value: float | None) -> float | None:
+    """Zahl für JSON: gerundet auf 6 gültige Stellen, ``None`` statt NaN/unendlich."""
+    if value is None:
+        return None
+    value = float(value)
+    if not math.isfinite(value):
+        return None
+    return float(f"{value:.6g}")
+
+
+def _json_schreiben(pfad: Path, daten: dict) -> Path:
+    # Erst in eine Nachbardatei, dann umbenennen: wer die Datei gerade liest, bekommt
+    # nie eine halb geschriebene.
+    zwischen = pfad.with_suffix(".json.tmp")
+    zwischen.write_text(json.dumps(daten, ensure_ascii=False, separators=(",", ":")),
+                        encoding="utf-8")
+    zwischen.replace(pfad)
     return pfad

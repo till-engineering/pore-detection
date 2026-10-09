@@ -4,7 +4,7 @@ Einlesepfad und Zielpfad waehlen, Start druecken: alle Bilder des Ordners werden
 ausgewertet, die Ergebnisse landen im Zielordner (``poren.csv``, ``bilder.csv``,
 ``verworfen.csv``, ``einstellungen_log.txt`` und je Bild ein Ordner ``<name>/`` mit
 Ergebnisbild, Tabellen, Einstellungen und Log). Ist "Viewer starten" angehakt, oeffnet
-sich nach dem Lauf der Viewer im Browser - dort laesst sich zwischen den Bildern
+sich nach dem Lauf der Viewer in einem eigenen Fenster - dort laesst sich zwischen den Bildern
 blaettern, jede Pore von Hand korrigieren und ueber das Menue "Einstellungen" jeder
 Parameter verstellen. Korrekturen im Viewer schreiben die Dateien im Zielordner sofort
 nach.
@@ -20,6 +20,11 @@ Die Auswertung laeuft in einem eigenen Thread; das Fenster bekommt ihre Meldunge
 eine Warteschlange und bleibt so bedienbar. Das Fenster offen lassen, solange der
 Viewer gebraucht wird - mit dem Fenster endet auch der Viewer.
 
+**Threads:** Das Viewer-Fenster (pywebview, ``poren/viewer/fenster.py``) muss im
+Haupt-Thread laufen. Das Startfenster laeuft deshalb in einem eigenen Thread; alles, was
+Tk betrifft, bleibt in diesem Thread. Der Viewer oeffnet keinen Port - er ist von aussen
+nicht erreichbar.
+
 Aufruf::
 
     .venv\\Scripts\\python.exe start.py
@@ -27,14 +32,14 @@ Aufruf::
 
 from __future__ import annotations
 
+import gc
 import json
 import os
 import queue
 import threading
 import traceback
-import webbrowser
 from pathlib import Path
-from tkinter import BooleanVar, StringVar, Tk, filedialog, messagebox, ttk
+from tkinter import BooleanVar, StringVar, TclError, Tk, filedialog, messagebox, ttk
 from tkinter.scrolledtext import ScrolledText
 
 WURZEL = Path(__file__).resolve().parent
@@ -42,11 +47,11 @@ EINSTELLUNGEN = WURZEL / "data" / "start_einstellungen.json"
 
 
 class Startfenster:
-    def __init__(self, root: Tk) -> None:
+    def __init__(self, root: Tk, viewer) -> None:
         self.root = root
+        self.viewer_fenster = viewer  # poren.viewer.fenster.Viewer
         self.meldungen: queue.Queue = queue.Queue()
         self.mappe = None             # die zuletzt ausgewertete Mappe - Quelle des Viewers
-        self.viewer_adresse: str | None = None
 
         gemerkt = _laden()
         self.eingang = StringVar(value=gemerkt.get("eingang", ""))
@@ -182,6 +187,9 @@ class Startfenster:
             self.status.set("Abgebrochen: " + meldung[1])
             self.knopf_start.configure(state="normal")
             messagebox.showerror("Fehler", meldung[1])
+        elif art == "viewerfehler":
+            self._schreiben("Viewer nicht geöffnet: " + meldung[1])
+            messagebox.showerror("Viewer", meldung[1])
 
     def _fertig(self, mappe) -> None:
         self.mappe = mappe
@@ -208,20 +216,19 @@ class Startfenster:
     # -- Viewer --------------------------------------------------------------------------
 
     def _viewer_starten(self) -> None:
-        if self.viewer_adresse is None:
-            from poren.viewer import server
-
-            # Der Server fragt bei jedem Aufruf nach der aktuellen Mappe - ein neuer
-            # Lauf ist damit ohne Neustart des Servers zu sehen.
-            self.viewer_adresse = server.starten(lambda: self.mappe, oeffnen=False)
-            self._schreiben(f"Viewer läuft unter {self.viewer_adresse} "
-                            "- dieses Fenster offen lassen.")
         self.knopf_viewer.configure(state="normal")
         self._viewer_oeffnen()
 
     def _viewer_oeffnen(self) -> None:
-        if self.viewer_adresse:
-            webbrowser.open(self.viewer_adresse)
+        # Im Hintergrund: das Viewer-Fenster kann beim ersten Mal noch im Aufbau sein,
+        # und so lange soll das Startfenster nicht haengen.
+        threading.Thread(target=self._viewer_zeigen, daemon=True).start()
+
+    def _viewer_zeigen(self) -> None:
+        try:
+            self.viewer_fenster.zeigen()
+        except Exception as exc:  # noqa: BLE001 - der Grund gehoert ins Fenster
+            self.meldungen.put(("viewerfehler", f"{type(exc).__name__}: {exc}"))
 
     def _ziel_oeffnen(self) -> None:
         if self.mappe is not None and self.mappe.ziel is not None:
@@ -253,10 +260,40 @@ def _speichern(werte: dict) -> None:
         pass  # Merken ist Komfort, kein Muss
 
 
-def main() -> int:
+def _oberflaeche(viewer, halter: dict) -> None:
+    """Das Startfenster - laeuft in einem eigenen Thread, siehe oben."""
     root = Tk()
-    Startfenster(root)
-    root.mainloop()
+    halter["fenster"] = Startfenster(root, viewer)
+    try:
+        root.mainloop()
+    finally:
+        viewer.beenden()
+        # Die Tk-Objekte hier abraeumen, im Thread, der sie angelegt hat. Raeumt sie
+        # spaeter der Haupt-Thread ab, bricht Tcl mit "Tcl_AsyncDelete" ab.
+        halter.clear()
+        try:
+            root.destroy()
+        except TclError:
+            pass  # schon zerstoert - der normale Fall nach dem Schliessen
+        del root
+        gc.collect()
+
+
+def main() -> int:
+    from poren.viewer.fenster import Viewer
+
+    halter: dict = {}
+    viewer = Viewer(lambda: halter["fenster"].mappe if "fenster" in halter else None)
+    # Das Startfenster zuerst - es erscheint sofort, waehrend der Viewer im Hintergrund
+    # (versteckt) aufgebaut wird.
+    oberflaeche = threading.Thread(target=_oberflaeche, args=(viewer, halter),
+                                   name="Startfenster")
+    oberflaeche.start()
+    try:
+        viewer.ausfuehren()
+    except Exception:  # noqa: BLE001 - das Startfenster arbeitet auch ohne Viewer
+        traceback.print_exc()
+    oberflaeche.join()
     return 0
 
 

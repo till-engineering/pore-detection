@@ -3,7 +3,8 @@
 * **Der Stapellauf** wertet alle Bilder eines Ordners aus. Im Zielordner liegen danach
   die Tabellen über alle Bilder (``poren.csv``, ``bilder.csv``, ``verworfen.csv``),
   ``einstellungen_log.txt`` und je Bild ein Ordner ``<bild>/`` mit Ergebnisbild, Maske,
-  Histogramm, den Tabellen dieses Bildes, den manuellen Korrekturen, den verwendeten
+  Histogramm, den Tabellen dieses Bildes, Poren und Einbettmittel als JSON (``daten/``),
+  den manuellen Korrekturen, den verwendeten
   Einstellungen und einem ``log.txt``. Zusätzliche Auswertungen (``poren/auswertungen/``) schreiben nach
   ``auswertungen/``.
 * **Die Mappe** hält die ausgewerteten Bilder für den Viewer bereit. Wird dort eine Pore
@@ -65,7 +66,7 @@ class Mappe:
         #: Dateien, die sich nicht schreiben ließen (meist: in Excel geöffnet). Das
         #: Rechnen ist davon nicht betroffen - nur die Ablage ist unvollständig.
         self.schreibfehler: list[str] = []
-        #: Kennung des Laufs - der Browser hängt sie an Bildadressen (Cache).
+        #: Kennung des Laufs - daran erkennt der Viewer einen neuen Lauf.
         self.kennung = datetime.now().strftime("%Y%m%d%H%M%S")
 
         self._ablage = Path(tempfile.mkdtemp(prefix="poren_"))
@@ -242,6 +243,9 @@ class Mappe:
         self._schreiben(f"{name}: Histogramm", ausgabe.write_histogramm,
                         ordner, sitzung.g.bildpfad, ctx.pores, ctx.um_per_px)
         self._schreiben(f"{name}: Tabellen", ausgabe.write_bild, ordner, ergebnis)
+        # Das Einbettmittel ändert sich durch eine Korrektur nicht - nur beim Auswerten.
+        self._schreiben(f"{name}: Daten (JSON)", ausgabe.write_daten, ordner, ctx, ergebnis,
+                        ereignis is not None)
         auswertungen.pro_bild(ctx, ergebnis, self.ziel)
 
         zeilen = ["Ergebnis: " + _kurz(ergebnis)]

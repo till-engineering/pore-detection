@@ -422,11 +422,47 @@ class Sitzung:
 
     def minus(self, label: int) -> dict:
         """Werkzeug "-": die Pore nicht zählen. Eine eingezeichnete wird gelöscht."""
-        gezeichnet = korrigiert(self.g, self.korrekturen).extras.get("korrekturen_gezeichnet", {})
-        if label in gezeichnet:
-            index = gezeichnet[label]
-            return self._setzen(self.korrekturen[:index] + self.korrekturen[index + 1:])
+        ctx = korrigiert(self.g, self.korrekturen)
+        if label in ctx.extras.get("korrekturen_gezeichnet", {}):
+            return self._setzen(self._ohne_zeichnung(ctx, label))
         return self._zaehlen(label, False)
+
+    def _ohne_zeichnung(self, ctx: PipelineContext, label: int) -> list[manuell.PoreCorrection]:
+        """Die Korrekturen ohne die eingezeichnete Pore ``label`` - und ohne, dass an ihrer
+        Stelle wieder etwas gezählt wird.
+
+        Eine Zeichnung schluckt die erkannten Poren, die sie überdeckt (siehe
+        ``korrekturen.apply``). Fiele nur die Zeichnung weg, kämen diese zurück, und "-"
+        hinterließe an derselben Stelle wieder eine gezählte Pore. Deshalb werden sie mit
+        entfernt - eine früher eingezeichnete gelöscht, eine erkannte verworfen.
+        """
+        flaeche = ctx.labels == label
+        index = ctx.extras["korrekturen_gezeichnet"][label]
+        neu = self.korrekturen[:index] + self.korrekturen[index + 1:]
+        # Jede Runde nimmt eine zurückgekehrte Pore weg. Lässt sich keine mehr wegnehmen,
+        # ist Schluss - sonst liefe die Schleife auf derselben Pore im Kreis.
+        basis = self.g.ctx
+        while True:
+            danach = korrigiert(self.g, neu)
+            unter = set(np.unique(danach.labels[flaeche]).tolist()) - {0}
+            gezeichnet = danach.extras.get("korrekturen_gezeichnet", {})
+            for p in danach.pores:
+                if p.label not in unter:
+                    continue
+                if p.label in gezeichnet:
+                    i = gezeichnet[p.label]
+                    naechste = neu[:i] + neu[i + 1:]
+                else:
+                    punkt = manuell.interior_point(danach.labels, p.label)
+                    if punkt is None:
+                        continue
+                    naechste = manuell.set_counted(basis.pores, basis.rejected, basis.labels,
+                                                   neu, *punkt, counted=False)
+                if naechste != neu:
+                    neu = naechste
+                    break
+            else:
+                return neu
 
     def zeichnen(self, punkte: list[list[float]]) -> dict:
         """Werkzeug "Zeichnen": der Umriss wird als neue Pore gezählt."""

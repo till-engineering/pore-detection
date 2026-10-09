@@ -2,7 +2,7 @@
 
 Findet und vermisst Poren in metallographischen Schliffbildern: Maßstab aus dem
 eingebrannten Balken lesen, Probe vom Einbettmittel trennen, Poren suchen, vermessen,
-filtern – und im Browser von Hand korrigieren.
+filtern – und in einem eigenen Fenster von Hand korrigieren.
 
 ## Einrichten (einmalig)
 
@@ -36,13 +36,17 @@ Im Ordner jedes Bildes:
 | `<bild>_maske.png` | Maske: **schwarz** Einbettmittel, Maßstab und gezählte Poren, **weiß** die übrige Probe |
 | `<bild>_histogramm.png` | Größenverteilung der gezählten Poren (wie im Viewer, mit D50, D90 und Mittelwert) |
 | `poren.csv`, `kennzahlen.csv`, `verworfen.csv` | die Tabellen nur für dieses Bild |
+| `daten/poren.json` | die gezählten Poren mit Kennwerten, Schwerpunkt, Bounding Box und Umriss als Polygon – für die maschinelle Weiterverarbeitung |
+| `daten/einbettmittel.json` | das Einbettmittel als Polygone (Außenumriss und Löcher) samt Fläche |
 | `einstellungen.yaml` | die vollständigen Einstellungen, mit denen das Ergebnis gerechnet wurde |
 | `log.txt` | jede Auswertung und Korrektur dieses Bildes mit Zeit und Ergebnis |
 | `<bild>_<prüfsumme>.json` | manuelle Korrekturen aus dem Viewer |
 
 Korrekturen aus älteren Läufen unter `korrekturen/` werden weiter gelesen.
 
-Ist **Viewer starten** angehakt, öffnet sich danach der Viewer im Browser. Blättern mit
+Ist **Viewer starten** angehakt, öffnet sich danach der Viewer in einem eigenen Fenster. Er öffnet keinen
+Netzwerk-Port und ist von außen nicht erreichbar. Schließen versteckt ihn nur – „Viewer
+öffnen“ im Startfenster holt ihn zurück. Blättern mit
 den Pfeilen oben oder den Pfeiltasten. Werkzeuge links neben dem Bild:
 
 | Werkzeug | Wirkung |
@@ -104,7 +108,7 @@ poren/
   ausgabe.py             CSVs, Ergebnisbild, Maske, Histogramm
   auswertungen/          zusätzliche Auswertungsmodule (je Datei eins, werden automatisch gefunden)
   stapel.py              Ordner auswerten, Ergebnisse für den Viewer halten
-  viewer/                Browser-Viewer: server.py, sitzung.py, seite.html
+  viewer/                Viewer-Fenster: fenster.py, sitzung.py, seite.html, schriften/
   modelle.py, einheiten.py, bild.py, verteilung.py, einstellungen.py   Hilfsmodule
 ```
 

@@ -258,9 +258,14 @@ def apply(
             region = rasterize(korrektur.points, labels.shape)
             drin = [label for label in labels_inside(labels, region) if label in gezaehlt]
             for label in drin:
-                verworfen[label] = RejectedPore(gezaehlt.pop(label), MANUAL_FILTER,
-                                                "von Hand entfernt (Bereich)")
-                drawn.pop(label, None)
+                pore = gezaehlt.pop(label)
+                if drawn.pop(label, None) is not None:
+                    # Eine eingezeichnete Pore gibt es ohne ihre Zeichnung nicht - sie
+                    # verschwindet ganz, statt als verworfene stehen zu bleiben, die sich
+                    # weder anzeigen noch mit "+" oder "-" ansprechen ließe.
+                    labels[labels == label] = 0
+                    continue
+                verworfen[label] = RejectedPore(pore, MANUAL_FILTER, "von Hand entfernt (Bereich)")
             if not drin:
                 missed.append(korrektur)
             continue

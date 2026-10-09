@@ -6,6 +6,8 @@ scipy
 scikit-image
 pyyaml
 matplotlib
+# Viewer-Fenster (nutzt die Edge-Engine WebView2, die Windows 10/11 mitbringt)
+pywebview
 # Liest die Beschriftung des Maßstabsbalkens (reines pip-Paket, keine Installation nötig)
 rapidocr-onnxruntime
 

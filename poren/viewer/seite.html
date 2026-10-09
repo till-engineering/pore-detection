@@ -4,10 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Schliffbild-Inspektor</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
+/* Schriften liegen in schriften/; fenster.py setzt sie beim Laden direkt in die Seite ein -
+   keine Anfrage nach außen. */
+@font-face{font-family:"IBM Plex Sans"; font-weight:400; font-display:swap; src:url(/schriften/ibm-plex-sans-400.woff2) format("woff2")}
+@font-face{font-family:"IBM Plex Sans"; font-weight:500; font-display:swap; src:url(/schriften/ibm-plex-sans-500.woff2) format("woff2")}
+@font-face{font-family:"IBM Plex Sans"; font-weight:600; font-display:swap; src:url(/schriften/ibm-plex-sans-600.woff2) format("woff2")}
+@font-face{font-family:"IBM Plex Mono"; font-weight:400; font-display:swap; src:url(/schriften/ibm-plex-mono-400.woff2) format("woff2")}
+@font-face{font-family:"IBM Plex Mono"; font-weight:500; font-display:swap; src:url(/schriften/ibm-plex-mono-500.woff2) format("woff2")}
 :root{
   --ground:#eceff3; --surface:#fff; --surface-2:#f5f7f9; --sunken:#e3e7ec;
   --ink:#141820; --muted:#5d6775; --faint:#8a94a2; --line:#d5dae1;
@@ -605,10 +609,21 @@ body.laedt, body.laedt *{cursor:progress!important}
 
 <script>
 "use strict";
-/* Die Seite wird einmal geladen. Alles Weitere holt sie beim Server:
-   /api/bild/<n> liefert Kennzahlen, Porenliste und Umrisse, die Bildebenen kommen
-   einzeln als PNG - und nur, wenn sie eingeschaltet sind. Die Poren zeichnet der
-   Browser selbst auf eine Leinwand; eine Korrektur schickt nur neue Daten. */
+/* Die Seite wird einmal geladen. Alles Weitere holt sie direkt bei Python, über die
+   Schnittstelle des Fensters (window.pywebview.api, siehe fenster.py) - es gibt keinen
+   Server und keinen Port. bild(n) liefert Kennzahlen, Porenliste und Umrisse, die
+   Bildebenen kommen einzeln als PNG - und nur, wenn sie eingeschaltet sind. Die Poren
+   zeichnet die Seite selbst auf eine Leinwand; eine Korrektur schickt nur neue Daten. */
+
+const PY = new Promise((fertig) => {
+  if (window.pywebview && window.pywebview.api) fertig(window.pywebview.api);
+  else window.addEventListener("pywebviewready", () => fertig(window.pywebview.api), { once: true });
+});
+/** Eine Funktion der Schnittstelle aufrufen. Ein Fehler in Python kommt als Error an. */
+const rufen = async (name, ...werte) => (await PY)[name](...werte);
+
+// Eine ins Fenster gezogene Datei würde die Seite ersetzen - das Fenster zeigt nur den Viewer.
+for (const art of ["dragover", "drop"]) window.addEventListener(art, (e) => e.preventDefault());
 
 const $ = (id) => document.getElementById(id);
 const nz = (w, n = 1, e = "-") => (w === null || w === undefined) ? e : w.toFixed(n);
@@ -640,7 +655,23 @@ function svgSetzen(ziel, elemente) {
 }
 const farbeAus = (name) => getComputedStyle(document.documentElement).getPropertyValue("--" + name).trim();
 const deckkraft = () => parseInt($("deckkraft").value, 10) / 100;
-const ebeneUrl = (name) => `/api/bild/${INDEX}/ebene/${name}.png?v=${STAPEL.kennung}-${D ? D.version : ""}`;
+/** Woran sich erkennt, ob eine Ebene schon den aktuellen Stand zeigt. */
+const ebeneStand = (name) => `${INDEX}/${name}/${STAPEL.kennung}-${D ? D.version : ""}`;
+
+/** Eine Bildebene holen und anzeigen. Kommt inzwischen eine neuere Anforderung für
+    dasselbe Bildelement, wird die ältere Antwort verworfen. */
+async function ebeneSetzen(el, name) {
+  const stand = ebeneStand(name);
+  el.dataset.stand = stand;
+  try {
+    const daten = await rufen("ebene", INDEX, name);
+    if (el.dataset.stand === stand) el.src = daten;
+  } catch (e) {
+    if (el.dataset.stand !== stand) return;
+    $("ladestand").hidden = false;
+    $("ladestand").textContent = "Ebene nicht geladen: " + e.message;
+  }
+}
 
 /* -- Laden und Blättern ---------------------------------------------------- */
 let ladeNummer = 0;
@@ -651,12 +682,9 @@ async function bildLaden(i) {
   $("ladestand").textContent = "lädt …";
   $("ladestand").hidden = false;
   try {
-    const antwort = await fetch(`/api/bild/${i}`);
-    if (!antwort.ok) throw new Error(await antwort.text());
-    const daten = await antwort.json();
+    const daten = await rufen("bild", i);
     if (nummer !== ladeNummer) return;     // inzwischen weitergeblättert
     INDEX = i;
-    history.replaceState(null, "", `#${i + 1}`);
     neuesBild(daten);
   } catch (e) {
     if (nummer === ladeNummer) $("ladestand").textContent = "Fehler: " + e.message;
@@ -704,9 +732,9 @@ function neuesBild(daten) {
   }
   for (const name of ["harz", "ausschluss", "kandidaten"]) {
     $("l-" + name).removeAttribute("src");
-    delete $("l-" + name).dataset.url;
+    delete $("l-" + name).dataset.stand;
   }
-  basis.src = ebeneUrl(document.querySelector("input[name=basis]:checked").value);
+  ebeneSetzen(basis, document.querySelector("input[name=basis]:checked").value);
 
   massstabZeichnen();
   ebenenSchalten();
@@ -897,10 +925,7 @@ function massstabZeichnen() {
 /** Eine Flächenebene zeigen und dafür erst jetzt laden. */
 function flaecheSchalten(name, an) {
   const el = $("l-" + name);
-  if (an && el.dataset.url !== ebeneUrl(name)) {
-    el.dataset.url = ebeneUrl(name);
-    el.src = el.dataset.url;
-  }
+  if (an && el.dataset.stand !== ebeneStand(name)) ebeneSetzen(el, name);
   el.hidden = !an;
 }
 
@@ -918,7 +943,7 @@ for (const id of ["c-harz", "c-massstab", "c-kandidaten", "c-verworfen", "c-entf
   $(id).addEventListener("change", ebenenSchalten);
 }
 for (const radio of document.querySelectorAll("input[name=basis]")) {
-  radio.addEventListener("change", () => { if (D) $("basis").src = ebeneUrl(radio.value); });
+  radio.addEventListener("change", () => { if (D) ebeneSetzen($("basis"), radio.value); });
 }
 $("deckkraft").addEventListener("input", () => {
   const v = deckkraft();
@@ -929,14 +954,11 @@ $("deckkraft").addEventListener("input", () => {
 });
 // Lässt sich eine Ebene nicht laden, steht der Grund oben im Kopf statt still nichts.
 for (const id of ["basis", "l-harz", "l-ausschluss", "l-kandidaten"]) {
-  $(id).addEventListener("error", async (e) => {
-    const url = e.target.getAttribute("src");
-    if (!url || url.startsWith("data:")) return;
-    let grund = "";
-    try { const r = await fetch(url); grund = r.ok ? "Bild nicht darstellbar (zu groß?)" : await r.text(); }
-    catch (err) { grund = err.message; }
+  // Fehler beim Holen meldet ebeneSetzen; hier bleibt nur: geholt, aber nicht darstellbar.
+  $(id).addEventListener("error", (e) => {
+    if (!e.target.getAttribute("src")) return;
     $("ladestand").hidden = false;
-    $("ladestand").textContent = "Ebene nicht geladen: " + grund;
+    $("ladestand").textContent = "Ebene nicht geladen: Bild nicht darstellbar (zu groß?)";
   });
   $(id).addEventListener("load", () => {
     if ($("ladestand").textContent.startsWith("Ebene nicht geladen")) $("ladestand").hidden = true;
@@ -1261,7 +1283,7 @@ function histogrammZeichnen() {
 }
 
 /* -- Bearbeiten --------------------------------------------------------------
-   Der Browser rechnet nichts selbst: er schickt Pore oder Umriss, der Server wendet
+   Die Seite rechnet nichts selbst: sie schickt Pore oder Umriss, Python wendet
    die Korrektur an, speichert sie und liefert die neuen Daten. */
 function korrekturstandZeichnen(fehler) {
   const kr = D.korrekturen;
@@ -1294,12 +1316,7 @@ async function senden(aktion, koerper) {
   stapel.classList.add("wartet");
   const bild = INDEX;
   try {
-    const antwort = await fetch(`/api/bild/${bild}/${aktion}`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(koerper || {}),
-    });
-    if (!antwort.ok) throw new Error(`Server meldet ${antwort.status}`);
-    const daten = await antwort.json();
+    const daten = await rufen("aktion", bild, aktion, koerper || {});
     if (bild === INDEX) aktualisieren(daten);
   } catch (e) {
     korrekturstandZeichnen("nicht gespeichert – " + e.message);
@@ -1413,8 +1430,8 @@ themaknopf.addEventListener("click", () =>
   themaSetzen(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark"));
 
 /* -- Einstellungen ----------------------------------------------------------
-   Das Menü bearbeitet einen Entwurf. Erst "Bild neu laden" schickt ihn an den Server:
-   der speichert die Abweichungen vom Standard (einstellungen_eigene.yaml), baut die
+   Das Menü bearbeitet einen Entwurf. Erst "Bild neu laden" schickt ihn an Python:
+   das speichert die Abweichungen vom Standard (einstellungen_eigene.yaml), baut die
    Pipeline neu auf und rechnet das angezeigte Bild neu. Schlüssel wie
    "specimen.method"; Filter stehen unter ihrem Namen: "analysis.filters.edge.enabled". */
 const schublade = $("schublade");
@@ -1472,9 +1489,7 @@ $("e-zu").addEventListener("click", () => menueSchalten(false));
 /** ``nurStand``: nur den gespeicherten Stand auffrischen, den Entwurf behalten. */
 async function einstellungenHolen(nurStand = false) {
   try {
-    const antwort = await fetch("/api/einstellungen");
-    if (!antwort.ok) throw new Error(await antwort.text());
-    E = await antwort.json();
+    E = await rufen("einstellungen");
     GANZ = new Set(E.ganzzahl);
     if (nurStand) { markieren(); return; }
     ENTWURF = kopie(E.werte);
@@ -1713,12 +1728,7 @@ $("e-neu-laden").addEventListener("click", async () => {
   meldungZeigen("");
   const bild = INDEX;
   try {
-    const antwort = await fetch(`/api/bild/${bild}/neu_laden`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ werte: ENTWURF }),
-    });
-    if (!antwort.ok) throw new Error(await antwort.text());
-    const { aenderungen } = await antwort.json();
+    const { aenderungen } = await rufen("neu_laden", bild, ENTWURF);
     meldungZeigen(aenderungen.length
       ? "Übernommen und gespeichert:\n" + aenderungen.join("\n")
       : "Keine Änderung – Bild mit denselben Einstellungen neu ausgewertet.");
@@ -1741,9 +1751,7 @@ try { if (localStorage.getItem("poren-menue") === "1") menueSchalten(true); } ca
 /* -- Start ----------------------------------------------------------------- */
 (async function start() {
   try {
-    const antwort = await fetch("/api/stapel");
-    if (!antwort.ok) throw new Error(await antwort.text());
-    STAPEL = await antwort.json();
+    STAPEL = await rufen("stapel");
   } catch (e) {
     $("ladestand").hidden = false;
     $("ladestand").textContent = "Keine Daten: " + e.message;
@@ -1754,8 +1762,7 @@ try { if (localStorage.getItem("poren-menue") === "1") menueSchalten(true); } ca
     $("ladestand").textContent = "Keine ausgewerteten Bilder.";
     return;
   }
-  const ausAdresse = parseInt(location.hash.slice(1), 10) - 1;
-  bildLaden(Number.isFinite(ausAdresse) && ausAdresse >= 0 && ausAdresse < STAPEL.anzahl ? ausAdresse : 0);
+  bildLaden(0);
 })();
 </script>
 </body>
