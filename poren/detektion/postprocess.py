@@ -27,8 +27,14 @@ from scipy.ndimage import binary_fill_holes
 from ..einstellungen import Abschnitt
 
 
-def clean(mask: np.ndarray, cfg: Abschnitt) -> np.ndarray:
-    """Kandidatenmaske aufräumen."""
+def clean(mask: np.ndarray, cfg: Abschnitt, erlaubt: np.ndarray | None = None) -> np.ndarray:
+    """Kandidatenmaske aufräumen.
+
+    ``erlaubt`` ist die auswertbare Probenfläche. Schließen und Löcherfüllen lassen eine
+    Pore wachsen - am Probenrand auch ins Einbettmittel oder in den Maßstabskasten. Diese
+    Pixel zählten dann als Porenfläche, aber nicht zur Probenfläche, durch die die
+    Porosität geteilt wird. Deshalb wird zum Schluss auf ``erlaubt`` beschnitten.
+    """
     out = mask
     if cfg.open_radius_px > 0:
         out = _morph(out, cv2.MORPH_OPEN, cfg.open_radius_px)
@@ -36,6 +42,8 @@ def clean(mask: np.ndarray, cfg: Abschnitt) -> np.ndarray:
         out = _morph(out, cv2.MORPH_CLOSE, cfg.close_radius_px)
     if cfg.fill_holes and out.any():
         out = fill_holes(out, cfg.fill_holes_max_ratio)
+    if erlaubt is not None:
+        out = out & erlaubt
     return out
 
 

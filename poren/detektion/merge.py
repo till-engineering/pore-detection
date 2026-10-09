@@ -25,8 +25,14 @@ from scipy import ndimage as ndi
 from ..einstellungen import Abschnitt
 
 
-def merge_close(labels: np.ndarray, cfg: Abschnitt) -> tuple[np.ndarray, int]:
+def merge_close(labels: np.ndarray, cfg: Abschnitt,
+                erlaubt: np.ndarray | None = None) -> tuple[np.ndarray, int]:
     """Labels mit höchstens ``max_gap_px`` Abstand zu einem verschmelzen.
+
+    ``erlaubt`` ist die auswertbare Probenfläche: zusammengeführt wird nur über einen
+    Spalt, der in der Probe liegt. Liegt zwischen zwei Teilen Einbettmittel oder der
+    Maßstabskasten, sind es zwei Hohlräume - und ein überbrückter Spalt zählte sonst
+    als Porenfläche außerhalb der Probe.
 
     Zurück kommt das neue Label-Bild und die Zahl der eingesparten Objekte.
     """
@@ -45,22 +51,27 @@ def merge_close(labels: np.ndarray, cfg: Abschnitt) -> tuple[np.ndarray, int]:
     if gap > 0:
         kernel = np.ones((gap + 1, gap + 1), dtype=np.uint8)
         reach = cv2.dilate(mask.astype(np.uint8), kernel).astype(bool)
+        if erlaubt is not None:
+            # Die Verbindung darf nur durch die Probe laufen. Die Poren selbst bleiben
+            # in reach, auch falls eine schon außerhalb läge.
+            reach &= erlaubt | mask
 
     _count, groups = cv2.connectedComponents(reach.astype(np.uint8), connectivity=8)
     merged = _renumber(np.where(mask, groups, 0))
 
     if merge.bridge_gaps and gap > 0:
-        merged = _bridge(merged, labels, gap)
+        merged = _bridge(merged, labels, gap, erlaubt)
 
     return merged, max(0, int(labels.max()) - int(merged.max()))
 
 
-def _bridge(merged: np.ndarray, original: np.ndarray, gap: int) -> np.ndarray:
+def _bridge(merged: np.ndarray, original: np.ndarray, gap: int,
+            erlaubt: np.ndarray | None = None) -> np.ndarray:
     """Den Spalt zwischen zusammengeführten Teilen der Pore zuschlagen.
 
     Nur Poren, die tatsächlich aus mehreren Teilen entstanden sind, werden angefasst -
     eine Einzelpore behält ihren Umriss unverändert. Gefüllt werden nur Pixel, die noch
-    zu keiner Pore gehören.
+    zu keiner Pore gehören und in ``erlaubt`` (der Probenfläche) liegen.
     """
     out = merged.copy()
     kernel = np.ones((gap + 1, gap + 1), dtype=np.uint8)
@@ -85,6 +96,8 @@ def _bridge(merged: np.ndarray, original: np.ndarray, gap: int) -> np.ndarray:
 
         geschlossen = cv2.morphologyEx(pore.astype(np.uint8), cv2.MORPH_CLOSE, kernel)
         frei = out[ys, xs] == 0
+        if erlaubt is not None:
+            frei &= erlaubt[ys, xs]
         out[ys, xs][geschlossen.astype(bool) & frei] = label
 
     return out

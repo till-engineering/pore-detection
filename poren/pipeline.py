@@ -212,13 +212,24 @@ class Pipeline:
         for hinweis in result.notes:
             ctx.warn(f"Detektion: {hinweis}")
 
-        mask = detection_post.clean(result.mask, pore_cfg)
+        # Aufräumen und Zusammenführen lassen Poren wachsen - nur innerhalb der Probe.
+        # Pixel außerhalb zählten als Porenfläche, aber nicht zur Probenfläche.
+        mask = detection_post.clean(result.mask, pore_cfg, erlaubt=ctx.specimen)
         labels = detection_post.label_image(mask, pore_cfg)
         # Erst schmale Spalte schließen (eine zerrissene Pore wird wieder eine), dann
         # zusammengewachsene Nester trennen. Umgekehrt würde das Zusammenführen jede
         # Trennung sofort wieder aufheben - die getrennten Teile berühren sich.
-        labels, vereinigt = detection_merge.merge_close(labels, pore_cfg)
+        labels, vereinigt = detection_merge.merge_close(labels, pore_cfg, erlaubt=ctx.specimen)
         labels, zusaetzlich = detection_post.split_touching(labels, pore_cfg)
+
+        # Sicherung: kein Schritt darf eine Pore aus der Probe hinauswachsen lassen. Tut es
+        # doch einer, wird beschnitten und gewarnt - ein solcher Fehler soll auffallen,
+        # statt still in die Porosität einzugehen.
+        draussen = (labels > 0) & ~ctx.specimen
+        if draussen.any():
+            labels = np.where(draussen, 0, labels).astype(labels.dtype)
+            ctx.warn(f"Detektion: {int(draussen.sum())} Porenpixel lagen außerhalb der "
+                     "Probe und wurden entfernt - bitte melden, das ist ein Programmfehler")
         ctx.labels = labels
 
         schwellen = ", ".join(f"{k} {v:.1f}" for k, v in result.thresholds.items())
