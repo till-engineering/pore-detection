@@ -123,9 +123,16 @@ poren/
   ausgabe.py             CSVs, Ergebnisbild, Maske, Histogramm
   auswertungen/          zusätzliche Auswertungsmodule (je Datei eins, werden automatisch gefunden)
   stapel.py              Ordner auswerten, Ergebnisse für den Viewer halten
-  viewer/                Viewer-Fenster: fenster.py, sitzung.py, seite.html, schriften/
+  viewer/                Viewer-Fenster: fenster.py, sitzung.py, seite.html, schriften/,
+                         zusaetze.py (Andockstelle für Zusatzdaten, z. B. Zonen)
+zonen/                   Zonenauswertung (eigenständig, siehe zonen/README.md)
+start_with_zones.py      Startfenster mit Zonen
   modelle.py, einheiten.py, bild.py, verteilung.py, einstellungen.py   Hilfsmodule
 ```
+
+**Zonenauswertung** (Porosität in Zonen parallel zur Oberkante): eigenständiges
+Unterprogramm in `zonen/`, Start mit `start_with_zones.py` (dann auch als Ebene und
+Karte im Viewer) oder `python -m zonen <ordner>` – siehe [`zonen/README.md`](zonen/README.md).
 
 Eine zusätzliche Auswertung, deren Ergebnis im Zielordner landet, ist eine Datei in
 `poren/auswertungen/` – siehe [`AUSWERTUNG_MODULE.md`](AUSWERTUNG_MODULE.md).

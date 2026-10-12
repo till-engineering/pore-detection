@@ -1,0 +1,22 @@
+# ======================================================================================
+#  Einstellungen - Zonenauswertung
+# ======================================================================================
+#  Wird bei jedem Aufruf neu gelesen (auch nach jeder Korrektur im Viewer, wenn über
+#  start_with_zones.py gestartet). Siehe zonen/README.md.
+# ======================================================================================
+
+# Zonengrenzen in % der Probendicke, aufsteigend. 0 = Oberkante (Regressionsgerade der
+# Grenze Einbettmittel/Probe oben), 100 = Unterkante. Jede Grenze ist eine Gerade
+# parallel zur Oberkante. [0, 10, 25, 50, 100] ergibt die Zonen 0-10, 10-25, 25-50,
+# 50-100 %. Probe vor der ersten bzw. hinter der letzten Grenze erscheint als eigene
+# Zeile ("< 0 %", "> 100 %"), damit nichts verloren geht.
+grenzen_pct: [0, 10, 25, 50, 100]
+
+kante:
+  rand_pct: 10.0           # Ecken weglassen: so viel % der Probenbreite je Seite zählt
+                           #   nicht zur Ober-/Unterkante (abgerundete Kanten, Flanken)
+  toleranz_pct: 1.5        # Punkte bis zu diesem Abstand von der Geraden (in % der
+                           #   Probenbreite) gehören zur Kante, weiter weg = Ausreißer
+  toleranz_min_px: 2.0     # Untergrenze dieser Toleranz in Pixeln
+  max_winkel_grad: 45.0    # steilere Geraden werden nicht als Kante akzeptiert
+  min_punkte: 20           # weniger Kantenpunkte = keine Auswertung

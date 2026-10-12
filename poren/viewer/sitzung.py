@@ -35,6 +35,7 @@ from ..einheiten import UNIT_FACTORS_UM, UNIT_SYMBOLS, format_um
 from ..filter import roundness
 from ..modelle import ImageResult
 from ..pipeline import Pipeline, PipelineContext
+from . import zusaetze
 
 #: Zielbreite der Anzeige. Kleine Bilder werden um einen ganzzahligen Faktor vergrößert
 #: angezeigt (Pixel bleiben Kästchen), große bleiben wie sie sind.
@@ -389,6 +390,7 @@ def darstellen(g: Grundlage, korrekturen: list[manuell.PoreCorrection]) -> dict:
         "poren": poren,
         "umrisse_neu": neue_umrisse,
         "histogramm": _flaechenhistogramm(ctx.pores, ctx.um_per_px),
+        "zusaetze": zusaetze.sammeln(ctx),
     }
 
 

@@ -17,7 +17,7 @@
   --ink:#141820; --muted:#5d6775; --faint:#8a94a2; --line:#d5dae1;
   --akzent:#0f6d8c; --akzent-weich:#d9edf4;
   --pore:#ff1a1a; --verworfen:#b8722b; --harz:#7c5cd6; --ausschluss:#2f6fd0; --kandidat:#a89217;
-  --messung:#e2483a;
+  --messung:#e2483a; --zone:#ffd400;
   --entfernt:#d63370; --aufgenommen:#0c8599;
   --dia-gez:#ff1a1a;
   --schatten:0 1px 2px rgba(20,24,32,.06), 0 4px 12px rgba(20,24,32,.05);
@@ -28,7 +28,7 @@
     --ink:#e7ecf2; --muted:#96a1b0; --faint:#6b7684; --line:#2c3543;
     --akzent:#48aed0; --akzent-weich:#11323f;
     --pore:#ff1a1a; --verworfen:#e09a52; --harz:#a78bf5; --ausschluss:#6398ea; --kandidat:#d9bf3e;
-    --messung:#ff6f5e;
+    --messung:#ff6f5e; --zone:#ffd400;
     --entfernt:#f06595; --aufgenommen:#22b8cf;
     --schatten:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
   }
@@ -38,7 +38,7 @@
   --ink:#e7ecf2; --muted:#96a1b0; --faint:#6b7684; --line:#2c3543;
   --akzent:#48aed0; --akzent-weich:#11323f;
   --pore:#ff1a1a; --verworfen:#e09a52; --harz:#a78bf5; --ausschluss:#6398ea; --kandidat:#d9bf3e;
-  --messung:#ff6f5e;
+  --messung:#ff6f5e; --zone:#ffd400;
   --entfernt:#f06595; --aufgenommen:#22b8cf;
   --schatten:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
 }
@@ -110,6 +110,12 @@ body.laedt, body.laedt *{cursor:progress!important}
   pointer-events:none; overflow:visible}
 #vektoren line{stroke:var(--messung); stroke-width:2; vector-effect:non-scaling-stroke;
   stroke-linecap:round}
+/* Zonen (nur mit start_with_zones.py): alle Linien gelb, Mittellinie gestrichelt,
+   echte Unterkante gepunktet. */
+#zonen line{stroke:var(--zone); stroke-width:1.5; vector-effect:non-scaling-stroke}
+#zonen .z-rand{stroke-width:2.5}
+#zonen .z-mitte{stroke-dasharray:9 6}
+#zonen .z-unterkante{stroke-width:2.5; stroke-dasharray:0.5 6; stroke-linecap:round}
 #auswahl .umriss{fill:var(--akzent); fill-opacity:.18; stroke:var(--akzent); stroke-width:2;
   vector-effect:non-scaling-stroke; stroke-linejoin:round}
 #auswahl .ring{fill:none; stroke:var(--akzent); stroke-width:1.5; vector-effect:non-scaling-stroke}
@@ -247,6 +253,16 @@ body.laedt, body.laedt *{cursor:progress!important}
 .dichte{fill:none; stroke:var(--ink); stroke-width:1.6; stroke-linejoin:round; opacity:.72}
 .teppich{stroke:var(--ink); stroke-width:0.7; opacity:.38}
 .balken-gez{fill:var(--dia-gez)}
+#zonendiagramm{display:block; width:100%; height:auto; overflow:visible}
+.z-grenze{stroke:var(--muted); stroke-width:1; shape-rendering:crispEdges}
+.z-grenze.mitte{stroke-dasharray:6 4}
+.z-mass{stroke:var(--ink); stroke-width:1.1; fill:none}
+.z-spitze{fill:var(--ink)}
+.z-masstext{fill:var(--ink); font-size:11px; font-family:"IBM Plex Mono", monospace;
+  font-variant-numeric:tabular-nums}
+.z-wert{fill:var(--ink); font-size:10px; font-family:"IBM Plex Mono", monospace; opacity:.8}
+.strich-gestrichelt{border-top-style:dashed; border-top-color:var(--muted); opacity:1}
+.kennleiste .warnung{color:var(--entfernt)}
 .quantil.mittel{stroke:var(--akzent); stroke-dasharray:none; stroke-width:1.4; opacity:.9}
 .quantiltext.mittel{fill:var(--akzent); opacity:1}
 .strich-mittel{border-top-color:var(--akzent); opacity:.9}
@@ -476,6 +492,7 @@ body.laedt, body.laedt *{cursor:progress!important}
         <img class="auflage" id="l-kandidaten" alt="" hidden>
         <canvas id="porenleinwand"></canvas>
         <svg id="vektoren" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
+        <svg id="zonen" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
         <svg id="auswahl" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
         <svg id="zeichnung" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
       </div>
@@ -548,6 +565,28 @@ body.laedt, body.laedt *{cursor:progress!important}
       <div class="leer" id="h-leer" hidden>Keine Poren zum Auswerten.</div>
     </section>
 
+    <section class="karte diagramm" id="zonenkarte" hidden>
+      <button class="zuknopf" type="button" aria-label="Schließen">×</button>
+      <h2>Porosität je Zone</h2>
+      <figure class="figur">
+        <figcaption class="figurkopf">
+          <span class="figurtitel" id="z-titel"></span>
+          <span class="legende">
+            <span class="eintrag"><span class="patch patch-gez"></span>Porosität der Zone</span>
+            <span class="eintrag"><span class="strich-legende strich-mittel"></span>gesamt</span>
+            <span class="eintrag"><span class="strich-legende strich-gestrichelt"></span>Mittellinie</span>
+          </span>
+        </figcaption>
+        <div class="plotfeld">
+          <svg id="zonendiagramm" xmlns="http://www.w3.org/2000/svg" role="img"
+               aria-label="Porosität je Zone über der Probendicke"></svg>
+          <div class="tooltip" id="z-tooltip" hidden></div>
+        </div>
+        <div class="kennleiste" id="z-kenn"></div>
+      </figure>
+      <div class="leer" id="z-leer" hidden></div>
+    </section>
+
     <section class="karte">
       <h2>Was das Verfahren gemeldet hat</h2>
       <dl class="stufen" id="stufen"></dl>
@@ -580,6 +619,9 @@ body.laedt, body.laedt *{cursor:progress!important}
         <label class="ebene" title="Gemessene Balkenstrecke und der ausgeschlossene Bereich des Maßstabs"><input type="checkbox" id="c-massstab" checked>
           <span class="punkt" style="background:linear-gradient(135deg, var(--messung) 50%, var(--ausschluss) 50%)"></span><span>Overlay Maßstab</span>
           <span class="anzahl" id="n-massstab"></span></label>
+        <label class="ebene" id="ebene-zonen" title="Oberkante, Zonengrenzen, Mittellinie (gestrichelt) und echte Unterkante (gepunktet)" hidden><input type="checkbox" id="c-zonen" checked>
+          <span class="punkt" style="background:var(--zone)"></span><span>Zonen</span>
+          <span class="anzahl" id="n-zonen"></span></label>
         <label class="ebene"><input type="checkbox" id="c-kandidaten">
           <span class="punkt" style="background:var(--kandidat)"></span><span>Kandidaten</span>
           <span class="anzahl" id="n-kandidaten"></span></label>
@@ -727,7 +769,7 @@ function neuesBild(daten) {
   const basis = $("basis");
   basis.style.width = (D.breite * D.zoom) + "px";
   basis.style.aspectRatio = `${D.breite} / ${D.hoehe}`;
-  for (const id of ["auswahl", "vektoren", "zeichnung"]) {
+  for (const id of ["auswahl", "vektoren", "zonen", "zeichnung"]) {
     $(id).setAttribute("viewBox", `0 0 ${D.breite} ${D.hoehe}`);
   }
   for (const name of ["harz", "ausschluss", "kandidaten"]) {
@@ -749,6 +791,7 @@ function allesZeichnen() {
   stufenZeichnen();
   listeZeichnen();
   histogrammZeichnen();
+  zonenZeichnen();
   korrekturstandZeichnen();
   porenZeichnen();
   darstellen();
@@ -936,10 +979,11 @@ function ebenenSchalten() {
   flaecheSchalten("ausschluss", massstab);
   flaecheSchalten("kandidaten", $("c-kandidaten").checked);
   $("vektoren").style.display = massstab ? "" : "none";
+  $("zonen").style.display = $("c-zonen").checked ? "" : "none";
   porenZeichnen();
   lupeZeichnen();
 }
-for (const id of ["c-harz", "c-massstab", "c-kandidaten", "c-verworfen", "c-entfernt", "c-aufgenommen", "c-poren"]) {
+for (const id of ["c-harz", "c-massstab", "c-zonen", "c-kandidaten", "c-verworfen", "c-entfernt", "c-aufgenommen", "c-poren"]) {
   $(id).addEventListener("change", ebenenSchalten);
 }
 for (const radio of document.querySelectorAll("input[name=basis]")) {
@@ -1282,6 +1326,156 @@ function histogrammZeichnen() {
      <span>Spanne <b>${zahl(kw.min)}</b> – <b>${zahl(kw.max)}</b> ${H.einheit}</span>`;
 }
 
+/* -- Zonen -------------------------------------------------------------------
+   Nur, wenn der Viewer über start_with_zones.py läuft: dann liefert Python unter
+   D.zusaetze.zonen Linien, Abstände, Porosität je Zone und den Fehler an der Unterkante
+   (gerechnet von zonen/, siehe zonen/README.md). Sonst bleiben Ebene und Karte verborgen. */
+/** Zahl mit Dezimalkomma - in der Zonenkarte wie in der Zonen-CSV. */
+const kz = (w, n = 1) => nz(w, n, "–").replace(".", ",");
+const prozent = (w) => w === null || w === undefined ? "–" : String(w).replace(".", ",") + " %";
+
+function zonenZeichnen() {
+  const Z = D.zusaetze && D.zusaetze.zonen;
+  $("ebene-zonen").hidden = !Z;
+  $("zonenkarte").hidden = !Z;
+  const kaputt = !Z || Z.fehlt || Z.ausfall;
+  $("zonenkarte").querySelector(".figur").hidden = !!kaputt;
+  $("z-leer").hidden = !Z || !kaputt;
+  $("n-zonen").textContent = Z && !kaputt ? Z.zonen.filter((z) => z.von !== null && z.bis !== null).length : "–";
+  if (kaputt) {
+    svgSetzen($("zonen"), []);
+    if (Z) $("z-leer").textContent = Z.fehlt ? "Keine Zonen: " + Z.fehlt : "Zonen nicht berechnet: " + Z.ausfall;
+    return;
+  }
+  const strecke = (s, art) => ["line", { class: art, x1: s.x1, y1: s.y1, x2: s.x2, y2: s.y2 }];
+  svgSetzen($("zonen"), [...Z.linien.map((l) => strecke(l, "z-" + l.art)),
+                         strecke(Z.unterkante, "z-unterkante")]);
+  zonendiagramm(Z);
+
+  const e = Z.einheit, f = Z.fehler;
+  const mitRel = (w, r) => `<b>${kz(w, 1)}</b> ${e} (${kz(r, 1)} %)`;
+  const aussen = Z.zonen.filter((z) => z.von === null || z.bis === null);
+  $("z-titel").textContent = `Zonen parallel zur Oberkante, Grenzen in % der Dicke · Oberkante ${kz(Z.winkel_oben, 2)}° zur Waagerechten`;
+  $("z-kenn").innerHTML =
+    `<span>Dicke <b>${kz(Z.dicke, 1)}</b> ${e}</span>
+     <span>gesamt <b>${kz(Z.gesamt, 3)}</b> %</span>
+     <span>Unterkante gegen Oberkante <b>${kz(f.winkel, 2)}</b>°</span>
+     <span>Fehler links ${mitRel(f.links, f.links_rel)}</span>
+     <span>rechts ${mitRel(f.rechts, f.rechts_rel)}</span>
+     <span>max ${mitRel(f.max, f.max_rel)}</span>
+     <span>RMS ${mitRel(f.rms, f.rms_rel)}</span>` +
+    aussen.map((z) => `<span>${esc(z.name)}: <b>${kz(z.porositaet, 3)}</b> % auf ${z.probe_px} px Probe</span>`).join("") +
+    Z.warnungen.map((w) => `<span class="warnung">${esc(w)}</span>`).join("");
+}
+
+/** Schritt für eine Achse mit etwa vier Teilen: 1, 2 oder 5 mal einer Zehnerpotenz. */
+function achsenschritt(maximum) {
+  const roh = maximum / 4, p = Math.pow(10, Math.floor(Math.log10(roh)));
+  return [1, 2, 5, 10].map((f) => f * p).find((s) => s >= roh);
+}
+
+/* Diagramm: senkrecht die Tiefe (0 % = Oberkante oben), waagerecht die Porosität.
+   Links die Maßkette der Zonen und eine über die ganze Dicke, rechts die Grenzen in %. */
+function zonendiagramm(Z) {
+  const svgEl = $("zonendiagramm");
+  const B = 520, HH = 300;
+  const R = { oben: 14, rechts: 46, unten: 44, links: 150 };
+  const pb = B - R.links - R.rechts, ph = HH - R.oben - R.unten;
+  const grenzen = [...new Set([...Z.grenzen, 0, 100])].sort((a, b) => a - b);
+  const gMin = grenzen[0], gMax = grenzen[grenzen.length - 1];
+  const py = (g) => R.oben + (g - gMin) / (gMax - gMin) * ph;
+  const innen = Z.zonen.filter((z) => z.von !== null && z.bis !== null);
+  const pMax = Math.max(Z.gesamt || 0, ...innen.map((z) => z.porositaet || 0)) || 1;
+  const schritt = achsenschritt(pMax);
+  const xMax = schritt * Math.ceil(pMax / schritt - 1e-9);
+  const stellen = Math.max(0, -Math.floor(Math.log10(schritt)));
+  const px = (w) => R.links + w / xMax * pb;
+  const u = R.oben + ph, rr = R.links + pb;
+  const t = [];
+  const L = (cls, a, b, c, d) => t.push(["line", { class: cls, x1: a, y1: b, x2: c, y2: d }]);
+  const T = (cls, x, y, text, attr = {}) => t.push(["text", { class: cls, x, y, _: text, ...attr }]);
+
+  for (let w = 0; w <= xMax + 1e-9; w += schritt) {
+    const x = px(w);
+    L("gitter", x, R.oben, x, u);
+    L("tick", x, u, x, u + 5);
+    T("ticktext", x, u + 18, kz(w, stellen), { "text-anchor": "middle" });
+  }
+  for (const z of innen) {
+    if (!z.porositaet) continue;
+    const y0 = py(z.von), y1 = py(z.bis), h = y1 - y0;
+    t.push(["rect", { class: "balken-gez", x: R.links, y: y0 + Math.min(1, h / 4),
+                      width: px(z.porositaet) - R.links, height: Math.max(h - Math.min(2, h / 2), 0.5) }]);
+    if (h >= 11) T("z-wert", px(z.porositaet) + 4, (y0 + y1) / 2 + 3.5, kz(z.porositaet, 3));
+  }
+  for (const g of grenzen) {
+    L("z-grenze" + (g === 50 ? " mitte" : ""), R.links, py(g), rr, py(g));
+    T("ticktext", rr + 6, py(g) + 3.5, prozent(g));
+  }
+  if (!grenzen.includes(50) && gMin < 50 && gMax > 50) {
+    L("z-grenze mitte", R.links, py(50), rr, py(50));
+  }
+  if (Z.gesamt !== null) {
+    L("quantil mittel", px(Z.gesamt), R.oben, px(Z.gesamt), u);
+    T("quantiltext mittel", px(Z.gesamt) + 4, R.oben + 9, "gesamt");
+  }
+
+  // Maßketten: Pfeil mit Spitzen an beiden Enden, Text daneben.
+  const mass = (x, y0, y1) => {
+    L("z-mass", x, y0, x, y1);
+    const s = Math.min(5, (y1 - y0) / 2.5);
+    if (s < 1.5) return;
+    t.push(["path", { class: "z-spitze", d: `M${x} ${y0}l-2.5 ${s}h5zM${x} ${y1}l-2.5 ${-s}h5z` }]);
+  };
+  const xk = R.links - 12;
+  for (const a of Z.abstaende) {
+    const y0 = py(a.von), y1 = py(a.bis);
+    L("tick", xk - 4, y0, R.links, y0);
+    L("tick", xk - 4, y1, R.links, y1);
+    mass(xk, y0, y1);
+    if (y1 - y0 >= 12) T("z-masstext", xk - 7, (y0 + y1) / 2 + 3.5, `${kz(a.laenge, 1)} ${Z.einheit}`, { "text-anchor": "end" });
+  }
+  const xg = 14, y0 = py(0), y100 = py(100);
+  L("tick", xg - 4, y0, xk - 4, y0);
+  L("tick", xg - 4, y100, xk - 4, y100);
+  mass(xg, y0, y100);
+  T("z-masstext", xg + 12, (y0 + y100) / 2, `gesamt ${kz(Z.dicke, 1)} ${Z.einheit}`,
+    { "text-anchor": "middle", transform: `rotate(-90 ${xg + 12} ${(y0 + y100) / 2})` });
+
+  t.push(["rect", { class: "rahmen", x: R.links, y: R.oben, width: pb, height: ph }]);
+  T("achsentitel", R.links + pb / 2, HH - 5, "Porosität [%]", { "text-anchor": "middle" });
+  innen.forEach((z, i) => {
+    t.push(["rect", { class: "klassenfeld", "data-i": i, x: R.links, y: py(z.von), width: pb, height: Math.max(py(z.bis) - py(z.von), 1) }]);
+  });
+
+  svgEl.setAttribute("viewBox", `0 0 ${B} ${HH}`);
+  while (svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
+  for (const [tag, attr] of t) {
+    const el = document.createElementNS(SVGNS, tag);
+    for (const [k, v] of Object.entries(attr)) { if (k === "_") el.textContent = v; else el.setAttribute(k, v); }
+    svgEl.appendChild(el);
+  }
+
+  const tip = $("z-tooltip");
+  svgEl.onmouseleave = () => { tip.hidden = true; };
+  svgEl.onmousemove = (e) => {
+    const ziel = e.target.closest(".klassenfeld");
+    if (!ziel) { tip.hidden = true; return; }
+    const z = innen[Number(ziel.dataset.i)];
+    const a = Z.abstaende.find((s) => s.von === z.von && s.bis === z.bis);
+    tip.innerHTML = `<div class="kopfzeile">Zone ${esc(z.name)}: ${prozent(z.von)} – ${prozent(z.bis)}</div>
+      <div class="reihe">Porosität<span class="zahl">${kz(z.porositaet, 3)} %</span></div>
+      ${a ? `<div class="reihe">Breite<span class="zahl">${kz(a.laenge, 1)} ${Z.einheit}</span></div>` : ""}
+      <div class="reihe">Probe<span class="zahl">${z.probe_px} px</span></div>
+      <div class="reihe">Poren<span class="zahl">${z.poren_px} px</span></div>`;
+    tip.hidden = false;
+    const kasten = svgEl.getBoundingClientRect();
+    const x = e.clientX - kasten.left, y = e.clientY - kasten.top;
+    tip.style.left = Math.min(x + 14, kasten.width - tip.offsetWidth - 4) + "px";
+    tip.style.top = Math.max(y - tip.offsetHeight - 10, 4) + "px";
+  };
+}
+
 /* -- Bearbeiten --------------------------------------------------------------
    Die Seite rechnet nichts selbst: sie schickt Pore oder Umriss, Python wendet
    die Korrektur an, speichert sie und liefert die neuen Daten. */
@@ -1388,12 +1582,17 @@ stapel.addEventListener("pointerup", async () => {
 stapel.addEventListener("pointercancel", () => { zug = null; zugZeigen(null); });
 
 /* -- Diagramm aufklappen ---------------------------------------------------- */
-const dunkel = $("verdunkelung"), hkarte = $("histogrammkarte");
-function diagrammSchliessen() { hkarte.classList.remove("gross"); dunkel.hidden = true; }
-hkarte.addEventListener("click", (e) => {
-  if (e.target.closest(".zuknopf")) { diagrammSchliessen(); return; }
-  if (!hkarte.classList.contains("gross")) { hkarte.classList.add("gross"); dunkel.hidden = false; }
-});
+const dunkel = $("verdunkelung");
+function diagrammSchliessen() {
+  for (const k of document.querySelectorAll(".diagramm.gross")) k.classList.remove("gross");
+  dunkel.hidden = true;
+}
+for (const karte of document.querySelectorAll(".diagramm")) {
+  karte.addEventListener("click", (e) => {
+    if (e.target.closest(".zuknopf")) { diagrammSchliessen(); return; }
+    if (!karte.classList.contains("gross")) { karte.classList.add("gross"); dunkel.hidden = false; }
+  });
+}
 dunkel.addEventListener("click", diagrammSchliessen);
 
 /* -- Tastatur -------------------------------------------------------------- */
