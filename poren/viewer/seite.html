@@ -753,6 +753,8 @@ function neuesBild(daten) {
   aktiv = null;
   fest = false;
   PFADE = new Map();
+  aufAnzeigeraster(D.umrisse);
+  aufAnzeigeraster(D.umrisse_neu);
   pfadeAnlegen(D.umrisse);
   pfadeAnlegen(D.umrisse_neu);
 
@@ -798,6 +800,18 @@ function allesZeichnen() {
 }
 
 /* -- Umrisse als Path2D und Suchraster ------------------------------------- */
+/* Zwei Pixelraster: In Python (Label-Bild, find_contours, fillPoly) liegt die Mitte von
+   Pixel i bei i, seine Grenzen bei i ± 0,5. Auf Leinwand und SVG (viewBox 0 0 B H)
+   reicht Pixel i von i bis i + 1. Umrisse werden deshalb beim Eintreffen um ein halbes
+   Pixel verschoben, gezogene Umrisse vor dem Senden zurück (siehe pythonPunkte) - sonst
+   säße jede Kontur ein halbes Pixel links oberhalb ihrer Pixel. */
+function aufAnzeigeraster(umrisse) {
+  for (const zuege of Object.values(umrisse || {})) {
+    for (const z of zuege) for (let k = 0; k < z.length; k++) z[k] += 0.5;
+  }
+}
+const pythonPunkte = (punkte) => punkte.map(([x, y]) => [Math.round((x - 0.5) * 10) / 10, Math.round((y - 0.5) * 10) / 10]);
+
 function pfadeAnlegen(umrisse) {
   for (const [label, zuege] of Object.entries(umrisse || {})) {
     const pfad = new Path2D();
@@ -1497,6 +1511,7 @@ function korrekturstandZeichnen(fehler) {
 function aktualisieren(neu) {
   const label = aktiv === null ? null : D.poren[aktiv].label;
   Object.assign(D, neu);
+  aufAnzeigeraster(D.umrisse_neu);
   pfadeAnlegen(D.umrisse_neu);
   const i = label === null ? -1 : D.poren.findIndex((p) => p.label === label);
   aktiv = i < 0 ? null : i;
@@ -1575,7 +1590,7 @@ stapel.addEventListener("pointerup", async () => {
   const punkte = zug;
   zug = null;
   if (punkte.length >= 3 && polygonflaeche(punkte) >= 2) {
-    await senden(werkzeug, { punkte: punkte.map(([x, y]) => [Math.round(x * 10) / 10, Math.round(y * 10) / 10]) });
+    await senden(werkzeug, { punkte: pythonPunkte(punkte) });
   }
   zugZeigen(null);
 });
