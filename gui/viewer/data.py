@@ -203,6 +203,50 @@ class Image:
                                 if len(ys) else (0, 1, 0, 1))
         return self._boxes[key]
 
+    def nearest_pore(self, x: int, y: int, radius: float, counted: bool = True,
+                     rejected: bool = True) -> tuple[int, bool, int, int] | None:
+        """The pore under (x, y), else the nearest one within `radius` image px:
+        (pore id, is rejected, x, y of its pixel closest to the point); None = none. Only a small
+        window around the point is searched."""
+        r = max(0, int(np.ceil(radius)))
+        height, width = self.shape
+        top, bottom, left, right = max(0, y - r), min(height, y + r + 1), max(0, x - r), min(width, x + r + 1)
+        best = None
+        for is_rejected, wanted in ((False, counted), (True, rejected)):
+            if not wanted:
+                continue
+            window = self.pore_labels(is_rejected)[top:bottom, left:right]
+            ys, xs = np.nonzero(window)
+            if not len(ys):
+                continue
+            distance = (ys + top - y) ** 2 + (xs + left - x) ** 2
+            i = int(np.argmin(distance))
+            if distance[i] <= radius ** 2 and (best is None or distance[i] < best[0]):
+                best = (int(distance[i]), int(window[ys[i], xs[i]]), is_rejected, int(xs[i] + left), int(ys[i] + top))
+        return None if best is None else best[1:]
+
+    def pore_box_near(self, pore_id: int, rejected: bool, x: int, y: int) -> tuple[int, int, int, int]:
+        """Bounding box of a pore that has a pixel at (x, y): searched in a window around the point
+        that grows until the pore fits – fast for hovering, unlike pore_box over the whole image."""
+        key = (pore_id, rejected)
+        if key in self._boxes:
+            return self._boxes[key]
+        labels = self.pore_labels(rejected)
+        height, width = labels.shape
+        half = 32
+        while True:
+            top, bottom = max(0, y - half), min(height, y + half + 1)
+            left, right = max(0, x - half), min(width, x + half + 1)
+            ys, xs = np.nonzero(labels[top:bottom, left:right] == pore_id)
+            whole = (top == 0 and bottom == height and left == 0 and right == width)
+            touches = ((ys.min() == 0 and top > 0) or (ys.max() == bottom - top - 1 and bottom < height)
+                       or (xs.min() == 0 and left > 0) or (xs.max() == right - left - 1 and right < width))
+            if not touches or whole:
+                break
+            half *= 2
+        self._boxes[key] = (int(ys.min()) + top, int(ys.max()) + top + 1, int(xs.min()) + left, int(xs.max()) + left + 1)
+        return self._boxes[key]
+
     def status_masks(self, top: int, bottom: int, left: int, right: int) -> dict[str, np.ndarray]:
         """Full-resolution masks of a part: pores, rejected, added (by hand), removed (by hand)."""
         labels, rejected = self.labels[top:bottom, left:right], self.rejected_labels[top:bottom, left:right]

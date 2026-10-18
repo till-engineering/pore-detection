@@ -25,6 +25,7 @@ from .types import EvaluationResult, ImageContext, ImageInfo, LabeledPores, Samp
 class Step:
     name: str = ""                  # registered name, set by @register
     params: dict[str, str] = {}     # parameter name -> description (for list_methods)
+    choices: dict[str, list[str]] = {}  # parameter name -> allowed values (launcher shows a selection)
     tileable: bool = False          # local operation, may run on tiles
     tile_overlap_px: int = 0        # required border around each tile
 
@@ -101,6 +102,9 @@ class LabelStep(Step):
 # --- evaluation: whole image, modules of one image run in parallel ---
 
 class Evaluator(Step):
+    excel_sheet: str | None = None  # sheet of the results Excel for its per-image values (None = module name)
+    excel_hidden: set[str] = set()  # per-image values written to JSON only, not to the Excel
+
     def evaluate(self, ctx: ImageContext, pores: LabeledPores) -> EvaluationResult:
         raise NotImplementedError
 
@@ -113,9 +117,11 @@ class Evaluator(Step):
 class Plot(Step):
     columns: list[str] = []         # per-image values the plot needs (missing -> plot skipped, logged)
     pore_columns: list[str] = []    # per-pore values the plot needs (missing -> plot skipped, logged)
+    variant: str = ""               # optional second view (e.g. "normalized"): drawn too, switch in the viewer
 
     def plot(self, ax, image: dict, pores: pd.DataFrame) -> None:
         """Draw into the matplotlib Axes `ax`. image: the row of images.json, pores: pores.json.
+        A plot with a `variant` takes a keyword argument variant ("" = normal view, else the variant).
         Raise core.plotting.MissingData if something else needed is missing. Size, look and
         saving are done by core (core/plotting.py); import matplotlib only inside this method."""
         raise NotImplementedError

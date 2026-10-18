@@ -122,6 +122,8 @@ evaluation:                 # any number of independent modules
     cracks_inner: 0         # n_u: crack origins at the inner surface (tests)
 
 plots:                      # any number; PNG per image in <image folder>/plots/, shown by the viewer in this order
+  - name: pore_areas        # histogram of the pore areas (log classes, density, D50 / D90 / mean), as in V2;
+                            # second view "normalized" (share in %), switch in the viewer
   - name: phi_over_q        # pore index phi_q / phi_eff_q over q (needs pore_index)
   - name: pores_over_height # stress at each pore over its relative height (needs pore_index)
   - name: pore_sizes        # histogram of the equivalent pore diameters

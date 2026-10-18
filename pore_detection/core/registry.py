@@ -43,6 +43,7 @@ class MethodInfo:
     tileable: bool
     tile_overlap_px: int
     gpu: bool                   # has a GPU path
+    choices: dict[str, list[str]]   # parameter name -> allowed values
 
 
 def register(name: str):
@@ -105,6 +106,7 @@ def list_methods() -> dict[str, list[MethodInfo]]:
                 tileable=cls.tileable,
                 tile_overlap_px=cls.tile_overlap_px,
                 gpu=hasattr(cls, "process_gpu") or hasattr(cls, "detect_gpu"),
+                choices={key: list(values) for key, values in cls.choices.items()},
             )
             for name, cls in sorted(methods.items())
         ]

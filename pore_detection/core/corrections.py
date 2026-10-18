@@ -31,7 +31,8 @@ import yaml
 
 from . import geometry, io, plotting, registry, writer
 from .config import Config
-from .pipeline import FRAME_COLUMNS, _bounding_box, _check_scale, _finalize, _merge_results, frame_from_columns
+from .pipeline import (CORE_EXCEL, FRAME_COLUMNS, _bounding_box, _check_scale, _finalize, _merge_results,
+                       excel_layout, frame_from_columns)
 from .types import ImageContext, LabeledPores
 
 MANUAL = "manual"               # filter name of pores rejected by hand
@@ -105,6 +106,7 @@ class Corrections:
                             if not step.changes_pores]
         self.evaluators = [registry.create("evaluation", e) for e in config.evaluation]
         self.plots = [registry.create("plots", e) for e in config.plots]
+        self.layout: dict[str, str | None] = dict(CORE_EXCEL)   # column -> sheet of the results Excel
         self._automatic: dict[str, tuple[bytes, bytes, dict]] = {}     # image -> automatic state (TIFF bytes)
         self._lists: dict[str, list[Correction]] = {}
         self.lock = threading.Lock()                # one action at a time
@@ -243,6 +245,7 @@ class Session:
             _check_scale(step, ctx)
             results[step.name] = step.evaluate(ctx, pores)
         per_image, per_pore, images = _merge_results(results)
+        self.store.layout.update(excel_layout(self.store.evaluators, results))
         keep = {k: v for k, v in self.row.items() if k in ("image", "path", "pixel_size_um", "scale_label",
                                                              "scale_bar_px", "scale_box_px", *FRAME_COLUMNS)}
         row = {**keep, "manual_corrections": len(self.store._lists.get(self.image, [])), **per_image}
@@ -264,7 +267,7 @@ class Session:
         id_values = None
         if (store.results_dir / writer.ID_VALUES_JSON).exists():       # only after a complete run
             id_values = _finalize(store.evaluators, per_image, store.results_dir)
-        writer.write_summary(store.results_dir, self.info.image_id, per_image, errors, id_values)
+        writer.write_summary(store.results_dir, self.info.image_id, per_image, errors, id_values, store.layout)
 
     def _snapshot(self, row: dict, per_pore: pd.DataFrame, state: "_Labels | None" = None) -> State:
         state = state or self.current.copy()

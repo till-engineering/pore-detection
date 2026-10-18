@@ -1,7 +1,7 @@
 # Pore Detection – Projektplan
 
-> Status: Phase 0–4 fertig (Abgleich an echten Bildern ganz am Ende), Werkzeuge, Filter und Korrekturen (7.3) umgesetzt, Untergrundkorrektur (7.4) umgesetzt, Proben-KOS (7.5), Porenindex (7.6), Plots (7.7) umgesetzt · Stand: 2026-10-18 ·
-> Schnittstellen-Version 0.7
+> Status: Phase 0–4 fertig (Abgleich an echten Bildern ganz am Ende), Werkzeuge, Filter und Korrekturen (7.3) umgesetzt, Untergrundkorrektur (7.4) umgesetzt, Proben-KOS (7.5), Porenindex (7.6), Plots (7.7), Launcher-Reiter Evaluations (7.8), Ergebnis-Excel (7.9) umgesetzt · Stand: 2026-10-18 ·
+> Schnittstellen-Version 0.10
 
 ---
 
@@ -276,6 +276,9 @@ class GaussFilter(Filter):
   keine Umgebungsvariablen, die GUI ändert nichts.
 - **Ausnahme Eingabe-/Ausgabepfad:** Der Launcher übergibt die gewählten Pfade direkt an `run()`.
   `input.path` / `output.dir` gelten für `main.py` und als Vorbelegung im Launcher.
+- **Ausnahme Auswertungseingaben (7.8):** Im Reiter „Evaluations“ geänderte Parameter der
+  Auswertungsmodule gelten nur für den nächsten Lauf (Config-Objekt an `run()`), festgehalten in
+  `config_used.yaml`. `config.yaml` liefert die Standardwerte und wird nie geschrieben.
 - Wird einmal beim Start eingelesen (CLI: Programmstart, Launcher: jeder Klick auf „Start“) und
   danach nur noch als unveränderliches Objekt weitergereicht. Im Launcher gilt eine Änderung an
   `config.yaml` also ab dem nächsten Lauf, ohne Neustart.
@@ -411,6 +414,7 @@ anzupassen**.
 - ID-Ordner (Eingabe) und Ausgabeordner wählen (vorbelegt aus der Config)
 - Aktive Config nur anzeigen – **keine** Bearbeitung. `config.yaml` wird bei jedem Start eines
   Laufs neu gelesen
+- Reiter **Evaluations**: Eingaben der Auswertungsmodule für den nächsten Lauf (7.8)
 - Lauf starten / abbrechen, Fortschrittsbalken, Log inkl. fehlgeschlagener Bilder
 - Pipeline läuft in einem Hintergrund-Thread
 - Nach Abschluss: Viewer mit `<ID>_results/` öffnen (gibt Ergebnisordner + `gui`-Einstellungen mit).
@@ -549,7 +553,10 @@ Ergebnisdateien geschrieben; ein neuer Lauf setzt alles auf den automatischen St
   (inkl. eingezeichnete).
 - Werte-Leiste zeigt bei Klick den Status, bei verworfenen Poren Filter und Grund.
 - Porenliste: von Hand aufgenommene / eingezeichnete Poren farbig markiert.
-- Kein Hover-Tooltip.
+- Kein Hover-Tooltip. Stattdessen (2026-10-18) **Hover-Vorschau**: die Pore, die ein Klick treffen
+  würde, bekommt einen breiten, halbtransparenten Umriss (Auswahl: schmale Linie) (bei +/− nur verworfene/gezählte, in der Werkzeugfarbe);
+  Fangradius 12 px auf dem Bildschirm (unabhängig vom Zoom), Zeigehand über einer treffbaren Pore,
+  sonst Pfeil. Der Klick trifft genau die umrissene Pore (auch bei den Korrekturen).
 
 **6. Bewusst nicht:** Einstellungen im Viewer ändern / Bild neu rechnen (wie V2) – `config.yaml`
 bleibt die einzige Stelle für Einstellungen, die GUI ändert sie nie.
@@ -671,6 +678,34 @@ Auswertungsmodul `evaluation/pore_index.py` (Stufe `evaluation`, braucht das Pro
 - Offen: Lastfälle / beliebiges Spannungsfeld, Eingabe im Launcher (n_o, n_u, Varianten),
   Werte über die ID, Spannungsfeld als Ebene im Viewer, Härte außen/innen.
 
+### 7.9 Ergebnis-Excel nach Themen (beschlossen und umgesetzt 2026-10-18)
+
+- **Eine** Datei `<ID>_results.xlsx`, Blätter nach Thema: **Pores** (Porenanzahl, Flächen,
+  Porosität, Probendicke/-länge, manuelle Korrekturen), **Stress** (Eingaben Lastfall/Variante/n_o/n_u,
+  Φ_q, Φ_eff,q, w_o, w_u), **Detection** (µm/px, gelesener Maßstab, Drehwinkel, Keilwinkel),
+  **ID**, **Errors**. Jedes Blatt beginnt mit der Bildspalte.
+- **JSON bleibt vollständig** (Programm, Viewer, Korrekturen). Nur in JSON: Pfad, Pixelpositionen
+  von Maßstab/Kasten, KOS-Ursprung, Zonenflächen.
+- **Modular:** jedes Auswertungsmodul gibt `excel_sheet` (Blatt, Standard: Modulname) und
+  `excel_hidden` (nur JSON) an; die Spalten von `core` sind fest in `pipeline.CORE_EXCEL`.
+  Schnittstelle 0.10.
+- `pore_index` schreibt seine Eingaben (Lastfall, Variante, n_o, n_u) mit in die Werte pro Bild.
+- Auch nach einer Korrektur im Viewer wird die Excel so neu geschrieben.
+
+### 7.8 Launcher: Reiter „Evaluations“ (beschlossen und umgesetzt 2026-10-18)
+
+- Eingaben der Auswertungsmodule (z. B. `pore_index`: n_o, n_u, `pore_stress`, q-Werte) im
+  Launcher, Reiter „Evaluations“ (`gui/launcher/evaluations.py`).
+- **Generisch:** aus den Auswertungsmodulen in `config.yaml` gebaut – Zahl → Zahlenfeld, Liste von
+  Zahlen → Textfeld „1, 1.5, 2“, ja/nein → Checkbox, Text mit `choices` des Moduls → Auswahl.
+  Neues Modul erscheint ohne GUI-Code. Neues optionales Attribut `Step.choices` (Schnittstelle 0.8).
+- **config.yaml = Standardwerte**, wird nie geschrieben. Nur **geänderte** Felder (fett) gelten
+  für den nächsten Lauf; „Reset to config.yaml“ setzt zurück. Unveränderte Felder folgen
+  `config.yaml`, auch wenn sie sich bei offenem Launcher ändert.
+- Beim Start stehen die Änderungen im Log; der Lauf speichert sie in `config_used.yaml`.
+- Ungültige Eingabe (z. B. Buchstabe in der q-Liste) → Lauf startet nicht, Meldung.
+- Offen: beliebiges Spannungsfeld eingeben; Versuchsdaten pro ID speichern (z. B. `<ID>/sample.yaml`).
+
 ### 7.7 Plots (beschlossen und umgesetzt 2026-10-18)
 
 - **Plots sind Bilder**, erzeugt von der Pipeline, gespeichert im Ergebnisordner
@@ -688,7 +723,14 @@ Auswertungsmodul `evaluation/pore_index.py` (Stufe `evaluation`, braucht das Pro
   der Lauf mit klarer Meldung ab.
 - **Erste Plots:** `phi_over_q` (Φ_q und Φ_eff,q über q, Porosität als Linie), `pores_over_height`
   (Spannung am Porenschwerpunkt über der Höhe ζ, Punktgröße = Fläche), `pore_sizes`
-  (Histogramm der Äquivalentdurchmesser, µm mit Maßstab).
+  (Histogramm der Äquivalentdurchmesser, µm mit Maßstab), `pore_areas` (Größenverteilung der
+  Porenfläche wie in V2: log-Klassen nach Freedman-Diaconis, Dichtekurve, D50/D90/Mittel; bewusst
+  im V2-Aussehen statt im gemeinsamen Stil; Rechnung gegen V2 `verteilung.py` geprüft). Steht als
+  erster Plot in `config.yaml`.
+- **Zweite Ansicht eines Plots** (Schnittstelle 0.9, `Plot.variant`): wird mitgezeichnet und als
+  `plots/<name>.<variant>.png` gespeichert; der Viewer zeigt im Plotfeld eine Checkbox zum Umschalten
+  (Zustand bleibt beim Blättern). Erste: `pore_areas` → `normalized` (Anteil der Poren in %, Balken
+  zusammen 100 %).
 - **Aussehen** (für alle Plots, `core/plotting.py`): wissenschaftlich – schwarzer Rahmen rundum,
   kein Gitter, Teilstriche innen auf allen Seiten; weißer Hintergrund (auch im dunklen Viewer).
   Gespeichert ohne Außenrand, 960 × 600 px.
@@ -709,7 +751,7 @@ Verbindlich in **`docs/output_format.md`**. Festgelegt:
     ├── images.json               ← eine Zeile pro Bild
     ├── id_values.json            ← Kennwerte über die ganze ID (aus finalize)
     ├── errors.json               ← fehlgeschlagene Bilder
-    ├── <ID>_results.xlsx         ← Blätter images, id_values, errors (keine Porentabellen)
+    ├── <ID>_results.xlsx         ← Blätter nach Thema: Pores, Stress, Detection, ID, Errors (7.9)
     └── config_used.yaml
 ```
 

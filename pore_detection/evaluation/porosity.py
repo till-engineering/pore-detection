@@ -12,6 +12,7 @@ class Porosity(Evaluator):
     """Pore count, porosity per image and pore areas."""
 
     params = {}
+    excel_sheet = "Pores"
 
     def evaluate(self, ctx, pores):
         area_px2 = pores.get("area_px2")

@@ -48,8 +48,14 @@ def available() -> bool:
     return True
 
 
+def variant_key(name: str, variant: str) -> str:
+    """Key (= file stem in plots/) of a plot view: "pore_areas" or "pore_areas.normalized"."""
+    return f"{name}.{variant}" if variant else name
+
+
 def render(plots: list[Plot], image: dict, pores: pd.DataFrame) -> dict[str, bytes]:
-    """PNG bytes per plot name, in the order of `plots`; skipped plots are logged and left out."""
+    """PNG bytes per plot view (variant_key), in the order of `plots`; a plot with a variant gives
+    two views. Skipped plots are logged and left out."""
     if not plots:
         return {}
     import matplotlib
@@ -63,13 +69,19 @@ def render(plots: list[Plot], image: dict, pores: pd.DataFrame) -> dict[str, byt
             missing += [c for c in step.pore_columns if c not in pores.columns]
             if missing:
                 raise MissingData(f"values missing: {', '.join(missing)}")
-            with matplotlib.rc_context(STYLE):
-                figure = Figure(figsize=SIZE_IN, dpi=DPI)
-                ax = figure.add_subplot()
-                step.plot(ax, image, pores)
-                buffer = io.BytesIO()
-                figure.savefig(buffer, format="png", bbox_inches="tight", pad_inches=PAD_IN)
-            result[step.name] = buffer.getvalue()
+            views = {}
+            for variant in ("", step.variant) if step.variant else ("",):
+                with matplotlib.rc_context(STYLE):
+                    figure = Figure(figsize=SIZE_IN, dpi=DPI)
+                    ax = figure.add_subplot()
+                    if variant:
+                        step.plot(ax, image, pores, variant=variant)
+                    else:
+                        step.plot(ax, image, pores)
+                    buffer = io.BytesIO()
+                    figure.savefig(buffer, format="png", bbox_inches="tight", pad_inches=PAD_IN)
+                views[variant_key(step.name, variant)] = buffer.getvalue()
+            result.update(views)
         except MissingData as reason:
             log.warning("%s: plot %s skipped – %s", image.get("image"), step.name, reason)
         except Exception as error:

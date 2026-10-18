@@ -24,11 +24,12 @@ One run processes one ID (= name of the input folder).
     │   ├── corrections.json        manual corrections (only if there are any, see PLAN.md 7.3)
     │   ├── overlay.tif             only with output.save_full_overlay: true
     │   ├── <name>.tif              images returned by evaluation modules (key = name)
-    │   └── plots/<plot>.png        one picture per plot of the stage plots (registered name)
+    │   └── plots/<plot>.png        one picture per plot of the stage plots (registered name);
+    │                               plots/<plot>.<variant>.png for the second view of a plot (Plot.variant)
     ├── images.json                 one row per image
     ├── id_values.json              values over the whole ID (Evaluator.finalize)
     ├── errors.json                 skipped images
-    ├── <ID>_results.xlsx           sheets: images, id_values, errors
+    ├── <ID>_results.xlsx           sheets by topic: Pores, <module sheets, e.g. Stress>, Detection, ID, Errors
     └── config_used.yaml            copy of the config used for this run
 ```
 
@@ -75,7 +76,8 @@ Tables are **column-oriented**: one key per column, each value a list with one e
 
 ## 4. Per-image results
 
-`images.json` / sheet `images`: one row per successful image, in processing order.
+`images.json`: one row per successful image, in processing order. **Complete** (the program reads
+it); the values of the evaluation modules come first, then the columns of core.
 
 | Column | Meaning |
 |--------|---------|
@@ -93,19 +95,35 @@ Tables are **column-oriented**: one key per column, each value a list with one e
 | `manual_corrections` | number of manual corrections of this image (0 after a run) |
 | … | all `per_image` values of the evaluation modules |
 
-In Excel the list columns (boxes, `frame_origin_px`) are written as text (`"[top, bottom, left, right]"`).
+### Results Excel `<ID>_results.xlsx` – for humans, sorted by topic
+
+Same values as `images.json`, but spread over sheets by topic; technical columns stay in JSON
+only. Every sheet starts with `image`, one row per image, header row frozen.
+
+| Sheet | Columns |
+|-------|---------|
+| `Pores` | values of `porosity` (count, areas, porosity), `frame_thickness_*`, `frame_length_*`, `manual_corrections` |
+| *module sheets* | values of each evaluation module on its `excel_sheet` (default: module name), e.g. `Stress` for `pore_index` |
+| `Detection` | `pixel_size_um`, `scale_label`, `frame_angle_deg`, `frame_wedge_deg` |
+| `ID` | `id_values` (finalize) |
+| `Errors` | `errors` |
+
+- **JSON only:** `path`, `scale_bar_px`, `scale_box_px`, `frame_origin_px` and the `excel_hidden`
+  values of the modules (e.g. `sample_area_outer_px2`, `sample_area_inner_px2` of `pore_index`).
+- Columns of core: fixed in `pipeline.CORE_EXCEL`; a value without a sheet goes to `Other`.
+- List cells are written as text.
 
 `pores.json`: column `pore_id` + all `per_pore` columns of the evaluation modules, joined on
 `pore_id`.
 
 ## 5. ID values
 
-`id_values.json` / sheet `id_values`: all values returned by `finalize` of the evaluation
+`id_values.json` / sheet `ID`: all values returned by `finalize` of the evaluation
 modules. No per-pore listing.
 
 ## 6. Error list
 
-`errors.json` / sheet `errors`, one row per skipped image:
+`errors.json` / sheet `Errors`, one row per skipped image:
 
 | Column | Meaning |
 |--------|---------|

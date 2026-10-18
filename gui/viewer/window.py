@@ -34,6 +34,7 @@ RIGHT_COLUMN_PX = 330
 LOUPE_COLUMN_PX = 300
 PLOT_HEIGHT_PX = 300
 NO_SELECTION = "Click a pore in the image or in the list."
+PICK_RADIUS_SCREEN_PX = 12  # a click / hover this close to a pore (on screen) picks it
 # correction tools: key -> (symbol, tooltip, colour of the active button / drawn outline, view mode)
 TOOLS = {
     "restore": ("+", "count a rejected pore (click on it)", "#0c8599", "click"),
@@ -255,6 +256,9 @@ class ViewerWindow(QMainWindow):
         self.view = ImageView()
         self.view.zoom_changed.connect(lambda _: self._update_info())
         self.view.clicked.connect(self._on_image_clicked)
+        self.view.hovered.connect(self._on_hover)
+        self.view.hover_left.connect(self._clear_hover)
+        self.hover_key = None               # (pore id, rejected) outlined as hover, None = none
         self.view.outlined.connect(self._on_outlined)
         image_area.addWidget(self.view, stretch=1)
         row.addLayout(image_area, stretch=1)
@@ -429,6 +433,7 @@ class ViewerWindow(QMainWindow):
         grid.setContentsMargins(0, 0, 0, 0)
         grid.setSpacing(16)
         self.plot_views: dict[str, PlotView] = {}
+        self.plot_switches: dict[str, QCheckBox] = {}   # second view of a plot (Plot.variant), e.g. normalized
         names = self.run.plot_names()
         if not names:
             hint = QLabel("no plots in this run (config: plots)", objectName="hint")
@@ -438,15 +443,31 @@ class ViewerWindow(QMainWindow):
             grid.addWidget(frame, 0, 0, 1, 2)
         for i, name in enumerate(names):
             view = PlotView()               # height follows the plot's aspect ratio
-            self.plot_views[name] = view
-            grid.addWidget(card(name.replace("_", " "), view), i // 2, i % 2, Qt.AlignmentFlag.AlignTop)
+            switch = QCheckBox()
+            switch.setStyleSheet("QCheckBox { spacing: 6px; }")
+            switch.setVisible(False)        # shown when the image has a second view of this plot
+            switch.toggled.connect(lambda _: self._show_plots())
+            body = QWidget()
+            column = QVBoxLayout(body)
+            column.setContentsMargins(0, 0, 0, 0)
+            column.setSpacing(0)
+            column.addWidget(switch, alignment=Qt.AlignmentFlag.AlignRight)
+            column.addWidget(view)
+            self.plot_views[name], self.plot_switches[name] = view, switch
+            grid.addWidget(card(name.replace("_", " "), body), i // 2, i % 2, Qt.AlignmentFlag.AlignTop)
         grid.setColumnStretch(0, 1)
         grid.setColumnStretch(1, 1)
         return plots
 
     def _show_plots(self) -> None:
         for name, view in self.plot_views.items():
-            png = self.image.plots.get(name) if self.image is not None else None
+            plots = self.image.plots if self.image is not None else {}
+            # second view: file plots/<name>.<variant>.png (core.plotting.variant_key)
+            variant = next((key[len(name) + 1:] for key in plots if key.startswith(name + ".")), "")
+            switch = self.plot_switches[name]
+            switch.setText(variant)
+            switch.setVisible(bool(variant))
+            png = plots.get(f"{name}.{variant}" if variant and switch.isChecked() else name)
             if png is None:
                 view.show_message("not available – values missing (see log)")
             else:
@@ -524,6 +545,7 @@ class ViewerWindow(QMainWindow):
             self.info_label.setText(f"cannot show image {index + 1}: {error}")
             return
         self.image = image
+        self._clear_hover()
         self._update_counts()
         self._update_frame_row()
         self._fill_pore_list()
@@ -641,18 +663,52 @@ class ViewerWindow(QMainWindow):
         if items:
             self._select(items[0].data(0, Qt.ItemDataRole.UserRole), center=True)
 
+    def _target(self, x: int, y: int) -> tuple[int, bool, int, int] | None:
+        """The pore a click at (x, y) picks: the one under the point, else the nearest within
+        PICK_RADIUS_SCREEN_PX on screen. "+" picks only rejected, "−" only counted pores."""
+        image = self.image
+        if image is None or self.tool in ("draw", "area"):
+            return None
+        radius = PICK_RADIUS_SCREEN_PX / max(self.view.zoom(), 1e-6)
+        return image.nearest_pore(x, y, radius, counted=self.tool != "restore", rejected=self.tool != "remove")
+
+    def _on_hover(self, x: int, y: int) -> None:
+        target = self._target(x, y)
+        key = None if target is None else target[:2]
+        if key == self.hover_key:
+            return
+        self.hover_key = key
+        if target is None:
+            self.view.set_hover([], QColor())
+            return
+        pore_id, rejected, px, py = target
+        image = self.image
+        top, bottom, left, right = image.pore_box_near(pore_id, rejected, px, py)
+        labels = image.pore_labels(rejected)
+        color = QColor(TOOLS[self.tool][2] or "#ffffff") if self.tool else QColor(
+            (style.DARK if self.dark else style.LIGHT)["accent"])
+        color.setAlpha(110)
+        self.view.set_hover(outline(labels[top:bottom, left:right] == pore_id, left, top), color)
+
+    def _clear_hover(self) -> None:
+        self.hover_key = None
+        self.view.set_hover([], QColor())
+
     def _on_image_clicked(self, x: int, y: int) -> None:
         image = self.image
         if image is None:
             return
+        target = self._target(x, y)
         if self.tool in ("restore", "remove"):
-            self._correct(self.tool, x, y)
+            # a point inside the picked pore: the correction hits exactly the outlined one
+            self._correct(self.tool, *(target[2:] if target else (x, y)))
             return
-        pore = int(image.labels[y, x])
-        if pore == 0 and int(image.rejected_labels[y, x]):
-            self._select(int(image.rejected_labels[y, x]), rejected=True)
-        else:
-            self._select(pore)
+        if target is None:
+            self._select(0)
+            return
+        pore_id, rejected, px, py = target
+        image.pore_box_near(pore_id, rejected, px, py)      # fills the box cache: no pass over the image
+        self._select(pore_id, rejected=rejected)
 
     def _on_outlined(self, points: list) -> None:
         if self.tool in ("draw", "area") and self.image is not None:
@@ -665,6 +721,7 @@ class ViewerWindow(QMainWindow):
         if tool == self.tool or self.corrections is None:
             tool = None
         self.tool = tool
+        self._clear_hover()
         for key, b in self.tool_buttons.items():
             b.setChecked(key == tool)
         if tool is None:
@@ -709,6 +766,7 @@ class ViewerWindow(QMainWindow):
         apply_state(image, state)
         if image is not self.image:
             return
+        self._clear_hover()                 # pores changed
         for key, _label, unit in KEY_FIGURES:
             self.tile_values[key].setText(format_number(state.row.get(key), unit))
         self._update_counts()

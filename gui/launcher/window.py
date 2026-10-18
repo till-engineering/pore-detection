@@ -2,7 +2,8 @@
 
 Uses only the public API of pore_detection. config.yaml is read again at every start, so a
 change in the file applies to the next run without restarting the launcher. The launcher never
-writes the config.
+writes the config: paths and the inputs of the tab "Evaluations" (evaluations.py) are passed to
+the run only, and recorded in config_used.yaml.
 """
 
 import logging
@@ -16,8 +17,9 @@ from PySide6.QtWidgets import (QCheckBox, QFileDialog, QGridLayout, QGroupBox, Q
                                QMainWindow, QMessageBox, QPlainTextEdit, QProgressBar, QPushButton,
                                QTabWidget, QVBoxLayout, QWidget)
 
+from gui.launcher.evaluations import EvaluationsTab
 from gui.viewer.window import ViewerWindow
-from pore_detection import (CONFIG_PATH, LOG_FORMAT, Corrections, RunAborted, RunResult, load_config,
+from pore_detection import (CONFIG_PATH, LOG_FORMAT, Config, Corrections, RunAborted, RunResult, load_config,
                             resolve_path, run)
 
 log = logging.getLogger("pore_detection")
@@ -76,12 +78,14 @@ class LauncherWindow(QMainWindow):
         self._gui_settings: dict = {}     # config.gui of the last run, passed to the viewer
         self._viewer: ViewerWindow | None = None
 
-        # paths, prefilled from config.yaml
+        # paths and evaluation inputs, prefilled from config.yaml
         self.input_edit, self.output_edit = QLineEdit(), QLineEdit()
+        self.evaluations = EvaluationsTab()
         try:
             config = load_config()
             self.input_edit.setText(str(resolve_path(config.input.path)))
             self.output_edit.setText(str(resolve_path(config.output.dir)))
+            self.evaluations.refresh(config.to_dict())
         except Exception as error:  # broken config: the launcher still opens and shows it
             self.input_edit.setPlaceholderText(f"config.yaml not readable: {error}")
         paths = QGroupBox("Paths")
@@ -126,6 +130,7 @@ class LauncherWindow(QMainWindow):
         self.log_view.setMaximumBlockCount(10000)
         tabs = QTabWidget()
         tabs.addTab(self.log_view, "Log")
+        tabs.addTab(self.evaluations, "Evaluations")
         tabs.addTab(self.config_view, "Config (config.yaml, read-only)")
 
         layout = QVBoxLayout()
@@ -157,6 +162,10 @@ class LauncherWindow(QMainWindow):
         except OSError as error:
             text = f"cannot read {CONFIG_PATH}: {error}"
         self.config_view.setPlainText(text)
+        try:                                # unchanged evaluation inputs follow config.yaml
+            self.evaluations.refresh(load_config().to_dict())
+        except Exception:
+            pass                            # broken config: shown in the config view, reported at start
         # editors often replace the file on save, which ends the watch: watch it again
         if str(CONFIG_PATH) not in self._watcher.files() and CONFIG_PATH.exists():
             self._watcher.addPath(str(CONFIG_PATH))
@@ -176,6 +185,12 @@ class LauncherWindow(QMainWindow):
         except Exception as error:
             self._message(f"config.yaml not readable – run not started:\n{error}")
             return
+        try:                                # changed evaluation inputs: for this run only
+            data, changes = self.evaluations.apply(config.to_dict())
+        except ValueError as error:
+            self._message(f"evaluation input not valid – run not started:\n{error}")
+            return
+        config = Config(data)
         self._gui_settings = config.to_dict()["gui"]
         input_path = Path(self.input_edit.text().strip())
         output_dir = Path(self.output_edit.text().strip())
@@ -184,6 +199,8 @@ class LauncherWindow(QMainWindow):
         self._total = 0
         self.viewer_button.setEnabled(False)
         self.log_view.clear()
+        for change in changes:
+            self.log_view.appendPlainText(f"evaluation input for this run: {change}")
         self.progress_bar.setRange(0, 0)  # busy until the first progress report
         self.status_label.setText("starting…")
         self._set_running(True)
@@ -253,6 +270,7 @@ class LauncherWindow(QMainWindow):
         self.cancel_button.setEnabled(running)
         self.input_edit.setEnabled(not running)
         self.output_edit.setEnabled(not running)
+        self.evaluations.setEnabled(not running)
 
     # --- viewer ---
 

@@ -103,6 +103,7 @@ class _Done:
     name: str
     row: dict
     write: Callable[[], None]
+    layout: dict[str, str | None]   # its per-image columns -> sheet of the results Excel
 
 
 def run(config: Config, input_path=None, output_dir=None,
@@ -135,6 +136,7 @@ def run(config: Config, input_path=None, output_dir=None,
         raise RunAborted(f"output folder not writable: {error}") from error
 
     rows: list[dict] = []
+    layout: dict[str, str | None] = dict(CORE_EXCEL)     # column -> sheet of the results Excel
     errors: list[ImageError] = []
     cancelled = False
     id_values = None
@@ -184,6 +186,7 @@ def run(config: Config, input_path=None, output_dir=None,
                 fail(name, failure.stage, failure.method, str(failure))
                 continue
             finish_writing()
+            layout.update(done.layout)
             writing = (done, background_writer.submit(done.write))
         finish_writing()
         if not cancelled and progress:
@@ -197,7 +200,7 @@ def run(config: Config, input_path=None, output_dir=None,
         background_writer.shutdown()
         pool.shutdown()
         error_table = pd.DataFrame([vars(e) for e in errors], columns=["image", "stage", "method", "message"])
-        writer.write_summary(results_dir, image_id, pd.DataFrame(rows), error_table, id_values)
+        writer.write_summary(results_dir, image_id, pd.DataFrame(rows), error_table, id_values, layout)
 
     duration = time.perf_counter() - start
     log.info("%d of %d images succeeded, %d failed (%.1f s)", len(rows), len(files), len(errors), duration)
@@ -273,14 +276,15 @@ def _process_image(config: Config, steps: _Steps, load: Callable[[], tuple[Image
     except Exception as error:
         raise _ImageFailed(stage, method, error) from error
 
-    row = {"image": info.name, "path": str(info.path), **_scale_columns(scale),
-           **frame_columns(frame, scale.pixel_size_um), "manual_corrections": 0, **per_image}
+    # values of the modules first: the order of the columns in images.json and the Excel sheets
+    row = {"image": info.name, "path": str(info.path), **per_image, **_scale_columns(scale),
+           **frame_columns(frame, scale.pixel_size_um), "manual_corrections": 0}
 
     def write():
         writer.write_image(results_dir, info, original, full_labels, full_rejected, pores.rejected, roi_mask,
                            per_pore, images, config.output.save_full_overlay)
         writer.write_plots(results_dir / info.name, plotting.render(steps.plots, row, per_pore))
-    return _Done(info.name, row, write)
+    return _Done(info.name, row, write, excel_layout(steps.evaluators, results))
 
 
 def _to_full(labels: np.ndarray | None, info: ImageInfo, top: int, left: int) -> np.ndarray:
@@ -334,6 +338,33 @@ def _scale_columns(scale: ScaleResult) -> dict:
         "scale_bar_px": list(scale.bar_px) if scale.bar_px is not None else None,
         "scale_box_px": box,
     }
+
+
+# sheet of the results Excel for the columns of core (None = JSON only); see excel_layout
+CORE_EXCEL: dict[str, str | None] = {
+    "image": writer.PORES_SHEET, "path": None,
+    "pixel_size_um": writer.DETECTION_SHEET, "scale_label": writer.DETECTION_SHEET,
+    "scale_bar_px": None, "scale_box_px": None,
+    "frame_origin_px": None, "frame_angle_deg": writer.DETECTION_SHEET, "frame_wedge_deg": writer.DETECTION_SHEET,
+    "frame_thickness_px": writer.PORES_SHEET, "frame_thickness_um": writer.PORES_SHEET,
+    "frame_length_px": writer.PORES_SHEET, "frame_length_um": writer.PORES_SHEET,
+    "manual_corrections": writer.PORES_SHEET,
+}
+
+
+def excel_layout(evaluators: list[Step], results: dict[str, EvaluationResult]) -> dict[str, str | None]:
+    """Sheet of the results Excel for every per-image column: core columns as in CORE_EXCEL, the
+    values of an evaluation module on its excel_sheet (default: its name), excel_hidden ones in
+    JSON only."""
+    layout = dict(CORE_EXCEL)
+    for step in evaluators:
+        result = results.get(step.name)
+        if result is None:
+            continue
+        sheet = step.excel_sheet or step.name
+        for key in result.per_image:
+            layout[key] = None if key in step.excel_hidden else sheet
+    return layout
 
 
 FRAME_COLUMNS = ("frame_origin_px", "frame_angle_deg", "frame_thickness_px", "frame_thickness_um",

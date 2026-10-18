@@ -1,6 +1,6 @@
 # Interfaces
 
-> Binding specification of all data passed between modules. Interface version: 0.7 (draft)
+> Binding specification of all data passed between modules. Interface version: 0.10 (draft)
 >
 > Rule: a module only receives and returns the types defined here. If a new method needs
 > data that is not defined here, this document and `core/types.py` are changed first.
@@ -16,6 +16,10 @@
 > Changes 0.5 → 0.6: new stage `sample.frame` (`FrameDetector`) and type `SampleFrame` (coordinate
 > system of the sample); `ImageContext.frame`, `require_frame()`, `sample_coords()`.
 > Changes 0.6 → 0.7: new stage `plots` (`Plot`): pictures of the finished values of one image.
+> Changes 0.7 → 0.8: optional `Step.choices` (allowed values of a parameter, shown as a selection
+> in the launcher).
+> Changes 0.8 → 0.9: optional `Plot.variant` (second view of a plot, drawn too, switch in the viewer).
+> Changes 0.9 → 0.10: optional `Evaluator.excel_sheet`, `Evaluator.excel_hidden` (results Excel by topic).
 
 ---
 
@@ -170,6 +174,7 @@ frame.to_sample(y_px, x_px) -> (x_px, z_px)   # image points (full image coordin
 class Step:
     name: str                 # registered name, used in config.yaml
     params: dict[str, str]    # parameter name -> description (for list_methods)
+    choices: dict[str, list[str]]   # optional: parameter -> allowed values (launcher selection)
     tileable: bool            # local operation, may run on tiles
     tile_overlap_px: int      # required border around each tile
     def __init__(self, **params): ...   # params exactly as in config.yaml
@@ -206,6 +211,8 @@ class LabelStep(Step):                                                     # not
 # --- evaluation: whole image, modules of one image run in parallel ---
 class Evaluator(Step):
     def evaluate(self, ctx: ImageContext, pores: LabeledPores) -> EvaluationResult: ...
+    excel_sheet: str | None = None    # optional: sheet of the results Excel (None = module name)
+    excel_hidden: set[str] = set()    # optional: per-image values written to JSON only
     def finalize(self, per_image: DataFrame,
                  per_pore: Iterator[DataFrame]) -> dict[str, float | int | str]: ...   # optional
 ```
@@ -215,8 +222,13 @@ class Evaluator(Step):
 class Plot(Step):
     columns: list[str] = []         # per-image values needed (missing -> plot skipped, logged)
     pore_columns: list[str] = []    # per-pore values needed (missing -> plot skipped, logged)
+    variant: str = ""               # optional second view, e.g. "normalized"
     def plot(self, ax, image: dict, pores: DataFrame) -> None: ...   # draw into a matplotlib Axes
 ```
+
+- With `variant` set, `core` draws the plot twice: `plot(ax, image, pores)` (normal view) and
+  `plot(ax, image, pores, variant=<variant>)`. Both are saved (`plots/<name>.png`,
+  `plots/<name>.<variant>.png`); the viewer shows a checkbox named after the variant to switch.
 
 - `image` is the row of the image as in `images.json`, `pores` the table as in `pores.json` –
   a plot only knows column names, never an evaluation module.

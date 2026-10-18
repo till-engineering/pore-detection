@@ -52,6 +52,9 @@ class PoreIndex(Evaluator):
         "cracks_outer": "n_o: crack origins at the outer surface (tests)",
         "cracks_inner": "n_u: crack origins at the inner surface (tests)",
     }
+    choices = {"stress": list(STRESS_PROFILES), "pore_stress": list(PORE_STRESS)}
+    excel_sheet = "Stress"
+    excel_hidden = {"sample_area_outer_px2", "sample_area_inner_px2"}
 
     def __init__(self, **params):
         super().__init__(**params)
@@ -84,7 +87,9 @@ class PoreIndex(Evaluator):
         part_area = np.bincount(part, minlength=n_parts).astype(np.float64)
         part_zone_outer = np.arange(n_parts) % 2 == 1
 
-        per_image = {}
+        # the inputs first: what the values below were computed with
+        per_image = {"stress_profile": self.stress, "pore_stress": self.pore_stress,
+                     "cracks_outer": self.cracks_outer, "cracks_inner": self.cracks_inner}
         for q in self.q_values:
             weighted = self._weighted_parts(part, part_area, zeta, g, q, n_parts)     # A g^q per part
             sum_outer, sum_inner = weighted[part_zone_outer].sum(), weighted[~part_zone_outer].sum()

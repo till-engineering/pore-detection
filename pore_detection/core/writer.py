@@ -32,6 +32,9 @@ ID_VALUES_JSON = "id_values.json"
 ERRORS_JSON = "errors.json"
 CONFIG_USED = "config_used.yaml"
 PLOTS_DIR = "plots"                     # in the image folder: <plot name>.png
+# sheets of the results Excel: Pores first, Detection, ID and Errors last, module sheets in between
+PORES_SHEET, DETECTION_SHEET, ID_SHEET, ERRORS_SHEET = "Pores", "Detection", "ID", "Errors"
+OTHER_SHEET = "Other"                   # per-image values without a sheet in the layout
 # previews of older program versions are still deleted when a run overwrites their folder
 _OLD_FILES = {"preview_original.jpg", "preview_overlay.jpg", "preview_mask.png", "preview_roi.png",
               "preview_contrast.jpg"}
@@ -137,9 +140,11 @@ def write_corrections(folder: Path, image: str, corrections: list[dict], added: 
 
 
 def write_summary(results_dir: Path, image_id: str, per_image: pd.DataFrame, errors: pd.DataFrame,
-                  id_values: dict | None) -> None:
-    """Tables over the whole ID: JSON for the program, one Excel file for humans.
+                  id_values: dict | None, layout: dict[str, str | None]) -> None:
+    """Tables over the whole ID: JSON for the program (complete), one Excel file for humans.
 
+    The Excel has one sheet per topic: `layout` maps every per-image column to its sheet, None =
+    JSON only (see pipeline.excel_layout). Every sheet starts with the column image.
     id_values is None after a cancelled run (then no ID values are written).
     """
     write_table(results_dir / IMAGES_JSON, per_image)
@@ -148,12 +153,30 @@ def write_summary(results_dir: Path, image_id: str, per_image: pd.DataFrame, err
         with open(results_dir / ID_VALUES_JSON, "w", encoding="utf-8") as file:
             json.dump(_json_value_dict(id_values), file, indent=2, ensure_ascii=False)
 
+    sheets: dict[str, list[str]] = {}
+    for column in per_image.columns:
+        sheet = layout.get(column, OTHER_SHEET)
+        if column != "image" and sheet is not None:
+            sheets.setdefault(sheet, []).append(column)
+    order = ([PORES_SHEET] if PORES_SHEET in sheets else []) \
+        + [s for s in sheets if s not in (PORES_SHEET, DETECTION_SHEET)] \
+        + ([DETECTION_SHEET] if DETECTION_SHEET in sheets else [])
     with pd.ExcelWriter(results_dir / excel_name(image_id), engine="xlsxwriter") as excel:
-        # list cells (e.g. scale_bar_px) as text: Excel has no list type
-        per_image.map(lambda v: str(v) if isinstance(v, list) else v).to_excel(excel, sheet_name="images", index=False)
+        for sheet in order:
+            _excel_sheet(excel, sheet, per_image[["image", *sheets[sheet]]])
         if id_values is not None:
-            pd.DataFrame([id_values]).to_excel(excel, sheet_name="id_values", index=False)
-        errors.to_excel(excel, sheet_name="errors", index=False)
+            _excel_sheet(excel, ID_SHEET, pd.DataFrame([id_values]))
+        _excel_sheet(excel, ERRORS_SHEET, errors)
+
+
+def _excel_sheet(excel: pd.ExcelWriter, name: str, table: pd.DataFrame) -> None:
+    """One sheet: list cells as text (Excel has no list type), columns as wide as their header,
+    header row frozen."""
+    table.map(lambda v: str(v) if isinstance(v, list) else v).to_excel(excel, sheet_name=name, index=False)
+    sheet = excel.sheets[name]
+    for i, column in enumerate(table.columns):
+        sheet.set_column(i, i, max(10, len(str(column)) + 2))
+    sheet.freeze_panes(1, 0)
 
 
 def write_table(path: Path, table: pd.DataFrame) -> None:
