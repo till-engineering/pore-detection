@@ -243,6 +243,7 @@ class Session:
             pores = step.process(ctx, pores)
         results = {}
         for step in self.store.evaluators:
+            step = step.for_image(self.info.path.name)        # per-image inputs as in the run
             _check_scale(step, ctx)
             results[step.name] = step.evaluate(ctx, pores)
         per_image, per_pore, images = _merge_results(results)

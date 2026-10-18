@@ -64,6 +64,8 @@ class PoreIndex(Evaluator):
         "hardness_inner": "hardness at the inner surface in HBW (empty = not given; not used in the model yet)",
     }
     choices = {"stress": list(STRESS_PROFILES), "pore_stress": list(PORE_STRESS)}
+    # test data of every single section: entered per image in the launcher (empty = config.yaml)
+    image_params = {"cracks_outer", "cracks_inner", "hardness_outer", "hardness_inner"}
     excel_sheet = "Stress"
     excel_hidden = {"sample_area_outer_px2", "sample_area_inner_px2"}
 

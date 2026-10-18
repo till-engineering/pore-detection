@@ -8,6 +8,10 @@ config.yaml stays the only source of the defaults and is never written. Only fie
 changed override the config for the next run (passed to run() like the paths, recorded in
 config_used.yaml); unchanged fields follow config.yaml, also when it changes while the launcher
 is open.
+
+Parameters a module may set per image (Step.image_params, e.g. the test data of pore_index) get no
+field but a table with one row per image of the ID folder (image_inputs.py); they are passed as
+per_image of the module.
 """
 
 from PySide6.QtCore import Signal
@@ -15,6 +19,7 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QFormLayout, QGroupBox, QHBoxLayout, QLabel,
                                QLineEdit, QPushButton, QScrollArea, QSpinBox, QVBoxLayout, QWidget)
 
+from gui.launcher.image_inputs import ImageInputs
 from pore_detection import list_methods
 
 INT_RANGE = 1_000_000_000
@@ -97,6 +102,8 @@ class EvaluationsTab(QWidget):
         self._fields: dict[tuple[int, str], _Field] = {}
         self._labels: dict[tuple[int, str], QLabel] = {}
         self._names: dict[int, str] = {}
+        self._tables: dict[int, ImageInputs] = {}  # module index -> inputs per image
+        self._images: list[str] = []                # file names in the ID folder
         self.reset_button = QPushButton("Reset to config.yaml")
         self.reset_button.clicked.connect(self.reset)
         self.hint = QLabel()
@@ -126,7 +133,7 @@ class EvaluationsTab(QWidget):
             return
         for index, entry in enumerate(entries):
             for key, value in entry.items():
-                if key == "name":
+                if (index, key) not in self._fields:    # name, per-image parameters
                     continue
                 field = self._fields[(index, key)]
                 was_changed = field.changed()
@@ -148,6 +155,7 @@ class EvaluationsTab(QWidget):
         self._fields.clear()
         self._labels.clear()
         self._names.clear()
+        self._tables.clear()
         methods = {info.name: info for info in list_methods()["evaluation"]}
         shown = 0
         for index, entry in enumerate(entries):
@@ -159,7 +167,10 @@ class EvaluationsTab(QWidget):
             info = methods.get(name)
             box = QGroupBox(f"{name} – {info.description}" if info else name)
             form = QFormLayout(box)
+            per_image = [key for key in params if info and key in info.image_params]
             for key, value in params.items():
+                if key in per_image:
+                    continue
                 field = _Field(value, info.choices.get(key) if info else None, self._update_marks)
                 label = QLabel(key)
                 if info and key in info.params:
@@ -168,6 +179,12 @@ class EvaluationsTab(QWidget):
                 self._fields[(index, key)] = field
                 self._labels[(index, key)] = label
                 form.addRow(label, field.widget)
+            if per_image:
+                table = ImageInputs(per_image, params, info.params)
+                table.set_images(self._images)
+                self._tables[index] = table
+                form.addRow(QLabel("Per image (empty = config.yaml):"))
+                form.addRow(table)
             self._form_layout.addWidget(box)
             shown += 1
         if not shown:
@@ -189,6 +206,12 @@ class EvaluationsTab(QWidget):
         self.reset_button.setEnabled(changed > 0)
         self.changed.emit()
 
+    def set_images(self, images: list[str]) -> None:
+        """Image file names of the chosen ID folder (rows of the per-image tables)."""
+        self._images = list(images)
+        for table in self._tables.values():
+            table.set_images(self._images)
+
     # --- run ---
 
     def apply(self, config: dict) -> tuple[dict, list[str]]:
@@ -208,6 +231,15 @@ class EvaluationsTab(QWidget):
                 raise ValueError(f"{self._names[index]}.{key}: {error}") from None
             entries[index][key] = value
             changes.append(f"{self._names[index]}.{key} = {value!r} (config.yaml: {field.default!r})")
+        for index, table in self._tables.items():
+            try:
+                per_image = table.per_image()
+            except ValueError as error:
+                raise ValueError(f"{self._names[index]}: {error}") from None
+            if per_image:
+                entries[index]["per_image"] = per_image
+            changes.append(f"{self._names[index]}: inputs for {len(per_image)} of {len(table.images)} images"
+                           + (" (others: config.yaml)" if len(per_image) < len(table.images) else ""))
         return config, changes
 
 

@@ -28,11 +28,31 @@ class Step:
     choices: dict[str, list[str]] = {}  # parameter name -> allowed values (launcher shows a selection)
     tileable: bool = False          # local operation, may run on tiles
     tile_overlap_px: int = 0        # required border around each tile
+    image_params: set[str] = set()  # parameters that may differ per image (entered per image in the launcher)
 
     def __init__(self, **params):
-        """Parameters exactly as in config.yaml; each one becomes an attribute (self.sigma_px)."""
+        """Parameters exactly as in config.yaml; each one becomes an attribute (self.sigma_px).
+
+        Optional key per_image: {<image file name>: {parameter: value}} – values of image_params
+        for single images (passed by the launcher), see for_image()."""
+        per_image = params.pop("per_image", None) or {}
+        for image, values in per_image.items():
+            unknown = set(values) - self.image_params
+            if unknown:
+                raise ValueError(f"{self.name}: {', '.join(sorted(unknown))} cannot be set per image "
+                                 f"({image}); per image: {', '.join(sorted(self.image_params)) or 'nothing'}")
+        self._params = params
+        self._per_image = per_image
         for key, value in params.items():
             setattr(self, key, value)
+
+    def for_image(self, image: str) -> "Step":
+        """This step with the per-image values of one image (file name, e.g. "img_01.tif"); itself
+        if there are none. A new instance, so values derived in __init__ follow too."""
+        values = self._per_image.get(image)
+        if not values:
+            return self
+        return type(self)(**{**self._params, **values})
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.name!r})"

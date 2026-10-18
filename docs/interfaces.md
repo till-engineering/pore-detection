@@ -1,6 +1,6 @@
 # Interfaces
 
-> Binding specification of all data passed between modules. Interface version: 0.13 (draft)
+> Binding specification of all data passed between modules. Interface version: 0.14 (draft)
 >
 > Rule: a module only receives and returns the types defined here. If a new method needs
 > data that is not defined here, this document and `core/types.py` are changed first.
@@ -25,6 +25,8 @@
 > `core.plotting.SamplePicture` with pore centroids, or None without frame) and `Plot.size_in`.
 > Changes 0.12 → 0.13: `EvaluationResult.images`: a key ending in `.jpg` is saved as JPG (8 bit, pictures
 > for humans), every other key as `<key>.tif`.
+> Changes 0.13 → 0.14: optional `Step.image_params` (parameters that may differ per image) and the config
+> key `per_image` of a step; core uses `step.for_image(<file name>)` for every image.
 
 ---
 
@@ -180,6 +182,7 @@ class Step:
     name: str                 # registered name, used in config.yaml
     params: dict[str, str]    # parameter name -> description (for list_methods)
     choices: dict[str, list[str]]   # optional: parameter -> allowed values (launcher selection)
+    image_params: set[str]    # optional: parameters that may differ per image (launcher: table per image)
     tileable: bool            # local operation, may run on tiles
     tile_overlap_px: int      # required border around each tile
     def __init__(self, **params): ...   # params exactly as in config.yaml
@@ -244,6 +247,16 @@ class Plot(Step):
 - Something else missing → `raise core.plotting.MissingData(reason)`. A plot that cannot be
   drawn is skipped and logged; the image does **not** fail.
 - Plots are drawn while the image is written (background) and again after every manual correction.
+
+### 3.0 Values per image (`image_params`)
+
+- A step lists in `image_params` the parameters that may differ per image (e.g. `pore_index`: crack
+  origins and hardness of every section). The launcher shows them as a table with one row per image.
+- They reach the step as config key `per_image: {<image file name>: {parameter: value}}` (recorded in
+  `config_used.yaml`); an image without an entry keeps the value of `config.yaml`. Other parameters
+  under `per_image` stop the run with an error.
+- `core` calls `step.for_image(<file name>)` for every image (also for manual corrections): a new
+  instance with these values, so `__init__` runs again with them. The step itself needs no extra code.
 
 ### 3.1 CPU and GPU path
 

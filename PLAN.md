@@ -1,7 +1,7 @@
 # Pore Detection – Projektplan
 
 > Status: Phase 0–4 fertig (Abgleich an echten Bildern ganz am Ende), Werkzeuge, Filter und Korrekturen (7.3) umgesetzt, Untergrundkorrektur (7.4) umgesetzt, Proben-KOS (7.5), Porenindex (7.6), Plots (7.7), Launcher-Reiter Evaluations (7.8), Ergebnis-Excel (7.9) umgesetzt · Stand: 2026-10-18 ·
-> Schnittstellen-Version 0.13
+> Schnittstellen-Version 0.14
 
 ---
 
@@ -711,7 +711,17 @@ Auswertungsmodul `evaluation/pore_index.py` (Stufe `evaluation`, braucht das Pro
   `config.yaml`, auch wenn sie sich bei offenem Launcher ändert.
 - Beim Start stehen die Änderungen im Log; der Lauf speichert sie in `config_used.yaml`.
 - Ungültige Eingabe (z. B. Buchstabe in der q-Liste) → Lauf startet nicht, Meldung.
-- Offen: beliebiges Spannungsfeld eingeben; Versuchsdaten pro ID speichern (z. B. `<ID>/sample.yaml`).
+- **Eingaben pro Bild** (2026-10-18, Schnittstelle 0.14): Werte, die ein Modul als `image_params`
+  angibt (`pore_index`: n_o, n_u, Härte außen/innen), stehen nicht als Feld, sondern als kompakte,
+  scrollbare **Tabelle im Kasten des Moduls**: eine Zeile pro Bild des ID-Ordners (nur die
+  Dateinamen werden gelesen). Startet bei jedem Ordner **leer**; leeres Feld = Wert aus `config.yaml`.
+  Vor dem Bild: **grüner Haken** = alle Felder gefüllt, **gelber Kreis** = teilweise, nichts = leer.
+  Checkbox **„Same values for all images“**: eine Zeile für alle (Liste ausgegraut); Haken weg →
+  die gemeinsamen Werte stehen in jeder Zeile (nur Ausnahmen ändern). Start auch mit leeren Zeilen
+  erlaubt (Log: „inputs for x of y images“). Die Werte gehen als `per_image` an den Lauf, stehen in
+  `config_used.yaml` und pro Bild in `images.json` / Excel; Korrekturen im Viewer nutzen dieselben.
+- Offen: beliebiges Spannungsfeld eingeben; Vorausfüllen der Tabelle aus dem letzten Ergebnis
+  (bewusst nicht – bei Bedarf später).
 
 ### 7.7 Plots (beschlossen und umgesetzt 2026-10-18)
 

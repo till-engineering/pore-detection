@@ -258,9 +258,10 @@ def _process_image(config: Config, steps: _Steps, load: Callable[[], tuple[Image
             pores = step.process(ctx, pores)
 
         at("evaluation")
-        for step in steps.evaluators:
+        evaluators = [step.for_image(info.path.name) for step in steps.evaluators]     # per-image inputs
+        for step in evaluators:
             _check_scale(step, ctx)
-        futures = [(step, pool.submit(step.evaluate, ctx, pores)) for step in steps.evaluators]
+        futures = [(step, pool.submit(step.evaluate, ctx, pores)) for step in evaluators]
         results: dict[str, EvaluationResult] = {}
         for step, future in futures:
             at("evaluation", step)

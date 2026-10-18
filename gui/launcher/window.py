@@ -19,8 +19,8 @@ from PySide6.QtWidgets import (QCheckBox, QFileDialog, QGridLayout, QGroupBox, Q
 
 from gui.launcher.evaluations import EvaluationsTab
 from gui.viewer.window import ViewerWindow
-from pore_detection import (CONFIG_PATH, LOG_FORMAT, Config, Corrections, RunAborted, RunResult, load_config,
-                            resolve_path, run)
+from pore_detection import (CONFIG_PATH, LOG_FORMAT, Config, Corrections, RunAborted, RunResult, find_images,
+                            load_config, resolve_path, run)
 
 log = logging.getLogger("pore_detection")
 
@@ -88,6 +88,8 @@ class LauncherWindow(QMainWindow):
             self.evaluations.refresh(config.to_dict())
         except Exception as error:  # broken config: the launcher still opens and shows it
             self.input_edit.setPlaceholderText(f"config.yaml not readable: {error}")
+        self.input_edit.textChanged.connect(self._list_images)
+        self._list_images()
         paths = QGroupBox("Paths")
         grid = QGridLayout(paths)
         for row, (label, edit, title) in enumerate([
@@ -152,6 +154,16 @@ class LauncherWindow(QMainWindow):
         self._watcher = QFileSystemWatcher([str(CONFIG_PATH)])
         self._watcher.fileChanged.connect(self._show_config)
         self._show_config()
+
+    @Slot()
+    def _list_images(self) -> None:
+        """File names in the ID folder for the per-image inputs (only names are read, no images)."""
+        try:
+            text = self.input_edit.text().strip()
+            images = [path.name for path in find_images(Path(text), load_config().input.extensions)] if text else []
+        except Exception:                   # no folder (yet), broken config
+            images = []
+        self.evaluations.set_images(images)
 
     # --- config ---
 
