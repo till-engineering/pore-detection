@@ -84,10 +84,15 @@ Tables are **column-oriented**: one key per column, each value a list with one e
 | `scale_label` | text read from the scale label, `null` = none |
 | `scale_bar_px` | measured scale bar `[top, bottom, left, right]` (bottom/right exclusive), `null` = none |
 | `scale_box_px` | scale overlay `[top, bottom, left, right]` = bounding box of `scale_mask`, `null` = none |
+| `frame_origin_px` | origin of the sample frame `[y, x]` (full image), `null` = no frame |
+| `frame_angle_deg` | direction of the frame's x axis, counter-clockwise from the image x axis (as seen) |
+| `frame_thickness_px` / `frame_thickness_um` | inner edge to outer edge (`_um` only with a scale) |
+| `frame_length_px` / `frame_length_um` | left edge to right edge along the inner edge |
+| `frame_wedge_deg` | angle between the fitted inner and outer edge (check only) |
 | `manual_corrections` | number of manual corrections of this image (0 after a run) |
 | … | all `per_image` values of the evaluation modules |
 
-In Excel the two box columns are written as text (`"[top, bottom, left, right]"`).
+In Excel the list columns (boxes, `frame_origin_px`) are written as text (`"[top, bottom, left, right]"`).
 
 `pores.json`: column `pore_id` + all `per_pore` columns of the evaluation modules, joined on
 `pore_id`.

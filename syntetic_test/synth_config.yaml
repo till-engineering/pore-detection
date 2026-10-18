@@ -1,0 +1,212 @@
+# Synthetic test images – configuration
+# Images are built as layers: matrix -> pores -> embedding resin (later).
+# All sizes in µm; converted to px with um_per_px.
+
+run:
+  id: synth                 # output: <out_dir>/<id>/ (images) and <out_dir>/<id>_gt/ (ground truth)
+  out_dir: output
+  count: 50                  # number of images
+  seed: 1                   # null = different images every run
+
+image:
+  width_px: 1000             # output image size
+  height_px: 1000
+  um_per_px: 1.48           # scale of the example images (200 µm scale bar = 135 px);
+                            # all structure sizes below are in µm and scale with it
+  supersample: 4            # internal render factor (anti-aliased phase edges)
+
+matrix:
+  # --- grain network: bright globular grains enclosed by a thin dark network
+  grain_size_um: 14.0       # mean grain diameter
+  grain_size_variation: 0.25 # 0 = uniform; coupled to the patch field below
+  network_width_um: 2.0     # width of the dark network lines
+  network_continuity: 0.65  # share of the grain boundaries that is drawn (1 = closed cells)
+  network_gap_scale_um: 6.0 # length of the boundary segments / gaps
+  boundary_waviness_um: 2.0 # amplitude of the wavy distortion of the grain boundaries
+  boundary_waviness_scale_um: 8.0   # wavelength of that distortion
+
+  # --- needle colonies: star-shaped / branched dark needles (Widmanstätten-like)
+  colonies_per_mm2: 160
+  colony_radius_um: 15.0    # spread of the needle start points around the colony centre
+  needles_per_colony: [4, 10]
+  needle_length_um: 12.0
+  needle_length_variation: 0.4
+  needle_width_um: 1.9
+  branch_probability: 0.5   # chance per needle to get side branches
+  branch_length_frac: 0.4   # branch length relative to its needle
+
+  # --- large-scale patches: regions with many needles / fine grains vs. coarse bright grains
+  patch_size_um: 120.0
+  patch_contrast: 0.8       # 0 = homogeneous, 1 = strong separation of the regions
+
+  # --- appearance
+  bright_rgb: [189, 174, 165]   # reference colors (beige look of the example images) ...
+  dark_rgb: [143, 136, 136]
+  # ... varied per image, each random in [min, max] (uniform):
+  bright_scale: [0.82, 1.12]    # brightness factor of the grains (1 = as bright_rgb)
+  dark_scale: [0.65, 1.05]      # brightness factor of the Si network (< 1 = darker)
+  tint_scale: [0.0, 1.0]        # beige: 0 = neutral gray, 1 = as the reference colors
+  min_phase_contrast: 35        # network at least this many gray levels darker than the grains
+                                # (lower: with strong blur + noise the network turns to mush)
+  shading_sd: 4.0           # slow brightness variation (gray levels)
+  shading_scale_um: 60.0
+  grain_tint_sd: 2.5        # brightness offset per grain (gray levels)
+  blur_sigma_px: 0.7        # optical blur
+  noise_sd: 3.0             # pixel noise (gray levels)
+  dark_specks_per_mm2: 800  # single dark pixels in the matrix (1 mm² ≈ 457k px at 1.48 µm/px)
+  dark_speck_strength: [0.15, 0.5]   # darkening per speck (0.5 = half as bright)
+
+pores:
+  enabled: true
+  pore_rgb: [22, 22, 22]    # examples: core gray 7-35, neutral black
+  pore_shading_sd: 4.0      # brightness variation inside pores (gray levels)
+  min_gap_um: 1.5           # pores never touch each other (0 = may grow together)
+  target_porosity: [0.01, 0.015]   # per image random in [min, max]; pores are added until
+                            # it is reached. null = count_per_mm2 are absolute counts
+
+  distribution:             # uneven spread: pore-rich zones and almost pore-free regions
+    scale_um: 400           # size of those zones
+    contrast: 1.5           # 0 = even; 1.5 ≈ densest zones 50x denser than sparse ones
+
+  # Any number of populations. Each one: shape gas | shrinkage, its own count,
+  # size and shape. Copy a block to add another population, enabled: false to switch off.
+  # Common keys:
+  #   count_per_mm2      with target_porosity: mixing ratio of the populations (by count)
+  #                      without: mean number per mm² (at 1.48 µm/px: 1 mm² = 676 x 676 px)
+  #   density_weight     how strongly it follows the zones above (0 = even, 1 = full)
+  #   diameter_um        [min, max] of the envelope diameter
+  #   distribution       loguniform (many small, few large) | uniform
+  #   aspect_ratio       [min, max] long/short axis
+  #   cluster_fraction   share placed close to an already placed pore (0 = random)
+  #   cluster_radius_um  spread of those clusters
+  populations:
+    - name: micro           # tiny dark dots
+      shape: gas
+      count_per_mm2: 250
+      density_weight: 0.5
+      diameter_um: [1.5, 4.0]
+      distribution: loguniform
+      aspect_ratio: [1.0, 1.5]
+      roughness: 0.05       # outline bumps relative to radius (0 = perfect ellipse)
+      satellite_probability: 0.0
+      satellites: [1, 2]
+      satellite_size_frac: [0.3, 0.6]
+      satellite_gap: 0.0
+      cluster_fraction: 0.3
+      cluster_radius_um: 15
+
+    - name: gas             # round / elliptical gas pores with smooth outline
+      shape: gas
+      count_per_mm2: 40
+      density_weight: 1.0
+      diameter_um: [5, 35]
+      distribution: loguniform
+      aspect_ratio: [1.0, 1.5]
+      roughness: 0.04
+      satellite_probability: 0.2   # chance to get small attached neighbours
+      satellites: [1, 3]
+      satellite_size_frac: [0.2, 0.5]   # satellite radius / main radius
+      satellite_gap: -0.15  # distance factor: < 0 overlapping (one pore), > 0 separate pores
+      cluster_fraction: 0.2
+      cluster_radius_um: 20
+
+    - name: shrinkage       # ragged, branched shrinkage cavities that break up at the rim
+      shape: shrinkage
+      count_per_mm2: 12
+      density_weight: 1.0
+      diameter_um: [20, 90]
+      distribution: loguniform
+      aspect_ratio: [1.0, 2.5]
+      raggedness: 1.2       # 0 = smooth ellipse, ~0.8 compact, ~1.5 strongly frayed with fragments
+      detail_scale: 0.2     # size of the frayed details relative to the diameter
+      follow_matrix: 0.3    # how strongly the cavity grows along the dark matrix phase
+      cluster_fraction: 0.3
+      cluster_radius_um: 40
+
+resin:                      # embedding resin around the sample; own mask: <name>_resin.png
+  enabled: true             # false = the whole image is sample
+  # --- sample outline: rough rectangle, rotated
+  size_frac: [0.7, 0.9]     # sample width / height relative to the image (each random)
+  center_jitter_frac: 0.05  # offset of the sample centre (share of the image size)
+  max_angle_deg: 15         # random rotation in [-max, +max]
+  corner_radius_um: 40
+  edge_waviness_um: 4.0     # long, gentle waves of the edge
+  edge_waviness_scale_um: 150
+  edge_roughness_um: 1.0    # small-scale jagged edge
+  edge_roughness_scale_um: 4.0
+  breakouts_per_mm: 3       # small bites out of the edge (per mm of edge length)
+  breakout_radius_um: [2, 10]
+
+  # --- shrinkage gap between resin and sample (dark band, width varies along the edge)
+  gap_mean_um: 2.0          # gap = mean + sd * noise, closed where it is <= 0
+  gap_sd_um: 5.0
+  gap_scale_um: 150         # length of the sections with / without gap
+  gap_rgb: [16, 14, 14]
+
+  # --- Schliffrand: edge rounding from grinding, rim slightly darker and blurred
+  edge_zone_um: 5.0         # width of the affected rim (0 = off)
+  edge_darken: 0.2          # 0..1, darkening right at the edge
+  edge_blur_px: 1.2         # extra blur right at the edge
+
+  # --- resin appearance
+  resin_rgb: [30, 33, 37]   # typical: almost black, slightly bluish (examples 19-70 gray)
+  resin_shading_sd: 3.0
+  resin_shading_scale_um: 200
+  filler_per_mm2: 20        # filler spheres, visible as thin dark circle outlines
+  filler_diameter_um: [15, 60]
+  filler_ring_um: 1.0
+  filler_ring_rgb: [18, 19, 22]
+  specks_per_mm2: 300       # bright dust specks
+  speck_rgb: [110, 110, 110]
+
+stitching:                  # panorama stitched from camera frames by the microscope software
+  enabled: true             # own map: <name>_frames.png (frame id per pixel)
+  frames: 6                 # number of camera frames per image
+  grid: auto                # auto (cols x rows fitting the image shape) | [cols, rows]
+  frame_aspect: 1.33        # camera frame width / height (for grid: auto)
+  seam_jitter_frac: 0.1     # seams shifted by up to this share of a frame; vertical
+                            # seams are staggered per row
+  # --- notches: a small rectangle of one frame juts into its neighbour
+  notches_per_seam: 0.7     # mean number per seam (per frame length)
+  notch_length_frac: [0.05, 0.25]   # along the seam, share of the frame edge
+  notch_depth_frac: [0.02, 0.08]    # into the neighbour, share of the frame size
+  # --- look of every frame (random per frame)
+  brightness_sd: 0.06       # exposure: gain 1 ± sd
+  color_sd: 0.015           # white balance: gain per RGB channel 1 ± sd
+  contrast_sd: 0.04
+  vignetting: [0.0, 0.08]   # darkening towards the frame corners
+  gradient_sd: 0.02         # illumination tilt across the frame
+  blur_extra_px: [0.0, 0.6] # focus difference: extra blur per frame
+
+scale_bar:                  # burnt-in ImageJ scale bar: white box, black bar, label below
+  enabled: true             # own mask: <name>_scalebar.png (box); length, label, position in meta.json
+  probability: 1.0          # share of images that get one
+  # value, unit and bar length are random and independent of each other and of
+  # um_per_px: only a test of the scale detection, not of the measurement
+  length_px: [20, 450]      # bar length
+  units: {nm: 0.1, µm: 0.55, mm: 0.25, cm: 0.05, m: 0.05}   # unit: relative weight
+  round_fraction: 0.5       # share of round values, the rest are decimals
+  round_values: [1, 2, 5, 10, 20, 25, 50, 75, 100, 200, 250, 500, 1000]
+  decimal_range: [0.1, 2000] # decimals: loguniform in this range ...
+  decimals: [1, 4]          # ... with this many decimal places (e.g. 151.7241)
+  # --- look (each random per image)
+  fonts: [arialbd.ttf, times.ttf, timesbd.ttf]   # TrueType files (name or path)
+  font_size_px: [10, 22]
+  bar_height_px: [3, 9]
+  box_padding_px: [3, 8]    # white margin around bar and label
+  text_gap_px: [1, 4]       # between bar and label
+  border_offset_px: [0, 25] # distance of the box from the image border
+  jpeg_probability: 0.3     # share with JPEG artefacts around the overlay (box not exactly 255)
+  jpeg_quality: [60, 90]
+
+variation:                  # harder images: per image random in [min, max] (uniform), replaces
+                            # the value above ("section.key"); drawn values in meta.json.
+                            # A list value (color) gets the drawn value in every channel (gray).
+  matrix.noise_sd: [2.0, 8.0]           # sensor noise: grainy, noisy pore edges
+  matrix.blur_sigma_px: [0.5, 1.2]      # optics: soft pore edges, small pores fade out
+  matrix.shading_sd: [3.0, 10.0]        # uneven illumination: no single global threshold
+  matrix.network_width_um: [1.6, 3.0]   # thicker Si network: closer to pore look
+  matrix.dark_specks_per_mm2: [400, 3000]   # dark specks: false micro pores
+  pores.pore_rgb: [12, 55]              # pore gray: brighter pores = less contrast to the network
+  pores.pore_shading_sd: [3.0, 10.0]    # uneven pore interior
+  stitching.brightness_sd: [0.03, 0.10] # exposure jumps between camera frames

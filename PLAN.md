@@ -1,7 +1,7 @@
 # Pore Detection – Projektplan
 
-> Status: Phase 0–4 fertig (Abgleich an echten Bildern ganz am Ende), Werkzeuge, Filter und Korrekturen (7.3) umgesetzt · Stand: 2026-10-16 ·
-> Schnittstellen-Version 0.5
+> Status: Phase 0–4 fertig (Abgleich an echten Bildern ganz am Ende), Werkzeuge, Filter und Korrekturen (7.3) umgesetzt, Untergrundkorrektur (7.4) umgesetzt, Proben-KOS (7.5) umgesetzt · Stand: 2026-10-18 ·
+> Schnittstellen-Version 0.6
 
 ---
 
@@ -103,17 +103,21 @@ Pore_Detection/
 │   │   ├── geometry.py      # Porengeometrie für Porenschritte (Rahmen, Formwerte als Entscheidungshilfe)
 │   │   └── corrections.py   # manuelle Korrekturen aus dem Viewer (fest, kein Plug-in, 7.3)
 │   │
-│   ├── sample/              # 1. Probenanalyse: je ein Verfahren für ROI und Maßstab
+│   ├── sample/              # 1. Probenanalyse: je ein Verfahren für ROI, Maßstab und Proben-KOS
 │   │   ├── __init__.py
 │   │   ├── embedding_medium.py   # Platzhalter: Einbettmittel erkennen → roi_mask
 │   │   ├── fixed_scale.py        # fester Maßstab aus der Config
-│   │   └── scale_bar/            # Maßstabsbalken lesen (overlay.py, reading.py, units.py) → µm/px + Maske
+│   │   ├── scale_bar/            # Maßstabsbalken lesen (overlay.py, reading.py, units.py) → µm/px + Maske
+│   │   ├── edge_lines.py         # Proben-KOS aus Geraden an den Probenkanten (7.5)
+│   │   └── no_frame.py           # `none`: kein Proben-KOS
 │   │
 │   ├── preprocessing/       # 2. Vorfilter auf Graustufen (optionale Kette)
-│   │   └── __init__.py
+│   │   ├── gauss.py
+│   │   └── background_correction.py   # Untergrund herausrechnen (7.4)
 │   │
 │   ├── detection/           # 3. Porendetektion (genau EIN Verfahren aktiv)
-│   │   └── __init__.py
+│   │   ├── threshold.py     # fester Grauwert
+│   │   └── hysteresis.py    # zweistufige Schwelle (7.4)
 │   │
 │   ├── postprocessing/      # 4. Maske → nummerierte Poren (Maskenschritte, Labeling, Porenschritte)
 │   │   ├── opening.py, closing.py, fill_holes.py          # Maskenschritte
@@ -192,6 +196,7 @@ ID-Ordner ─► laden ─► sample (ROI + Maßstab) ─► ImageContext + Grau
 |-------|-----------|---------|---------|
 | `sample.roi` | genau eins | Originalbild | `roi_mask` (Probe = True) |
 | `sample.scale` | genau eins | Originalbild | `pixel_size_um` oder `None` |
+| `sample.frame` | genau eins | Probenmaske | Proben-KOS (`SampleFrame`) oder `None` |
 | `preprocessing` | Kette, optional | `ctx`, Graustufenbild | Graustufenbild |
 | `detection` | genau eins | `ctx`, Graustufenbild | Maske: alles, was Pore sein könnte (primitiv, ungefiltert) |
 | `postprocessing.mask_steps` | Kette, optional | `ctx`, Maske | Maske |
@@ -274,7 +279,7 @@ class GaussFilter(Filter):
 ```yaml
 runtime:        # device, gpu_memory_fraction, tile_size, tile_batch_size, threads, prefetch
 input:          # path (ID-Ordner), extensions, gray_weights
-sample:         # roi: genau ein Verfahren · scale: genau ein Verfahren
+sample:         # roi · scale · frame: je genau ein Verfahren
 preprocessing:  # Kette von Vorfiltern (Graustufen)
 detection:      # genau ein Verfahren
 postprocessing: # mask_steps (Kette) · labeling (genau eins) · label_steps (Kette)
@@ -545,6 +550,90 @@ bleibt die einzige Stelle für Einstellungen, die GUI ändert sie nie.
 **Umsetzungsreihenfolge:** (1) Schnittstelle + Ausgabe → (2) Postprocessing-Verfahren →
 (3) Korrektursitzung in `core` (ohne GUI testbar) → (4) Viewer.
 
+### 7.4 Untergrundkorrektur + zweistufige Schwelle (beschlossen 2026-10-18)
+
+Anlass: synthetische Testbilder (`syntetic_test/`). Poren (Kern 15–55) und Gefüge (Netzwerk
+80–140, Körner 130–180) liegen weit auseinander, aber Ausleuchtung, Stitching-Nähte und
+Belichtung verschieben alles je Bild und Bildbereich → ein fester Grauwert (`threshold`) passt nie
+überall; zudem fehlt der weiche Porenrand (96 % der übersehenen Porenpixel, Fläche −16 %).
+Prototyp: Porositätsfehler 0,19 → 0,075 Prozentpunkte, Korrelation GT/Detektion 0,59 → 0,83.
+
+**1. Vorfilter `background_correction`** (`preprocessing/background_correction.py`, `Filter`)
+- Schätzt die Helligkeit des Gefüges (Untergrund) und teilt das Bild dadurch: Gefüge ≈ 1,
+  Poren ≈ 0,2, unabhängig von Ausleuchtung, Nähten, Belichtung. Ergebnis auf 0..1 begrenzt.
+- Untergrund: auf einer um `work_scale` verkleinerten Kopie; Einbettmittel (außerhalb
+  `ctx.roi_mask`) auf den typischen Gefügewert gesetzt; Graustufen-Closing mit Fenster
+  `window_px` (größer als die größte Pore) füllt Poren und Netzwerk; glätten; zurück auf volle Größe.
+- Parameter: `window_px` (nur px), `work_scale`.
+- Nicht kachelbar (großes Fenster, verkleinerte Kopie ist billiger), kein GPU-Weg.
+- Der Untergrund wird **vorerst nicht** ausgegeben (Viewer-Knopf „Untergrund“ bleibt aus);
+  dafür später Schnittstelle 0.6.
+
+**2. Detektor `hysteresis`** (`detection/hysteresis.py`, `Detector`)
+- Pixel unter `seed_threshold` = sichere Porenkerne; jeder zusammenhängende Bereich unter
+  `grow_threshold`, der einen Kern enthält, ist Pore (holt den weichen Rand mit).
+- In sich abgeschlossen: schwellt das Bild, das er bekommt – mit oder ohne Vorfilter (ohne
+  Vorfilter passen andere Werte). Liefert alles, ungefiltert.
+- Kerne und Wachstum nur innerhalb der Probe (`ctx.roi_mask`): sonst wächst das dunkle
+  Einbettmittel als „Pore“ über den Probenrand und hinterlässt dort Krümel.
+- **Mikroporen** (Parameter `spot_sigma_px`, `spot_threshold`; 0 = aus): eine Pore von 1–3 px
+  wird durch die Unschärfe so aufgehellt, dass ihr Kern über `seed_threshold` liegt. Sie ist
+  aber ein dunkler **Punkt** (in alle Richtungen gekrümmt), das gleich dünne Netzwerk eine
+  **Linie**. Maß: kleinerer Eigenwert der Hesse-Matrix (× σ²). Punkte darüber sind zusätzliche
+  Kerne und selbst Pore. Größe einer so kleinen Pore ist nur grob messbar.
+- Nicht kachelbar (eine Pore muss als Ganzes mit ihrem Kern verbunden sein).
+
+**3. Rahmen**
+- Keine Änderung an `core`, Datentypen oder `docs/interfaces.md` (bleibt 0.5).
+- `config.yaml`: `background_correction` + `hysteresis` aktiv, `threshold` als Kommentar;
+  Postprocessing bleibt vorerst aus. Keine untere Messgrenze.
+- Messung mit `syntetic_test/evaluate.py` gegen den bisherigen Stand.
+
+**4. Ergebnis** (50 synthetische Bilder, Postprocessing aus; Werte `seed` 0,40 · `grow` 0,55 ·
+`spot_sigma_px` 0,8 · `spot_threshold` 0,21)
+
+| | vorher (`threshold` 0,3) | nachher |
+|---|---|---|
+| Porositätsfehler (Mittel) | 0,205 pp | 0,073 pp |
+| Korrelation GT/Detektion | 0,61 | 0,87 |
+| Pixel-F1 | 90,0 % | 93,9 % |
+| gezählte Fehlobjekte | 2034 (36 %) | 99 (2,3 %) |
+| Mikroporen < 5 µm erkannt | 17 % | 38 % |
+| Poren 5–10 µm erkannt | 68 % | 86 % |
+
+- `spot_threshold` niedriger holt mehr Mikroporen, aber ab ~0,18 steigen die Fehlobjekte stark
+  (0,18: 47 % / 569; 0,15: 60 % / 4871) – die künstlichen Dunkelflecken sind dann nicht mehr
+  von Mikroporen zu trennen (physikalische Grenze bei 1,48 µm/px; besser: stärkeres Objektiv).
+- Zeit bei 130 MP: `background_correction` ~1,0 s, `hysteresis` ~1,2 s, mit Mikroporen ~3,2 s
+  (Speicherdurchsatz-begrenzt; Rechnen in Streifen brachte nichts).
+
+### 7.5 Proben-KOS (beschlossen und umgesetzt 2026-10-18)
+
+Anlass: Porenkonzept (Spannungsbewertung, Folie `temporäre Sachen/`): Spannung σ = f(z) über
+die Probe → Koordinatensystem, das nur auf der Probe liegt. Das KOS beschreibt die Probe, nicht
+die Spannung – darum Teil der Probenanalyse, nutzbar für alle späteren Schritte.
+
+- **Neue Stufe `sample.frame`** (genau ein Verfahren, abschaltbar mit `none`), läuft nach
+  `roi` und `scale` auf der Probenmaske (ohne Maßstab). Schnittstelle 0.5 → **0.6**:
+  Datentyp `SampleFrame`, `ctx.frame`, `ctx.require_frame()`, `ctx.sample_coords()`.
+- **Festlegungen:** immer die ganze Probe im Bild, rechteckig, ungefähr waagerecht.
+  **Oberkante = außen**, **Unterkante = innen**. x nach rechts entlang der Oberkante, z nach oben,
+  Ursprung links unten, rechtwinklig. Rechnen in px (µm mit Maßstab), bezogene Höhe
+  z / Dicke (0 = innen, 1 = außen).
+- **Verfahren `edge_lines`:** Kantenpunkte der Probe → Seiten nach Kantenrichtung → Ecken
+  weglassen (`corner_trim`) → robuste Geraden (Huber).
+  - Oberkante = Vorgabe (exakt, dort höchste Spannung).
+  - Unterkante = Parallele im Median-Abstand der Unterkantenpunkte (Ausbrüche, Spalt egal).
+  - Ursprung = Unterkante ∩ linke Kante; Länge bis zur rechten Kante.
+  - Keilwinkel (eigene Gerade der Unterkante) nur zur Kontrolle in der Ausgabe.
+  - Probe berührt den Bildrand → Bild schlägt fehl (klare Meldung).
+- **Ausgabe:** `images.json`/Excel `frame_origin_px`, `frame_angle_deg`, `frame_thickness_px/_um`,
+  `frame_length_px/_um`, `frame_wedge_deg`. Korrekturen im Viewer lesen das KOS daraus zurück.
+- **Prüfung** (synthetische Bilder, 31 mit ganzer Probe): Winkel im Mittel 0,26° daneben
+  (max 0,7°), Dicke −1,7 px bei ~800 px, Ursprung 3,7 px von der nominellen Ecke (abgerundete
+  Ecken), ~6 ms pro 1-MP-Bild.
+- Offen: Anzeige des KOS im Viewer; danach Spannungsmodul (Porenkonzept, Auswertungsmodul).
+
 ---
 
 ## 8. Ausgabe
@@ -588,7 +677,7 @@ Verbindlich in **`docs/output_format.md`**. Festgelegt:
 | 2 | Zuschneiden auf ROI, Tiling + Parallelisierung, dynamische GPU-Nutzung, Vorladen/Hintergrund-Schreiben | Schnell | fertig (5 × 99 MP: 31 s → 9 s); GPU-Weg in `core` + `gauss` als erstes Verfahren |
 | 3 | GUI: Launcher + Viewer | Bedienbar, Ergebnisse schnell prüfbar | fertig (Beta): Launcher fertig, Viewer mit Lupe, Overlays, Porenliste, volle Auflösung ohne Vorschaubilder, optische Kontrolle des Maßstabs; offen: Plots, Werkzeugspalte, Maßstab als Ebene |
 | 4 | Einbettmittel-Erkennung, Einbindung Maßstabsmodul, Abgleich an echten Bildern | Praxistauglich | ROI-Verfahren `imagej`, `grabcut` vorhanden; Maßstab `scale_bar` eingebunden (99 MP: 0,4 s statt 14 s in V2) |
-| 5 | Weitere Verfahren und Auswertungsmodule | Nach Bedarf | Werkzeuge, Filter, Korrekturen (7.3) umgesetzt; weitere nach Bedarf |
+| 5 | Weitere Verfahren und Auswertungsmodule | Nach Bedarf | Werkzeuge, Filter, Korrekturen (7.3), Untergrundkorrektur + `hysteresis` (7.4), Proben-KOS (7.5) umgesetzt; als Nächstes Spannungsbewertung (Porenkonzept); weitere nach Bedarf |
 
 Grundsatz: Erst korrekt (Phase 1), dann schnell (Phase 2).
 

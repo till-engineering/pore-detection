@@ -41,6 +41,42 @@ class ScaleResult:
 
 
 @dataclass(frozen=True)
+class SampleFrame:
+    """Output of the sample.frame stage: coordinate system of the sample (docs/interfaces.md 2.6).
+
+    In pixel coordinates of the full original image (pixel index = pixel centre), so it stays
+    valid after cropping and on tiles. Right-angled: x along the outer (top) edge to the right,
+    z perpendicular to it upwards (towards the outer side). z = 0 is the inner (bottom) edge,
+    z = thickness_px the outer (top) edge.
+    """
+
+    origin_px: tuple[float, float]  # (y, x) origin: inner (bottom) edge meets the left edge
+    angle_deg: float                # direction of x, counter-clockwise from the image x axis (as seen)
+    thickness_px: float             # inner (bottom) edge to outer (top) edge
+    length_px: float                # left edge to right edge, along the inner edge
+    wedge_deg: float                # angle between the inner and outer edge, only for checking
+
+    @property
+    def x_axis(self) -> tuple[float, float]:
+        """Unit vector (dy, dx) of x in the image: along the outer edge, to the right."""
+        a = np.radians(self.angle_deg)
+        return float(-np.sin(a)), float(np.cos(a))
+
+    @property
+    def z_axis(self) -> tuple[float, float]:
+        """Unit vector (dy, dx) of z in the image: perpendicular to x, upwards (outer side)."""
+        a = np.radians(self.angle_deg)
+        return float(-np.cos(a)), float(-np.sin(a))
+
+    def to_sample(self, y_px, x_px) -> tuple[np.ndarray, np.ndarray]:
+        """Image points (full image coordinates, arrays or numbers) -> (x_px, z_px) in the sample frame."""
+        dy = np.asarray(y_px, dtype=np.float64) - self.origin_px[0]
+        dx = np.asarray(x_px, dtype=np.float64) - self.origin_px[1]
+        (xy, xx), (zy, zx) = self.x_axis, self.z_axis
+        return dx * xx + dy * xy, dx * zx + dy * zy
+
+
+@dataclass(frozen=True)
 class ImageContext:
     """Read-only context, passed to every step from preprocessing on."""
 
@@ -48,10 +84,29 @@ class ImageContext:
     original: np.ndarray        # (H, W, 3) RGB, uint8 / uint16, never modified
     roi_mask: np.ndarray        # (H, W) bool, True = sample
     pixel_size_um: float | None # micrometres per pixel, None = unknown
+    frame: SampleFrame | None   # coordinate system of the sample, None = sample.frame is "none"
 
     def __post_init__(self):
         object.__setattr__(self, "original", _read_only(self.original))
         object.__setattr__(self, "roi_mask", _read_only(self.roi_mask))
+
+    def require_frame(self) -> SampleFrame:
+        """The sample frame; raises (-> image skipped) if sample.frame is "none"."""
+        if self.frame is None:
+            raise ValueError("sample frame required but not available (sample.frame is 'none')")
+        return self.frame
+
+    def sample_coords(self) -> tuple[np.ndarray, np.ndarray]:
+        """(x_px, z_px) of every pixel of this context's area (crop / tile), float32 (H, W) each."""
+        frame = self.require_frame()
+        height, width = self.roi_mask.shape
+        top, left = self.info.offset_px
+        (xy, xx), (zy, zx) = frame.x_axis, frame.z_axis
+        dy = (np.arange(top, top + height, dtype=np.float32) - np.float32(frame.origin_px[0]))[:, None]
+        dx = (np.arange(left, left + width, dtype=np.float32) - np.float32(frame.origin_px[1]))[None, :]
+        x_px = dx * np.float32(xx) + dy * np.float32(xy)
+        z_px = dx * np.float32(zx) + dy * np.float32(zy)
+        return x_px, z_px
 
 
 REJECTED_COLUMNS = ("pore_id", "filter", "reason")

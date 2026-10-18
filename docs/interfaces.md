@@ -1,6 +1,6 @@
 # Interfaces
 
-> Binding specification of all data passed between modules. Interface version: 0.5 (draft)
+> Binding specification of all data passed between modules. Interface version: 0.6 (draft)
 >
 > Rule: a module only receives and returns the types defined here. If a new method needs
 > data that is not defined here, this document and `core/types.py` are changed first.
@@ -13,6 +13,8 @@
 > Changes 0.3 → 0.4: `ScaleDetector` returns `ScaleResult` (scale + mask of the scale overlay).
 > Changes 0.4 → 0.5: `LabeledPores` carries rejected pores (`rejected_labels`, `rejected`); pore ids are
 > stable and may have gaps; `LabelStep.changes_pores`.
+> Changes 0.5 → 0.6: new stage `sample.frame` (`FrameDetector`) and type `SampleFrame` (coordinate
+> system of the sample); `ImageContext.frame`, `require_frame()`, `sample_coords()`.
 
 ---
 
@@ -57,6 +59,13 @@
 | `original` | `ndarray uint8/uint16` | `(H, W, 3)` | original color image as loaded, never modified |
 | `roi_mask` | `ndarray bool` | `(H, W)` | `True` = sample, `False` = embedding medium / background |
 | `pixel_size_um` | `float \| None` | – | scale |
+| `frame` | `SampleFrame \| None` | – | coordinate system of the sample, `None` = `sample.frame` is `none` |
+
+```python
+ctx.require_frame() -> SampleFrame              # raises (image skipped) if frame is None
+ctx.sample_coords() -> (x_px, z_px)             # float32 (H, W) each: every pixel of this context's
+                                                # area (crop / tile) in the sample frame
+```
 
 Created by `core` after the `sample` stage and cropped to the bounding box of `roi_mask`.
 A tileable step receives a context cropped to its tile (incl. overlap) with its own
@@ -127,6 +136,33 @@ A method returns mask and bar even if it found the overlay but could not read it
 
 ---
 
+### 2.6 `SampleFrame` – output of `sample.frame`
+
+Right-angled coordinate system of a rectangular section, in pixel coordinates of the **full
+original image** (pixel index = pixel centre), so it stays valid after cropping and on tiles.
+Fixed convention: the **top edge is the outer surface**, the **bottom edge the inner surface**.
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `origin_px` | `tuple[float, float]` | `(y, x)` origin: inner (bottom) edge meets the left edge |
+| `angle_deg` | `float` | direction of x, counter-clockwise from the image x axis as seen on screen |
+| `thickness_px` | `float` | inner edge (`z = 0`) to outer edge (`z = thickness_px`) |
+| `length_px` | `float` | left edge to right edge, along the inner edge |
+| `wedge_deg` | `float` | angle between the fitted inner and outer edge – only for checking, not used |
+
+```python
+frame.x_axis -> (dy, dx)        # unit vector along the outer edge, to the right
+frame.z_axis -> (dy, dx)        # unit vector perpendicular to it, upwards (outer side)
+frame.to_sample(y_px, x_px) -> (x_px, z_px)   # image points (full image coordinates) -> frame
+```
+
+- x runs along the outer edge, z perpendicular to it; z is in px, the relative height is
+  `z_px / thickness_px` (0 = inner, 1 = outer surface).
+- A step that needs the frame calls `ctx.require_frame()` or `ctx.sample_coords()`; without a
+  frame the image fails with a clear message (like `_um` parameters without a scale).
+
+---
+
 ## 3. Stage interfaces (`core/step.py`)
 
 ```python
@@ -143,6 +179,9 @@ class RoiDetector(Step):
 
 class ScaleDetector(Step):
     def detect_scale(self, info: ImageInfo, original: ndarray) -> ScaleResult: ...
+
+class FrameDetector(Step):        # on the roi_mask (full image, scale overlay removed), after roi + scale
+    def detect_frame(self, info: ImageInfo, roi_mask: ndarray) -> SampleFrame | None: ...  # None = no frame
 
 # --- preprocessing: optional filters on the gray working image ---
 class Filter(Step):
@@ -202,6 +241,7 @@ Returns values for the whole ID.
 |------|--------|
 | Gray | after loading, `original` is converted once to the gray working image (`input.gray_weights`) |
 | Scale overlay | `roi_mask & ~scale_mask`; `RoiDetector` and `ScaleDetector` run in parallel (both only read the original) |
+| Sample frame | `FrameDetector` runs on that `roi_mask` (full image); the result is `ctx.frame` and is written to `images.json` |
 | Crop | after `sample`, all data is cropped to the bounding box of `roi_mask` |
 | Skip tiles | tiles without any ROI pixel are not computed (filters: unchanged, masks: `False`) |
 | ROI before labeling | mask pixels outside `roi_mask` are set to `False` right before the `Labeler` |
@@ -215,6 +255,7 @@ file ──load──► ImageInfo + original (color)
      ──RoiDetector──► roi_mask
      ──ScaleDetector──► ScaleResult (pixel_size_um + scale_mask)   (parallel to RoiDetector)
      ──core: roi_mask & ~scale_mask
+     ──FrameDetector──► SampleFrame | None
      ──core: crop + gray──► ImageContext + gray working image (float32)
      ──[Filter]*──► gray image
      ──Detector──► mask

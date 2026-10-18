@@ -9,7 +9,7 @@ import pkgutil
 from dataclasses import dataclass
 
 from .config import Config
-from .step import (Detector, Evaluator, Filter, LabelStep, Labeler, MaskStep,
+from .step import (Detector, Evaluator, Filter, FrameDetector, LabelStep, Labeler, MaskStep,
                    RoiDetector, ScaleDetector, Step)
 
 STAGE_PACKAGES = ("sample", "preprocessing", "detection", "postprocessing", "evaluation")
@@ -18,6 +18,7 @@ STAGE_PACKAGES = ("sample", "preprocessing", "detection", "postprocessing", "eva
 STAGES: dict[type[Step], str] = {
     RoiDetector: "sample.roi",
     ScaleDetector: "sample.scale",
+    FrameDetector: "sample.frame",
     Filter: "preprocessing",
     Detector: "detection",
     MaskStep: "postprocessing.mask_steps",

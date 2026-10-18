@@ -1,6 +1,6 @@
 """Run: process the images of one ID folder one by one through all stages.
 
-Per image: load -> sample -> crop to the bounding box of the sample -> gray -> filters /
+Per image: load -> sample (ROI, scale, sample frame) -> crop to the bounding box of the sample -> gray -> filters /
 detector / mask steps (tileable steps on tiles in parallel threads) -> labeling -> label steps
 -> evaluation modules (in parallel) -> write.
 
@@ -28,7 +28,7 @@ from .config import CONFIG_PATH, Config
 from .device import gpu_name, select_device
 from .imaging import to_gray
 from .step import Step
-from .types import EvaluationResult, ImageContext, ImageInfo, ScaleResult
+from .types import EvaluationResult, ImageContext, ImageInfo, SampleFrame, ScaleResult
 
 log = logging.getLogger("pore_detection")
 
@@ -65,6 +65,7 @@ class RunResult:
 class _Steps:
     roi: Step
     scale: Step
+    frame: Step
     filters: list[Step]         # preprocessing chain (may run on tiles)
     detection: list[Step]       # detector + mask steps (may run on tiles)
     labeler: Step
@@ -77,6 +78,7 @@ class _Steps:
         return cls(
             roi=registry.create("sample.roi", config.sample.roi),
             scale=registry.create("sample.scale", config.sample.scale),
+            frame=registry.create("sample.frame", config.sample.frame),
             filters=[registry.create("preprocessing", e) for e in config.preprocessing],
             detection=[registry.create("detection", config.detection)]
                       + [registry.create("postprocessing.mask_steps", e) for e in post.mask_steps],
@@ -223,10 +225,12 @@ def _process_image(config: Config, steps: _Steps, load: Callable[[], tuple[Image
                 raise ValueError(f"scale_mask has shape {scale.scale_mask.shape}, image {roi_mask.shape}")
             roi_mask = roi_mask & ~scale.scale_mask     # the scale overlay is never sample
         top, bottom, left, right = _bounding_box(roi_mask)
+        at("sample.frame", steps.frame)
+        frame = steps.frame.detect_frame(info, roi_mask)
 
         at("crop")
         ctx = ImageContext(replace(info, offset_px=(top, left)), original[top:bottom, left:right],
-                           roi_mask[top:bottom, left:right], scale.pixel_size_um)
+                           roi_mask[top:bottom, left:right], scale.pixel_size_um, frame)
 
         at("gray")
         gray = _to_gray_parallel(ctx.original, config.input.gray_weights, config.runtime.tile_size, pool)
@@ -268,8 +272,8 @@ def _process_image(config: Config, steps: _Steps, load: Callable[[], tuple[Image
         writer.write_image(results_dir, info, original, full_labels, full_rejected, pores.rejected, roi_mask,
                            per_pore, images, config.output.save_full_overlay)
 
-    row = {"image": info.name, "path": str(info.path), **_scale_columns(scale), "manual_corrections": 0,
-           **per_image}
+    row = {"image": info.name, "path": str(info.path), **_scale_columns(scale),
+           **frame_columns(frame, scale.pixel_size_um), "manual_corrections": 0, **per_image}
     return _Done(info.name, row, write)
 
 
@@ -324,6 +328,36 @@ def _scale_columns(scale: ScaleResult) -> dict:
         "scale_bar_px": list(scale.bar_px) if scale.bar_px is not None else None,
         "scale_box_px": box,
     }
+
+
+FRAME_COLUMNS = ("frame_origin_px", "frame_angle_deg", "frame_thickness_px", "frame_thickness_um",
+                 "frame_length_px", "frame_length_um", "frame_wedge_deg")
+
+
+def frame_columns(frame: SampleFrame | None, pixel_size_um: float | None) -> dict:
+    """Sample frame columns of images.json (all None without a frame; _um only with a scale)."""
+    if frame is None:
+        return dict.fromkeys(FRAME_COLUMNS)
+    um = (lambda px: px * pixel_size_um) if pixel_size_um is not None else (lambda px: None)
+    return {
+        "frame_origin_px": [frame.origin_px[0], frame.origin_px[1]],
+        "frame_angle_deg": frame.angle_deg,
+        "frame_thickness_px": frame.thickness_px,
+        "frame_thickness_um": um(frame.thickness_px),
+        "frame_length_px": frame.length_px,
+        "frame_length_um": um(frame.length_px),
+        "frame_wedge_deg": frame.wedge_deg,
+    }
+
+
+def frame_from_columns(row: dict) -> SampleFrame | None:
+    """The sample frame back from a row of images.json (e.g. for manual corrections)."""
+    origin = row.get("frame_origin_px")
+    if origin is None or (isinstance(origin, float) and np.isnan(origin)):
+        return None
+    return SampleFrame((float(origin[0]), float(origin[1])), float(row["frame_angle_deg"]),
+                       float(row["frame_thickness_px"]), float(row["frame_length_px"]),
+                       float(row["frame_wedge_deg"]))
 
 
 def _check_scale(step: Step, ctx: ImageContext) -> None:

@@ -31,7 +31,7 @@ import yaml
 
 from . import geometry, io, registry, writer
 from .config import Config
-from .pipeline import _bounding_box, _check_scale, _finalize, _merge_results
+from .pipeline import FRAME_COLUMNS, _bounding_box, _check_scale, _finalize, _merge_results, frame_from_columns
 from .types import ImageContext, LabeledPores
 
 MANUAL = "manual"               # filter name of pores rejected by hand
@@ -227,7 +227,8 @@ class Session:
         pixels = geometry.pixels(labels)
         ids = np.flatnonzero(np.bincount(pixels[1], minlength=1)).astype(np.int32)
         ctx = ImageContext(replace(self.info, offset_px=(top, left)), self.original[top:bottom, left:right],
-                           self.roi[top:bottom, left:right], _number(self.row.get("pixel_size_um")))
+                           self.roi[top:bottom, left:right], _number(self.row.get("pixel_size_um")),
+                           frame_from_columns(self.row))
         pores = LabeledPores(labels, len(ids), pd.DataFrame({"pore_id": ids}),
                              state.rejected_labels[top:bottom, left:right], _rejected_table(state.rejected))
         pores.__dict__["pixels"] = pixels           # fill the cache: no second pass over the image
@@ -240,7 +241,7 @@ class Session:
             results[step.name] = step.evaluate(ctx, pores)
         per_image, per_pore, images = _merge_results(results)
         keep = {k: v for k, v in self.row.items() if k in ("image", "path", "pixel_size_um", "scale_label",
-                                                             "scale_bar_px", "scale_box_px")}
+                                                             "scale_bar_px", "scale_box_px", *FRAME_COLUMNS)}
         row = {**keep, "manual_corrections": len(self.store._lists.get(self.image, [])), **per_image}
         return row, per_pore, images
 

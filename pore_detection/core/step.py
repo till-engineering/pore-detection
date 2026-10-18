@@ -18,7 +18,7 @@ Optional, checked by core with hasattr():
 
 import numpy as np
 
-from .types import EvaluationResult, ImageContext, ImageInfo, LabeledPores, ScaleResult
+from .types import EvaluationResult, ImageContext, ImageInfo, LabeledPores, SampleFrame, ScaleResult
 
 
 class Step:
@@ -48,6 +48,13 @@ class ScaleDetector(Step):
     def detect_scale(self, info: ImageInfo, original: np.ndarray) -> ScaleResult:
         """Micrometres per pixel (None = unknown) and optionally the mask of the scale overlay;
         core removes that mask from the roi_mask."""
+        raise NotImplementedError
+
+
+class FrameDetector(Step):
+    def detect_frame(self, info: ImageInfo, roi_mask: np.ndarray) -> SampleFrame | None:
+        """Coordinate system of the sample from its mask (full image, without the scale overlay);
+        None = no frame (method "none")."""
         raise NotImplementedError
 
 

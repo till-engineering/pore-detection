@@ -183,6 +183,7 @@ class _Tiles:
             original=_cut(self.ctx.original, box),
             roi_mask=_cut(self.ctx.roi_mask, box),
             pixel_size_um=self.ctx.pixel_size_um,
+            frame=self.ctx.frame,
         )
         return tile_ctx, _cut(self.data, box)
 
