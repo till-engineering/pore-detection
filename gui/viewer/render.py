@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import cv2
 import numpy as np
-from PySide6.QtCore import QLineF
+from PySide6.QtCore import QLineF, QPointF
 from PySide6.QtGui import QImage, QPixmap
 
 PORE_COLOR = np.array([255, 26, 26], dtype=np.float32)       # RGB
@@ -13,6 +13,8 @@ REMOVED_COLOR = np.array([214, 51, 112], dtype=np.float32)   # rejected by hand
 ADDED_COLOR = np.array([12, 133, 153], dtype=np.float32)     # counted by hand (restored or drawn)
 EMBEDDING_COLOR = np.array([124, 92, 214], dtype=np.float32)
 EMBEDDING_ALPHA = 0.45
+FRAME_ARROW = 0.25          # length of the axis arrows relative to the smaller side of the sample
+FRAME_HEAD = 0.18           # arrow head relative to the arrow
 PORE_FILL_ALPHA = 0.3       # tint inside pores at full opacity; the border is drawn opaque
 BORDER_KERNEL = np.ones((3, 3), np.uint8)
 
@@ -53,6 +55,27 @@ def _mark(rgb: np.ndarray, mask: np.ndarray, color: np.ndarray, opacity: float) 
 
 def _tint(rgb: np.ndarray, where: np.ndarray, color: np.ndarray, alpha: float) -> None:
     rgb[where] = (rgb[where] * (1 - alpha) + color * alpha).astype(np.uint8)
+
+
+def frame_graphics(frame) -> tuple[list[QLineF], list[QLineF], list[tuple[QPointF, str]]]:
+    """Sample frame as vector graphics in full image px: (axes with arrow heads, outline of the
+    frame rectangle, text labels with their anchor point)."""
+    def point(x: float, z: float) -> QPointF:
+        return QPointF(*frame.to_image(x, z))
+
+    length, thickness = frame.length_px, frame.thickness_px
+    arrow = FRAME_ARROW * min(length, thickness)
+    head = FRAME_HEAD * arrow
+    axes = [QLineF(point(0, 0), point(arrow, 0)), QLineF(point(0, 0), point(0, arrow)),
+            QLineF(point(arrow, 0), point(arrow - head, head / 2)),
+            QLineF(point(arrow, 0), point(arrow - head, -head / 2)),
+            QLineF(point(0, arrow), point(head / 2, arrow - head)),
+            QLineF(point(0, arrow), point(-head / 2, arrow - head))]
+    corners = [point(0, 0), point(length, 0), point(length, thickness), point(0, thickness)]
+    outline_lines = [QLineF(corners[i], corners[(i + 1) % 4]) for i in range(4)]
+    labels = [(point(arrow + head, 0), "x"), (point(0, arrow + head), "z"),
+              (point(length / 2, thickness), "outer"), (point(length / 2, 0), "inner")]
+    return axes, outline_lines, labels
 
 
 def shrink(image: np.ndarray, size: tuple[int, int]) -> np.ndarray:

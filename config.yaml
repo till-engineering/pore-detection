@@ -114,6 +114,17 @@ postprocessing:
 
 evaluation:                 # any number of independent modules
   - name: porosity          # pore count, porosity per image and per ID, pore areas
+  - name: pore_index        # stress-weighted pore index (Porenkonzept), needs sample.frame
+    stress: bending         # stress profile over the height: bending = |2 zeta - 1| (1 at both surfaces)
+    pore_stress: area       # stress of a pore: centroid | area (every pixel its own) | max
+    q_values: [1, 1.5, 2, 3, 5, 10]
+    cracks_outer: 0         # n_o: crack origins at the outer surface (tests)
+    cracks_inner: 0         # n_u: crack origins at the inner surface (tests)
+
+plots:                      # any number; PNG per image in <image folder>/plots/, shown by the viewer in this order
+  - name: phi_over_q        # pore index phi_q / phi_eff_q over q (needs pore_index)
+  - name: pores_over_height # stress at each pore over its relative height (needs pore_index)
+  - name: pore_sizes        # histogram of the equivalent pore diameters
 
 output:
   dir: test_images/results  # <dir>/<ID>_results/ is created (and overwritten)

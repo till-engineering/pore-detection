@@ -9,9 +9,10 @@ import math
 from typing import Callable
 
 import numpy as np
-from PySide6.QtCore import QPointF, QRectF, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QPixmap, QTransform
-from PySide6.QtWidgets import QGraphicsPathItem, QGraphicsPixmapItem, QGraphicsScene, QGraphicsView
+from PySide6.QtCore import QLineF, QPointF, QRectF, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen, QPixmap, QTransform
+from PySide6.QtWidgets import (QGraphicsItem, QGraphicsPathItem, QGraphicsPixmapItem, QGraphicsScene,
+                               QGraphicsSimpleTextItem, QGraphicsView)
 
 from .render import to_pixmap
 
@@ -38,6 +39,12 @@ class ImageView(QGraphicsView):
         self.selection.setZValue(2)
         self.drawing = QGraphicsPathItem()      # outline while it is drawn
         self.drawing.setZValue(3)
+        self.frame_axes = QGraphicsPathItem()   # sample frame: axes (solid) and outline (dashed)
+        self.frame_outline = QGraphicsPathItem()
+        self.frame_labels: list[QGraphicsSimpleTextItem] = []
+        for item in (self.frame_axes, self.frame_outline):
+            item.setZValue(1.5)                 # above the image, below the selection
+            self.scene().addItem(item)
         self.mode = "select"                    # select | click | outline
         self.points: list[QPointF] = []
         for item in (self.base, self.detail, self.selection, self.drawing):
@@ -70,6 +77,7 @@ class ImageView(QGraphicsView):
         """Nothing shown (while an image is loading)."""
         self.base.setPixmap(QPixmap())
         self.set_selection([], QColor())
+        self.set_frame([], [], [], QColor())
         self.set_detail_source(None)
 
     def set_detail_source(self, source: DetailSource | None) -> None:
@@ -90,6 +98,35 @@ class ImageView(QGraphicsView):
         pen.setCosmetic(True)               # 2 screen px at every zoom
         self.selection.setPen(pen)
         self.selection.setPath(path)
+
+    def set_frame(self, axes: list[QLineF], outline: list[QLineF], labels: list[tuple[QPointF, str]],
+                  color: QColor) -> None:
+        """Sample frame drawn over the image (full-resolution px); empty lists = none. Lines and
+        text keep their screen size at every zoom."""
+        for item, lines, pen_style in ((self.frame_axes, axes, Qt.PenStyle.SolidLine),
+                                       (self.frame_outline, outline, Qt.PenStyle.DashLine)):
+            path = QPainterPath()
+            for line in lines:
+                path.moveTo(line.p1())
+                path.lineTo(line.p2())
+            pen = QPen(color, 2 if pen_style == Qt.PenStyle.SolidLine else 1.5, pen_style)
+            pen.setCosmetic(True)
+            item.setPen(pen)
+            item.setPath(path)
+        for label in self.frame_labels:
+            self.scene().removeItem(label)
+        self.frame_labels = []
+        font = QFont()
+        font.setBold(True)
+        for anchor, text in labels:
+            label = QGraphicsSimpleTextItem(text)
+            label.setFont(font)
+            label.setBrush(color)
+            label.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations)
+            label.setPos(anchor)
+            label.setZValue(1.5)
+            self.scene().addItem(label)
+            self.frame_labels.append(label)
 
     def set_mode(self, mode: str, color: QColor | None = None) -> None:
         """select: drag pans, click selects · click: click for a tool · outline: drag draws an outline."""

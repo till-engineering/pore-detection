@@ -15,6 +15,7 @@ EMBEDDING = "#7c5cd6"
 REJECTED = "#b8722b"
 REMOVED = "#d63370"
 ADDED = "#0c8599"
+FRAME = "#f08c00"          # sample frame (coordinate system)
 
 # first installed family wins
 SANS = '"IBM Plex Sans", "Segoe UI", sans-serif'

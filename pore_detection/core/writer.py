@@ -31,6 +31,7 @@ IMAGES_JSON = "images.json"
 ID_VALUES_JSON = "id_values.json"
 ERRORS_JSON = "errors.json"
 CONFIG_USED = "config_used.yaml"
+PLOTS_DIR = "plots"                     # in the image folder: <plot name>.png
 # previews of older program versions are still deleted when a run overwrites their folder
 _OLD_FILES = {"preview_original.jpg", "preview_overlay.jpg", "preview_mask.png", "preview_roi.png",
               "preview_contrast.jpg"}
@@ -64,6 +65,7 @@ def _remove_program_files(folder: Path) -> None:
     for file in folder.iterdir():
         if file.is_file() and (file.name in _IMAGE_FILES or file.suffix == ".tif"):
             file.unlink()
+    write_plots(folder, {})
     if not any(folder.iterdir()):
         folder.rmdir()
 
@@ -106,6 +108,21 @@ def write_pores(folder: Path, original: np.ndarray, labels: np.ndarray, rejected
         _imwrite(folder / OVERLAY_TIF, overlay(original, mask), TIFF_FAST)
     for name, image in images.items():
         _imwrite(folder / f"{name}.tif", image, TIFF_FAST)
+
+
+def write_plots(folder: Path, plots: dict[str, bytes]) -> None:
+    """plots/<name>.png of one image (PNG bytes per plot name); old plot images are replaced, an
+    empty plots folder is removed."""
+    plots_dir = folder / PLOTS_DIR
+    if plots_dir.is_dir():
+        for file in plots_dir.glob("*.png"):
+            file.unlink()
+    if plots:
+        plots_dir.mkdir(exist_ok=True)
+        for name, png in plots.items():
+            (plots_dir / f"{name}.png").write_bytes(png)
+    elif plots_dir.is_dir() and not any(plots_dir.iterdir()):
+        plots_dir.rmdir()
 
 
 def write_corrections(folder: Path, image: str, corrections: list[dict], added: list[int], removed: list[int],

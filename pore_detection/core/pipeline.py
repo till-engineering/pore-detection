@@ -2,7 +2,7 @@
 
 Per image: load -> sample (ROI, scale, sample frame) -> crop to the bounding box of the sample -> gray -> filters /
 detector / mask steps (tileable steps on tiles in parallel threads) -> labeling -> label steps
--> evaluation modules (in parallel) -> write.
+-> evaluation modules (in parallel) -> write (plots are drawn while writing).
 
 While an image is computed, the next one is loaded in the background (runtime.prefetch) and
 the previous one is written in the background. On device "cuda", tileable steps with a GPU
@@ -23,7 +23,7 @@ import cv2
 import numpy as np
 import pandas as pd
 
-from . import io, registry, tiling, writer
+from . import io, plotting, registry, tiling, writer
 from .config import CONFIG_PATH, Config
 from .device import gpu_name, select_device
 from .imaging import to_gray
@@ -71,6 +71,7 @@ class _Steps:
     labeler: Step
     label_steps: list[Step]
     evaluators: list[Step]
+    plots: list[Step]
 
     @classmethod
     def from_config(cls, config: Config) -> "_Steps":
@@ -85,6 +86,7 @@ class _Steps:
             labeler=registry.create("postprocessing.labeling", post.labeling),
             label_steps=[registry.create("postprocessing.label_steps", e) for e in post.label_steps],
             evaluators=[registry.create("evaluation", e) for e in config.evaluation],
+            plots=[registry.create("plots", e) for e in config.plots],
         )
 
 
@@ -115,6 +117,9 @@ def run(config: Config, input_path=None, output_dir=None,
 
     image_id = io.image_id_of(input_dir)
     steps = _Steps.from_config(config)
+    if steps.plots and not plotting.available():
+        raise RunAborted("plots are configured but matplotlib is not installed "
+                         "(pip install -r requirements.txt, or remove the plots from config.yaml)")
     gpu_wanted = any(step.tileable and tiling.gpu_path(step) for step in steps.filters + steps.detection)
     device = select_device(config.runtime.device, gpu_wanted)
     gpu = tiling.Gpu(config.runtime.gpu_memory_fraction, config.runtime.tile_batch_size) if device == "cuda" else None
@@ -268,12 +273,13 @@ def _process_image(config: Config, steps: _Steps, load: Callable[[], tuple[Image
     except Exception as error:
         raise _ImageFailed(stage, method, error) from error
 
+    row = {"image": info.name, "path": str(info.path), **_scale_columns(scale),
+           **frame_columns(frame, scale.pixel_size_um), "manual_corrections": 0, **per_image}
+
     def write():
         writer.write_image(results_dir, info, original, full_labels, full_rejected, pores.rejected, roi_mask,
                            per_pore, images, config.output.save_full_overlay)
-
-    row = {"image": info.name, "path": str(info.path), **_scale_columns(scale),
-           **frame_columns(frame, scale.pixel_size_um), "manual_corrections": 0, **per_image}
+        writer.write_plots(results_dir / info.name, plotting.render(steps.plots, row, per_pore))
     return _Done(info.name, row, write)
 
 

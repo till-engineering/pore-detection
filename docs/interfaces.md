@@ -1,6 +1,6 @@
 # Interfaces
 
-> Binding specification of all data passed between modules. Interface version: 0.6 (draft)
+> Binding specification of all data passed between modules. Interface version: 0.7 (draft)
 >
 > Rule: a module only receives and returns the types defined here. If a new method needs
 > data that is not defined here, this document and `core/types.py` are changed first.
@@ -15,6 +15,7 @@
 > stable and may have gaps; `LabelStep.changes_pores`.
 > Changes 0.5 → 0.6: new stage `sample.frame` (`FrameDetector`) and type `SampleFrame` (coordinate
 > system of the sample); `ImageContext.frame`, `require_frame()`, `sample_coords()`.
+> Changes 0.6 → 0.7: new stage `plots` (`Plot`): pictures of the finished values of one image.
 
 ---
 
@@ -209,6 +210,22 @@ class Evaluator(Step):
                  per_pore: Iterator[DataFrame]) -> dict[str, float | int | str]: ...   # optional
 ```
 
+```python
+# --- plots: pictures of the finished values of one image, any number ---
+class Plot(Step):
+    columns: list[str] = []         # per-image values needed (missing -> plot skipped, logged)
+    pore_columns: list[str] = []    # per-pore values needed (missing -> plot skipped, logged)
+    def plot(self, ax, image: dict, pores: DataFrame) -> None: ...   # draw into a matplotlib Axes
+```
+
+- `image` is the row of the image as in `images.json`, `pores` the table as in `pores.json` –
+  a plot only knows column names, never an evaluation module.
+- The plot only draws into `ax`. Figure, size, look (`core.plotting.STYLE`, `COLORS`) and saving
+  as PNG are done by `core` (`core/plotting.py`). Import matplotlib only inside `plot()`.
+- Something else missing → `raise core.plotting.MissingData(reason)`. A plot that cannot be
+  drawn is skipped and logged; the image does **not** fail.
+- Plots are drawn while the image is written (background) and again after every manual correction.
+
 ### 3.1 CPU and GPU path
 
 - The methods above are the **CPU path – mandatory** for every method.
@@ -264,6 +281,7 @@ file ──load──► ImageInfo + original (color)
      ──[LabelStep]*──► LabeledPores (+ properties)
      ──[Evaluator]* (parallel)──► EvaluationResult per module
      ──core writer──► <ID>_results/<ID>_<image>/
+     ──[Plot]* (while writing)──► <ID>_results/<ID>_<image>/plots/<name>.png
 end of run: Evaluator.finalize ──► <ID>_results/ (ID values)
 ```
 

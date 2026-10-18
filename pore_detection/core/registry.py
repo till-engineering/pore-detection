@@ -9,10 +9,10 @@ import pkgutil
 from dataclasses import dataclass
 
 from .config import Config
-from .step import (Detector, Evaluator, Filter, FrameDetector, LabelStep, Labeler, MaskStep,
+from .step import (Detector, Evaluator, Filter, FrameDetector, LabelStep, Labeler, MaskStep, Plot,
                    RoiDetector, ScaleDetector, Step)
 
-STAGE_PACKAGES = ("sample", "preprocessing", "detection", "postprocessing", "evaluation")
+STAGE_PACKAGES = ("sample", "preprocessing", "detection", "postprocessing", "evaluation", "plots")
 
 # base class -> stage key as used in config.yaml
 STAGES: dict[type[Step], str] = {
@@ -25,6 +25,7 @@ STAGES: dict[type[Step], str] = {
     Labeler: "postprocessing.labeling",
     LabelStep: "postprocessing.label_steps",
     Evaluator: "evaluation",
+    Plot: "plots",
 }
 
 _methods: dict[str, dict[str, type[Step]]] = {stage: {} for stage in STAGES.values()}

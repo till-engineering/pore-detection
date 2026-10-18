@@ -1,7 +1,7 @@
 # Pore Detection – Projektplan
 
-> Status: Phase 0–4 fertig (Abgleich an echten Bildern ganz am Ende), Werkzeuge, Filter und Korrekturen (7.3) umgesetzt, Untergrundkorrektur (7.4) umgesetzt, Proben-KOS (7.5) umgesetzt · Stand: 2026-10-18 ·
-> Schnittstellen-Version 0.6
+> Status: Phase 0–4 fertig (Abgleich an echten Bildern ganz am Ende), Werkzeuge, Filter und Korrekturen (7.3) umgesetzt, Untergrundkorrektur (7.4) umgesetzt, Proben-KOS (7.5), Porenindex (7.6), Plots (7.7) umgesetzt · Stand: 2026-10-18 ·
+> Schnittstellen-Version 0.7
 
 ---
 
@@ -126,8 +126,12 @@ Pore_Detection/
 │   │   ├── min_diameter.py, scratch.py, compactness.py, roundness.py   # Filter (verwerfen mit Grund)
 │   │   └── pore_properties.py                             # Werte pro Pore
 │   │
-│   └── evaluation/          # 5. Auswertungsmodule (beliebig viele aktiv)
-│       └── __init__.py
+│   ├── evaluation/          # 5. Auswertungsmodule (beliebig viele aktiv)
+│   │   ├── porosity.py      # Porenanzahl, Porosität
+│   │   └── pore_index.py    # spannungsgewichteter Porenindex (Porenkonzept, 7.6)
+│   │
+│   └── plots/               # 6. Plots als Bilder (beliebig viele aktiv, 7.7)
+│       └── phi_over_q.py, pores_over_height.py, pore_sizes.py
 │
 ├── gui/                     # PySide6
 │   ├── __init__.py
@@ -203,6 +207,7 @@ ID-Ordner ─► laden ─► sample (ROI + Maßstab) ─► ImageContext + Grau
 | `postprocessing.labeling` | genau eins | `ctx`, Maske | `LabeledPores` (Pixel → Poren-Nummern) |
 | `postprocessing.label_steps` | Kette, optional | `ctx`, `LabeledPores` | `LabeledPores` (Merge, Filter, Kennwerte …) |
 | `evaluation` | beliebig viele | `ctx`, `LabeledPores` | `EvaluationResult` |
+| `plots` | beliebig viele | Zeile aus `images.json`, Tabelle `pores.json` | Bild (PNG, schreibt `core`) |
 
 - Die Detektion liefert **alles**, was sie als Pore erkennt. Aussortiert (Rand, Größe, Artefakte)
   und zusammengelegt wird mit Filtern im Postprocessing.
@@ -456,12 +461,14 @@ anzupassen**.
 10. Masken/Ebenen: vorerst zwei Overlays mit Checkbox – **Poren** und **Einbettmittel**
     (Probenmaske; dafür schreibt die Pipeline die ROI-Maske zusätzlich in die Ausgabe). Später
     weitere, z. B. verworfene Poren, Maßstab. Keine reine Masken-Ansicht mehr.
+    Dazu (7.5) die Ebene **Sample frame** (Proben-KOS als Vektorgrafik).
     Direkt über den Checkboxen: Knöpfe für das **Grundbild** – Original / Untergrund.
     - Untergrund = geschätzte Hintergrundhelligkeit eines künftigen Vorfilters
       (Hintergrundkorrektur); bis dahin ist der Knopf ausgegraut.
     - Kontrast (Graustufenbild nach allen Vorfiltern) vorerst **entfernt**: gab es nur als
       Vorschaubild; ggf. später als `contrast.tif` in voller Auflösung.
-11. Plots: vorerst **keine**; das Raster bleibt leer (Platzhalter), Plots kommen später.
+11. Plots: Raster mit zwei Spalten, ein Platz pro Plot des Laufs (Reihenfolge der Config). Die
+    Plots sind **Bilder aus der Ausgabe** (Stufe `plots`, 7.7); der Viewer zeigt sie nur an.
 12. Porenliste wie in V2: Zeilen „Pore N“ + Fläche, **nach Fläche sortiert** (größte oben).
     Klick auf eine Zeile wählt die Pore aus (Markierung im Bild + Lupe), Klick auf eine Pore im
     Bild markiert ihre Zeile.
@@ -632,7 +639,62 @@ die Spannung – darum Teil der Probenanalyse, nutzbar für alle späteren Schri
 - **Prüfung** (synthetische Bilder, 31 mit ganzer Probe): Winkel im Mittel 0,26° daneben
   (max 0,7°), Dicke −1,7 px bei ~800 px, Ursprung 3,7 px von der nominellen Ecke (abgerundete
   Ecken), ~6 ms pro 1-MP-Bild.
-- Offen: Anzeige des KOS im Viewer; danach Spannungsmodul (Porenkonzept, Auswertungsmodul).
+- **Viewer:** Ebene „Sample frame“ (ein/aus wie die Masken, Standard an) – als Vektorgrafik über
+  dem Bild, bei jedem Zoom scharf: Probenrechteck gestrichelt, Achsenpfeile x/z am Ursprung,
+  Beschriftung „outer“/„inner“; als Anzahl die Dicke (µm, sonst px). Ohne KOS im Lauf ausgegraut.
+  Daten aus den `frame_*`-Spalten von `images.json` (Viewer importiert weiter nichts aus `pore_detection`).
+- Spannungsmodul: siehe 7.6.
+
+### 7.6 Porenindex – Porenkonzept (beschlossen und umgesetzt 2026-10-18, erster Schritt)
+
+Auswertungsmodul `evaluation/pore_index.py` (Stufe `evaluation`, braucht das Proben-KOS).
+
+- **Formeln** (Folie „Porenkonzept“): Φ_q = Σ A_i g_i^q / A_Mess;
+  Φ_eff,q = w_o Σ_(i∈o) A_i g_i^q / A_Mess,o + w_u Σ_(i∈u) A_i g_i^q / A_Mess,u;
+  w_o = (n_o+1)/(n_o+n_u+2), w_u = (n_u+1)/(n_o+n_u+2).
+- **Spannung g** über die bezogene Höhe ζ = z / Dicke (0 innen, 1 außen). Vorerst nur
+  `stress: bending` (Wechselbiegung, g = |2ζ − 1|). Lastfälle sind noch nicht festgelegt; später
+  ein **beliebiges Spannungsfeld**, das im Launcher eingegeben wird (dann klären, wie das zur Regel
+  „config.yaml einzige Quelle“ passt).
+- **Spannung einer Pore** (`pore_stress`, genau eine Variante, später Auswahl im Launcher):
+  `centroid` (g am Schwerpunkt × Fläche), `area` (jedes Pixel mit seinem g), `max` (höchstes g × Fläche).
+- **Zonen:** Grenze bei halber Dicke; A_Mess,o/u = Probenfläche oben/unten. Poren über der Grenze
+  werden **pixelweise geteilt**, jeder Teil zählt wie eine eigene Pore.
+- **Config:** `stress`, `pore_stress`, `q_values` (1; 1,5; 2; 3; 5; 10), `cracks_outer` (n_o),
+  `cracks_inner` (n_u).
+- **Ausgabe pro Bild:** `phi_q…`, `phi_eff_q…` je q (z. B. `phi_q1_5`), `w_outer`, `w_inner`,
+  `sample_area_outer_px2`, `sample_area_inner_px2`. **Pro Pore:** `zeta` und `stress_centroid`
+  (Schwerpunkt der ganzen Pore), `stress_max`.
+- **Nur pro Bild** – noch keine Zusammenfassung über die ID (Auswahl mehrerer Schliffe später).
+- Geprüft gegen eine unabhängige Rechnung über das volle Pixelraster: alle drei Varianten gleich
+  bis auf Rundung (10⁻¹⁵).
+- Offen: Lastfälle / beliebiges Spannungsfeld, Eingabe im Launcher (n_o, n_u, Varianten),
+  Werte über die ID, Spannungsfeld als Ebene im Viewer, Härte außen/innen.
+
+### 7.7 Plots (beschlossen und umgesetzt 2026-10-18)
+
+- **Plots sind Bilder**, erzeugt von der Pipeline, gespeichert im Ergebnisordner
+  (`<ID>_<Bild>/plots/<name>.png`), vom Viewer nur angezeigt. Für Berichte ohne GUI nutzbar.
+- **Eigene Stufe `plots`** nach `evaluation` (Schnittstelle 0.7). Ein Plot bekommt nur die
+  **fertigen Werte** (Zeile aus `images.json`, Tabelle `pores.json`), kennt keine Auswertungsmodule.
+- **Modular:** neuer Plot = eine Datei in `pore_detection/plots/` (`@register`, Klasse `Plot`,
+  Methode `plot(ax, image, pores)` zeichnet nur in die matplotlib-Achse) + Eintrag unter `plots:`
+  in `config.yaml`. Größe, Aussehen, Speichern macht `core/plotting.py` einheitlich.
+- **Fehlende Werte** (z. B. `pore_index` aus): Plot wird übersprungen und im Log gemeldet, das Bild
+  schlägt nicht fehl; der Viewer zeigt „not available“.
+- Gezeichnet beim Schreiben (Hintergrund) und **nach jeder Korrektur neu** (der Viewer bekommt die
+  neuen Bilder sofort, die Dateien werden im Hintergrund ersetzt).
+- matplotlib (`requirements.txt`) wird nur geladen, wenn Plots konfiguriert sind; fehlt es, bricht
+  der Lauf mit klarer Meldung ab.
+- **Erste Plots:** `phi_over_q` (Φ_q und Φ_eff,q über q, Porosität als Linie), `pores_over_height`
+  (Spannung am Porenschwerpunkt über der Höhe ζ, Punktgröße = Fläche), `pore_sizes`
+  (Histogramm der Äquivalentdurchmesser, µm mit Maßstab).
+- **Aussehen** (für alle Plots, `core/plotting.py`): wissenschaftlich – schwarzer Rahmen rundum,
+  kein Gitter, Teilstriche innen auf allen Seiten; weißer Hintergrund (auch im dunklen Viewer).
+  Gespeichert ohne Außenrand, 960 × 600 px.
+- **Viewer:** Plot über die ganze Breite seines Platzes, Höhe nach Seitenverhältnis; einmal sauber
+  verkleinert (scharfe Schrift).
+- Offen: Plots über die ganze ID.
 
 ---
 
@@ -677,7 +739,7 @@ Verbindlich in **`docs/output_format.md`**. Festgelegt:
 | 2 | Zuschneiden auf ROI, Tiling + Parallelisierung, dynamische GPU-Nutzung, Vorladen/Hintergrund-Schreiben | Schnell | fertig (5 × 99 MP: 31 s → 9 s); GPU-Weg in `core` + `gauss` als erstes Verfahren |
 | 3 | GUI: Launcher + Viewer | Bedienbar, Ergebnisse schnell prüfbar | fertig (Beta): Launcher fertig, Viewer mit Lupe, Overlays, Porenliste, volle Auflösung ohne Vorschaubilder, optische Kontrolle des Maßstabs; offen: Plots, Werkzeugspalte, Maßstab als Ebene |
 | 4 | Einbettmittel-Erkennung, Einbindung Maßstabsmodul, Abgleich an echten Bildern | Praxistauglich | ROI-Verfahren `imagej`, `grabcut` vorhanden; Maßstab `scale_bar` eingebunden (99 MP: 0,4 s statt 14 s in V2) |
-| 5 | Weitere Verfahren und Auswertungsmodule | Nach Bedarf | Werkzeuge, Filter, Korrekturen (7.3), Untergrundkorrektur + `hysteresis` (7.4), Proben-KOS (7.5) umgesetzt; als Nächstes Spannungsbewertung (Porenkonzept); weitere nach Bedarf |
+| 5 | Weitere Verfahren und Auswertungsmodule | Nach Bedarf | Werkzeuge, Filter, Korrekturen (7.3), Untergrundkorrektur + `hysteresis` (7.4), Proben-KOS (7.5), Porenindex pro Bild (7.6), Plots (7.7) umgesetzt; weitere nach Bedarf |
 
 Grundsatz: Erst korrekt (Phase 1), dann schnell (Phase 2).
 

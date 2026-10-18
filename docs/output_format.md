@@ -23,7 +23,8 @@ One run processes one ID (= name of the input folder).
     │   ├── rejected.json           rejected pores: pore_id, filter (manual = by hand), reason
     │   ├── corrections.json        manual corrections (only if there are any, see PLAN.md 7.3)
     │   ├── overlay.tif             only with output.save_full_overlay: true
-    │   └── <name>.tif              images returned by evaluation modules (key = name)
+    │   ├── <name>.tif              images returned by evaluation modules (key = name)
+    │   └── plots/<plot>.png        one picture per plot of the stage plots (registered name)
     ├── images.json                 one row per image
     ├── id_values.json              values over the whole ID (Evaluator.finalize)
     ├── errors.json                 skipped images

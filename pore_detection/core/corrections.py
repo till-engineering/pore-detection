@@ -29,7 +29,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from . import geometry, io, registry, writer
+from . import geometry, io, plotting, registry, writer
 from .config import Config
 from .pipeline import FRAME_COLUMNS, _bounding_box, _check_scale, _finalize, _merge_results, frame_from_columns
 from .types import ImageContext, LabeledPores
@@ -89,6 +89,7 @@ class State:
     removed: frozenset[int]
     corrections: int                # number of corrections of this image
     hit: bool                       # False: the last action hit no pore and changed nothing
+    plots: dict[str, bytes] | None = None   # PNG per plot after a change; None = unchanged (files on disk)
 
 
 class Corrections:
@@ -103,6 +104,7 @@ class Corrections:
                                               for e in config.postprocessing.label_steps)
                             if not step.changes_pores]
         self.evaluators = [registry.create("evaluation", e) for e in config.evaluation]
+        self.plots = [registry.create("plots", e) for e in config.plots]
         self._automatic: dict[str, tuple[bytes, bytes, dict]] = {}     # image -> automatic state (TIFF bytes)
         self._lists: dict[str, list[Correction]] = {}
         self.lock = threading.Lock()                # one action at a time
@@ -214,11 +216,12 @@ class Session:
         changes), then write everything in the background."""
         snapshot = self.current.copy()
         row, per_pore, images = self._evaluate(snapshot)
+        plots = plotting.render(self.store.plots, row, per_pore)      # the viewer shows them at once
         self.row = row
-        self.state = self._snapshot(row, per_pore, snapshot)
+        self.state = replace(self._snapshot(row, per_pore, snapshot), plots=plots)
         corrections = [c.to_dict() for c in self.store._lists.get(self.image, [])]
         rejected = self.state.rejected
-        self.store._submit(lambda: self._write(snapshot, rejected, row, per_pore, images, corrections))
+        self.store._submit(lambda: self._write(snapshot, rejected, row, per_pore, images, plots, corrections))
         return self.state
 
     def _evaluate(self, state: "_Labels"):
@@ -246,11 +249,12 @@ class Session:
         return row, per_pore, images
 
     def _write(self, state: "_Labels", rejected: pd.DataFrame, row: dict, per_pore: pd.DataFrame,
-               images: dict, corrections: list[dict]) -> None:
+               images: dict, plots: dict[str, bytes], corrections: list[dict]) -> None:
         """Background job: image folder, then images.json, Excel and ID values."""
         store = self.store
         writer.write_pores(self.folder, self.original, state.labels, state.rejected_labels, rejected, per_pore,
                            images, store.config.output.save_full_overlay)
+        writer.write_plots(self.folder, plots)
         writer.write_corrections(self.folder, self.image, corrections, sorted(state.added), sorted(state.removed),
                                  sorted(state.drawn))
         table = writer.read_table(store.results_dir / writer.IMAGES_JSON)

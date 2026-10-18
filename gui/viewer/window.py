@@ -19,7 +19,8 @@ from . import style
 from .data import MANUAL, Image, Run, apply_state, load_image
 from .image_view import ImageView
 from .loupe import Loupe, loupe_box
-from .render import Layers, compose, outline, shrink
+from .render import Layers, compose, frame_graphics, outline, shrink
+from .plot_view import PlotView
 from .scale_check import ScaleCheck, scale_crop_box
 
 # key figures shown as tiles: (column of images.json, label, unit) – fixed on purpose (PLAN.md 7.2)
@@ -404,12 +405,16 @@ class ViewerWindow(QMainWindow):
         layers_layout.addSpacing(10)
         layers_layout.addWidget(QLabel("OVERLAY", objectName="sectionLabel"))
         self.embedding_row = LayerRow("Embedding medium", style.EMBEDDING, checked=False)
+        self.frame_row = LayerRow("Sample frame", style.FRAME, checked=True)
         self.rejected_row = LayerRow("Rejected", style.REJECTED, checked=True)
         self.removed_row = LayerRow("Removed by hand", style.REMOVED, checked=True)
         self.added_row = LayerRow("Added by hand", ADDED, checked=True)
         self.pores_row = LayerRow("Pores", style.PORE, checked=True)
         for layer in (self.embedding_row, self.rejected_row, self.removed_row, self.added_row, self.pores_row):
             layer.check.toggled.connect(self._layers_changed)
+        self.frame_row.check.toggled.connect(self._show_frame)  # vector graphics: no new rendering
+        for layer in (self.embedding_row, self.frame_row, self.rejected_row, self.removed_row, self.added_row,
+                      self.pores_row):
             layers_layout.addWidget(layer)
         self.embedding_check, self.pores_check = self.embedding_row.check, self.pores_row.check
         layers_layout.addStretch()
@@ -417,18 +422,35 @@ class ViewerWindow(QMainWindow):
         return column
 
     def _build_plots(self) -> QWidget:
-        """Two-column grid for plots; empty for now (PLAN.md 7.2)."""
+        """Two-column grid, one place per plot of the run (config order); grows downwards.
+        The plots are PNG files of the pipeline (stage plots) – the viewer only shows them."""
         plots = QWidget()
         grid = QGridLayout(plots)
         grid.setContentsMargins(0, 0, 0, 0)
         grid.setSpacing(16)
-        for i in range(2):
-            hint = QLabel("plots follow later", objectName="hint")
+        self.plot_views: dict[str, PlotView] = {}
+        names = self.run.plot_names()
+        if not names:
+            hint = QLabel("no plots in this run (config: plots)", objectName="hint")
             hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            frame = card("Plot", hint)
+            frame = card("Plots", hint)
             frame.setFixedHeight(PLOT_HEIGHT_PX)
-            grid.addWidget(frame, i // 2, i % 2)
+            grid.addWidget(frame, 0, 0, 1, 2)
+        for i, name in enumerate(names):
+            view = PlotView()               # height follows the plot's aspect ratio
+            self.plot_views[name] = view
+            grid.addWidget(card(name.replace("_", " "), view), i // 2, i % 2, Qt.AlignmentFlag.AlignTop)
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 1)
         return plots
+
+    def _show_plots(self) -> None:
+        for name, view in self.plot_views.items():
+            png = self.image.plots.get(name) if self.image is not None else None
+            if png is None:
+                view.show_message("not available – values missing (see log)")
+            else:
+                view.show_png(png)
 
     def _build_pore_list(self) -> QWidget:
         self.pore_list = QTreeWidget()
@@ -503,9 +525,12 @@ class ViewerWindow(QMainWindow):
             return
         self.image = image
         self._update_counts()
+        self._update_frame_row()
         self._fill_pore_list()
         self.view.set_selection([], QColor())
         self._render(fit=True)
+        self._show_frame()
+        self._show_plots()
         self._update_detail_source()
         self.loupe.show_message(NO_SELECTION)
         self._show_pore_values(0)
@@ -690,11 +715,31 @@ class ViewerWindow(QMainWindow):
         self._fill_pore_list()
         self._render(fit=False)
         self._update_detail_source()
+        self._show_plots()
         gone = self.selected and not (image.pore_labels(self.selected_rejected) == self.selected).any()
         self._select(0 if gone else self.selected, rejected=self.selected_rejected)
         self._update_info()
         if not state.hit:
             self.info_label.setText("nothing hit – click closer to a pore" if self.tool else "nothing to undo")
+
+    def _update_frame_row(self) -> None:
+        """Frame layer: thickness as its count; not selectable if the run has no frame."""
+        frame = self.image.frame
+        self.frame_row.setEnabled(frame is not None)
+        if frame is None:
+            self.frame_row.count.setText("none")
+            self.frame_row.setToolTip("no sample frame in this run (sample.frame: none)")
+        else:
+            self.frame_row.count.setText(format_number(frame.thickness_um, "µm") if frame.thickness_um is not None
+                                         else format_number(frame.thickness_px, "px"))
+            self.frame_row.setToolTip(f"thickness (inner to outer edge); x axis at {frame.angle_deg:.2f}°")
+
+    def _show_frame(self, *_) -> None:
+        image = self.image
+        if image is None or image.frame is None or not self.frame_row.check.isChecked():
+            self.view.set_frame([], [], [], QColor())
+            return
+        self.view.set_frame(*frame_graphics(image.frame), QColor(style.FRAME))
 
     def _update_counts(self) -> None:
         image = self.image

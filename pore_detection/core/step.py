@@ -17,6 +17,7 @@ Optional, checked by core with hasattr():
 """
 
 import numpy as np
+import pandas as pd
 
 from .types import EvaluationResult, ImageContext, ImageInfo, LabeledPores, SampleFrame, ScaleResult
 
@@ -105,3 +106,16 @@ class Evaluator(Step):
 
     # optional:
     # def finalize(self, per_image: pd.DataFrame, per_pore: Iterator[pd.DataFrame]) -> dict[str, float | int | str]
+
+
+# --- plots: pictures of the finished values of one image (PNG in the results, shown by the viewer) ---
+
+class Plot(Step):
+    columns: list[str] = []         # per-image values the plot needs (missing -> plot skipped, logged)
+    pore_columns: list[str] = []    # per-pore values the plot needs (missing -> plot skipped, logged)
+
+    def plot(self, ax, image: dict, pores: pd.DataFrame) -> None:
+        """Draw into the matplotlib Axes `ax`. image: the row of images.json, pores: pores.json.
+        Raise core.plotting.MissingData if something else needed is missing. Size, look and
+        saving are done by core (core/plotting.py); import matplotlib only inside this method."""
+        raise NotImplementedError

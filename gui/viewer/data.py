@@ -28,6 +28,7 @@ ROI_MASK_TIF = "roi_mask.tif"
 REJECTED_LABELS_TIF = "rejected_labels.tif"
 REJECTED_JSON = "rejected.json"
 CORRECTIONS_JSON = "corrections.json"
+PLOTS_DIR = "plots"         # in the image folder: <plot name>.png
 MANUAL = "manual"           # filter name of pores rejected by hand
 
 OVERVIEW_MAX_PX = 2048      # long edge of the overview computed for the whole-image view
@@ -87,6 +88,10 @@ class Run:
             errors=read_table(results_dir / ERRORS_JSON),
         )
 
+    def plot_names(self) -> list[str]:
+        """Plots of the run in the order of the config (one place each in the plot grid)."""
+        return [entry["name"] for entry in self.config.get("plots") or []]
+
     def chain(self) -> list[tuple[str, dict]]:
         """Main methods: scale -> sample -> detector."""
         c = self.config
@@ -126,6 +131,37 @@ class Scale:
         return cls(float(um) if um is not None else None, value("scale_label"), box("scale_bar_px"), box("scale_box_px"))
 
 
+@dataclass(frozen=True)
+class Frame:
+    """Coordinate system of the sample (columns frame_* of images.json, docs/interfaces.md 2.6).
+
+    Full image px. x along the outer (top) edge to the right, z perpendicular upwards; z = 0 is
+    the inner (bottom) edge, z = thickness_px the outer (top) edge.
+    """
+
+    origin_px: tuple[float, float]  # (y, x)
+    angle_deg: float                # direction of x, counter-clockwise from the image x axis (as seen)
+    thickness_px: float
+    length_px: float
+    thickness_um: float | None
+
+    @classmethod
+    def from_row(cls, row: dict) -> "Frame | None":
+        origin = row.get("frame_origin_px")
+        if origin is None or (isinstance(origin, float) and origin != origin):
+            return None
+        um = row.get("frame_thickness_um")
+        return cls((float(origin[0]), float(origin[1])), float(row["frame_angle_deg"]),
+                   float(row["frame_thickness_px"]), float(row["frame_length_px"]),
+                   float(um) if um is not None and um == um else None)
+
+    def to_image(self, x: float, z: float) -> tuple[float, float]:
+        """Point of the sample frame -> (x, y) in full image px."""
+        a = np.radians(self.angle_deg)
+        return (float(self.origin_px[1] + x * np.cos(a) - z * np.sin(a)),
+                float(self.origin_px[0] - x * np.sin(a) - z * np.cos(a)))
+
+
 @dataclass
 class Image:
     """One image, everything in full resolution plus the computed overview."""
@@ -145,6 +181,8 @@ class Image:
     overview: np.ndarray         # RGB uint8, long edge OVERVIEW_MAX_PX
     overview_roi: np.ndarray     # bool, overview size
     message: str                 # problem while loading, "" if none
+    frame: Frame | None = None   # coordinate system of the sample, None = none in the run
+    plots: dict = field(default_factory=dict)   # plot name -> PNG bytes (plots/<name>.png)
     overview_masks: dict = field(default_factory=dict, repr=False)   # pores, rejected, added, removed
     _boxes: dict = field(default_factory=dict, repr=False)
 
@@ -198,6 +236,7 @@ def load_image(run: Run, index: int) -> Image:
                 pool.submit(_decode, folder / REJECTED_LABELS_TIF, cv2.IMREAD_UNCHANGED),
                 pool.submit(read_bool, folder / ROI_MASK_TIF), pool.submit(original))
         labels, rejected_labels, roi, (rgb, message) = (job.result() for job in jobs)
+    plots = {path.stem: path.read_bytes() for path in (folder / PLOTS_DIR).glob("*.png")}
     corrections = folder / CORRECTIONS_JSON
     saved = json.loads(corrections.read_text(encoding="utf-8")) if corrections.exists() else {}
 
@@ -208,7 +247,8 @@ def load_image(run: Run, index: int) -> Image:
                 else np.full((size[1], size[0], 3), MISSING_GRAY, dtype=np.uint8))
     image = Image(index, row["image"], row, read_table(folder / PORES_JSON), Scale.from_row(row), rgb, labels,
                   rejected_labels, read_table(folder / REJECTED_JSON), frozenset(saved.get("added", [])),
-                  frozenset(saved.get("removed", [])), roi, overview, shrink_mask(roi, size), message)
+                  frozenset(saved.get("removed", [])), roi, overview, shrink_mask(roi, size), message,
+                  Frame.from_row(row), plots)
     update_overview(image)
     return image
 
@@ -218,6 +258,8 @@ def apply_state(image: Image, state) -> None:
     image.labels, image.rejected_labels, image.rejected = state.labels, state.rejected_labels, state.rejected
     image.table, image.row = state.per_pore, state.row
     image.added, image.removed = state.added, state.removed
+    if getattr(state, "plots", None) is not None:     # drawn again after the change
+        image.plots = state.plots
     image._boxes.clear()
     update_overview(image)
 
