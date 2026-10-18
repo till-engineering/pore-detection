@@ -67,6 +67,8 @@ class CriticalPores(Plot):
         ax.set_title("where they lie (outer surface on top)")
         position = picture.pores.set_index("pore_id")
         centre = np.array(picture.rgb.shape[1::-1]) / 2
+        if len(weighted) == 0:                                          # no pores: only the sample
+            return
         top_share = weighted.max()
         shown = [(rank, i, int(pores["pore_id"].iloc[i]))
                  for rank, i in enumerate(np.argsort(weighted)[::-1][:self.top])]

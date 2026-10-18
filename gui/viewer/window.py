@@ -242,6 +242,7 @@ class ViewerWindow(QMainWindow):
         strip_layout.setContentsMargins(16, 9, 16, 9)
         self.pore_values = QLabel()
         self.pore_values.setTextFormat(Qt.TextFormat.RichText)
+        self.pore_values.setWordWrap(True)      # many pore columns: wrap between values, never wider than the page
         strip_layout.addWidget(self.pore_values)
         outer.addWidget(strip)
 
@@ -853,7 +854,7 @@ class ViewerWindow(QMainWindow):
         def part(name, value):
             return (f"<span style='color:{c['muted']}'>{name}</span>&nbsp;&nbsp;"
                     f"<span style='color:{c['ink']}; font-family:Consolas'>{value}</span>")
-        gap = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
+        gap = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "    # ends with a normal space: the line may wrap there
         if image is not None and pore_id and self.selected_rejected:
             filter_name, reason = image.reason(pore_id) or ("?", "")
             status = "removed by hand" if filter_name == MANUAL else f"rejected by {filter_name}"
