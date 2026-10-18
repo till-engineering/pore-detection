@@ -32,7 +32,7 @@ import yaml
 from . import geometry, io, plotting, registry, writer
 from .config import Config
 from .pipeline import (CORE_EXCEL, FRAME_COLUMNS, _bounding_box, _check_scale, _finalize, _merge_results,
-                       excel_layout, frame_from_columns)
+                       excel_layout, frame_from_columns, write_id_plots)
 from .types import ImageContext, LabeledPores
 
 MANUAL = "manual"               # filter name of pores rejected by hand
@@ -218,7 +218,8 @@ class Session:
         changes), then write everything in the background."""
         snapshot = self.current.copy()
         row, per_pore, images = self._evaluate(snapshot)
-        plots = plotting.render(self.store.plots, row, per_pore)      # the viewer shows them at once
+        picture = lambda: plotting.sample_picture(self.original, snapshot.labels, frame_from_columns(row))  # noqa: E731
+        plots = plotting.render(self.store.plots, row, per_pore, picture)      # the viewer shows them at once
         self.row = row
         self.state = replace(self._snapshot(row, per_pore, snapshot), plots=plots)
         corrections = [c.to_dict() for c in self.store._lists.get(self.image, [])]
@@ -268,6 +269,8 @@ class Session:
         if (store.results_dir / writer.ID_VALUES_JSON).exists():       # only after a complete run
             id_values = _finalize(store.evaluators, per_image, store.results_dir)
         writer.write_summary(store.results_dir, self.info.image_id, per_image, errors, id_values, store.layout)
+        if id_values is not None:
+            write_id_plots(store.plots, per_image, store.results_dir)
 
     def _snapshot(self, row: dict, per_pore: pd.DataFrame, state: "_Labels | None" = None) -> State:
         state = state or self.current.copy()

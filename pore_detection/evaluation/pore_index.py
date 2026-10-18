@@ -18,6 +18,13 @@ its own. pore_stress selects how a part gets its stress:
 Stress profiles (stress): bending = alternating bending, g = |2 zeta - 1| (1 at both surfaces,
 0 in the neutral fibre). Further profiles (any stress field) later.
 
+g is defined in one place only (PoreIndex.relative_stress). Hardness outer / inner (HBW, slide
+"Porenkonzept") is an input that is recorded but not used in the model yet; it is at hand there for
+model changes (e.g. g = stress / strength from the hardness).
+
+Per pore also its contribution A g^q (weighted_area_q…_px2, both zones, selected pore_stress) – the
+sum over the pores is the numerator of phi_q.
+
 Values per image only (no values over the ID yet). Areas cancel in phi: px and µm give the same.
 Needs the sample frame (sample.frame), else the image fails.
 """
@@ -51,6 +58,8 @@ class PoreIndex(Evaluator):
         "q_values": "exponents q, e.g. [1, 1.5, 2, 3, 5, 10]",
         "cracks_outer": "n_o: crack origins at the outer surface (tests)",
         "cracks_inner": "n_u: crack origins at the inner surface (tests)",
+        "hardness_outer": "hardness at the outer surface in HBW (empty = not given; not used in the model yet)",
+        "hardness_inner": "hardness at the inner surface in HBW (empty = not given; not used in the model yet)",
     }
     choices = {"stress": list(STRESS_PROFILES), "pore_stress": list(PORE_STRESS)}
     excel_sheet = "Stress"
@@ -63,6 +72,9 @@ class PoreIndex(Evaluator):
         if self.pore_stress not in PORE_STRESS:
             raise ValueError(f"unknown pore_stress '{self.pore_stress}' (available: {', '.join(PORE_STRESS)})")
         self.profile = STRESS_PROFILES[self.stress]
+        # HBW or None; optional, so that results of older runs (config_used.yaml without it) can be corrected
+        self.hardness_outer = _hardness(getattr(self, "hardness_outer", None), "hardness_outer")
+        self.hardness_inner = _hardness(getattr(self, "hardness_inner", None), "hardness_inner")
         total = self.cracks_outer + self.cracks_inner + 2
         self.w_outer = (self.cracks_outer + 1) / total
         self.w_inner = (self.cracks_inner + 1) / total
@@ -78,7 +90,7 @@ class PoreIndex(Evaluator):
         _, z = frame.to_sample(rows + top, cols + left)
         zeta = np.clip(z / frame.thickness_px, 0.0, 1.0)
         outer = zeta >= ZONE_BOUNDARY
-        g = self.profile(zeta)
+        g = self.relative_stress(zeta)
 
         # pore parts: (pore, zone) -> index
         index = np.searchsorted(pores.ids, ids)
@@ -89,9 +101,13 @@ class PoreIndex(Evaluator):
 
         # the inputs first: what the values below were computed with
         per_image = {"stress_profile": self.stress, "pore_stress": self.pore_stress,
-                     "cracks_outer": self.cracks_outer, "cracks_inner": self.cracks_inner}
+                     "cracks_outer": self.cracks_outer, "cracks_inner": self.cracks_inner,
+                     "hardness_outer_hbw": _nan_if_none(self.hardness_outer),
+                     "hardness_inner_hbw": _nan_if_none(self.hardness_inner)}
+        weighted_per_pore = {}
         for q in self.q_values:
             weighted = self._weighted_parts(part, part_area, zeta, g, q, n_parts)     # A g^q per part
+            weighted_per_pore[f"weighted_area_{q_name(q)}_px2"] = weighted[0::2] + weighted[1::2]
             sum_outer, sum_inner = weighted[part_zone_outer].sum(), weighted[~part_zone_outer].sum()
             phi = (sum_outer + sum_inner) / (area_outer + area_inner)
             phi_eff = self.w_outer * _ratio(sum_outer, area_outer) + self.w_inner * _ratio(sum_inner, area_inner)
@@ -105,9 +121,17 @@ class PoreIndex(Evaluator):
         pore_zeta = np.bincount(index, weights=zeta, minlength=pores.count) / np.maximum(pore_area, 1)
         pore_max = np.zeros(pores.count)
         np.maximum.at(pore_max, index, g)
+        # + its contribution A g^q to phi_q (both zones, selected pore_stress): which pores matter
         per_pore = pores.properties[["pore_id"]].assign(
-            zeta=pore_zeta, stress_centroid=self.profile(pore_zeta), stress_max=pore_max)
+            zeta=pore_zeta, stress_centroid=self.relative_stress(pore_zeta), stress_max=pore_max, **weighted_per_pore)
         return EvaluationResult(per_image=per_image, per_pore=per_pore, images={})
+
+    def relative_stress(self, zeta: np.ndarray) -> np.ndarray:
+        """g at the relative height zeta (0 = inner, 1 = outer surface) – the only place where g is
+        defined; every value of this module (phi, phi_eff, per-pore columns) and the plots follow it.
+        For changes of the model also at hand: self.hardness_outer / self.hardness_inner (HBW,
+        None = not given), self.stress (profile name). For now g is the stress profile only."""
+        return self.profile(zeta)
 
     def _weighted_parts(self, part, part_area, zeta, g, q, n_parts):
         """A g^q of every pore part for the selected pore_stress."""
@@ -115,7 +139,7 @@ class PoreIndex(Evaluator):
             return np.bincount(part, weights=g ** q, minlength=n_parts)
         if self.pore_stress == "centroid":
             part_zeta = np.bincount(part, weights=zeta, minlength=n_parts) / np.maximum(part_area, 1)
-            return part_area * self.profile(part_zeta) ** q
+            return part_area * self.relative_stress(part_zeta) ** q
         part_max = np.zeros(n_parts)
         np.maximum.at(part_max, part, g)
         return part_area * part_max ** q
@@ -141,3 +165,20 @@ class PoreIndex(Evaluator):
 
 def _ratio(numerator: float, area: int) -> float:
     return numerator / area if area > 0 else float("nan")
+
+
+def _hardness(value, name: str) -> float | None:
+    """Hardness input: number, or empty / null = not given. Text from the launcher may use a decimal comma."""
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return None
+    try:
+        hardness = float(str(value).strip().replace(",", "."))
+    except ValueError:
+        raise ValueError(f"{name}: '{value}' is not a number (HBW)") from None
+    if hardness <= 0:
+        raise ValueError(f"{name}: {hardness:g} HBW – hardness must be positive")
+    return hardness
+
+
+def _nan_if_none(value: float | None) -> float:
+    return float("nan") if value is None else value

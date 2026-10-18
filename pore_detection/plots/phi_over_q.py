@@ -1,4 +1,7 @@
-"""Pore index over the exponent q: phi_q and phi_eff_q of the image (module pore_index)."""
+"""Pore index over the exponent q: phi_q and phi_eff_q of the image (module pore_index).
+
+Over the whole ID (plot_id): one color per image, phi_q solid and phi_eff_q dashed.
+"""
 
 import re
 
@@ -15,9 +18,28 @@ class PhiOverQ(Plot):
 
     params = {}
 
+    def plot_id(self, ax, images, pores):
+        """One color per image: phi_q solid, phi_eff_q dashed (no phi over the whole ID yet)."""
+        qs = _q_columns(images.columns)
+        if not qs:
+            raise MissingData("no phi_q values (evaluation module pore_index not active?)")
+        q = [value for value, _ in qs]
+        for i, row in enumerate(images.to_dict("records")):
+            color = COLORS[i % len(COLORS)]
+            ax.plot(q, [100 * row[f"phi_q{name}"] for _, name in qs], "o-", color=color, markersize=4,
+                    label=row["image"])
+            ax.plot(q, [100 * row[f"phi_eff_q{name}"] for _, name in qs], "s--", color=color, markersize=3)
+        ax.set_xscale("log")
+        ax.set_xticks(q, [f"{v:g}" for v in q])
+        ax.minorticks_off()
+        ax.set_xlabel("q")
+        ax.set_ylabel("pore index (%)")
+        ax.set_ylim(bottom=0)
+        ax.set_title(f"Pore index over q – {len(images)} images (solid Φ_q, dashed Φ_eff,q)")
+        ax.legend(fontsize=7.5)
+
     def plot(self, ax, image, pores):
-        qs = sorted((float(match.group(1).replace("_", ".")), match.group(1))
-                    for match in map(PHI.match, image) if match and image[match.group(0)] is not None)
+        qs = _q_columns(name for name in image if image[name] is not None)
         if not qs:
             raise MissingData("no phi_q values (evaluation module pore_index not active?)")
         q = [value for value, _ in qs]
@@ -35,3 +57,9 @@ class PhiOverQ(Plot):
         ax.set_ylim(bottom=0)
         ax.set_title("Pore index over q")
         ax.legend()
+
+
+def _q_columns(columns) -> list[tuple[float, str]]:
+    """(q, name part) of all phi_q columns, sorted by q: phi_q1_5 -> (1.5, "1_5")."""
+    return sorted((float(match.group(1).replace("_", ".")), match.group(1))
+                  for match in map(PHI.match, columns) if match)

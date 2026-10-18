@@ -1,6 +1,6 @@
 # Interfaces
 
-> Binding specification of all data passed between modules. Interface version: 0.10 (draft)
+> Binding specification of all data passed between modules. Interface version: 0.12 (draft)
 >
 > Rule: a module only receives and returns the types defined here. If a new method needs
 > data that is not defined here, this document and `core/types.py` are changed first.
@@ -20,6 +20,9 @@
 > in the launcher).
 > Changes 0.8 → 0.9: optional `Plot.variant` (second view of a plot, drawn too, switch in the viewer).
 > Changes 0.9 → 0.10: optional `Evaluator.excel_sheet`, `Evaluator.excel_hidden` (results Excel by topic).
+> Changes 0.10 → 0.11: optional `Plot.plot_id` (the same plot over the whole ID).
+> Changes 0.11 → 0.12: optional `Plot.needs_picture` (plot() gets `picture=`: the straightened sample,
+> `core.plotting.SamplePicture` with pore centroids, or None without frame) and `Plot.size_in`.
 
 ---
 
@@ -224,6 +227,8 @@ class Plot(Step):
     pore_columns: list[str] = []    # per-pore values needed (missing -> plot skipped, logged)
     variant: str = ""               # optional second view, e.g. "normalized"
     def plot(self, ax, image: dict, pores: DataFrame) -> None: ...   # draw into a matplotlib Axes
+    # optional: the same plot over the whole ID -> <ID>_results/plots/ (end of a complete run, after corrections)
+    def plot_id(self, ax, images: DataFrame, pores: DataFrame) -> None: ...   # pores: all images + column image
 ```
 
 - With `variant` set, `core` draws the plot twice: `plot(ax, image, pores)` (normal view) and

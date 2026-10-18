@@ -118,6 +118,8 @@ class Plot(Step):
     columns: list[str] = []         # per-image values the plot needs (missing -> plot skipped, logged)
     pore_columns: list[str] = []    # per-pore values the plot needs (missing -> plot skipped, logged)
     variant: str = ""               # optional second view (e.g. "normalized"): drawn too, switch in the viewer
+    needs_picture: bool = False     # True: plot() also gets picture= (core.plotting.SamplePicture or None)
+    size_in: tuple[float, float] | None = None  # figure size in inch, None = core.plotting.SIZE_IN
 
     def plot(self, ax, image: dict, pores: pd.DataFrame) -> None:
         """Draw into the matplotlib Axes `ax`. image: the row of images.json, pores: pores.json.
@@ -125,3 +127,7 @@ class Plot(Step):
         Raise core.plotting.MissingData if something else needed is missing. Size, look and
         saving are done by core (core/plotting.py); import matplotlib only inside this method."""
         raise NotImplementedError
+
+    # optional: the same plot over the whole ID (all images), saved in <ID>_results/plots/
+    # def plot_id(self, ax, images: pd.DataFrame, pores: pd.DataFrame, variant: str = "") -> None
+    #     images: images.json (one row per image), pores: pores.json of all images + column "image"

@@ -193,6 +193,7 @@ def run(config: Config, input_path=None, output_dir=None,
             progress(len(files), len(files), "done", "")
         if not cancelled and rows:
             id_values = _finalize(steps.evaluators, pd.DataFrame(rows), results_dir)
+            write_id_plots(steps.plots, pd.DataFrame(rows), results_dir)
     finally:
         # also after an abort: everything finished so far stays readable
         finish_writing()
@@ -283,7 +284,8 @@ def _process_image(config: Config, steps: _Steps, load: Callable[[], tuple[Image
     def write():
         writer.write_image(results_dir, info, original, full_labels, full_rejected, pores.rejected, roi_mask,
                            per_pore, images, config.output.save_full_overlay)
-        writer.write_plots(results_dir / info.name, plotting.render(steps.plots, row, per_pore))
+        picture = lambda: plotting.sample_picture(original, full_labels, frame)      # noqa: E731 – only if needed
+        writer.write_plots(results_dir / info.name, plotting.render(steps.plots, row, per_pore, picture))
     return _Done(info.name, row, write, excel_layout(steps.evaluators, results))
 
 
@@ -452,6 +454,13 @@ def _finalize(evaluators: list[Step], per_image: pd.DataFrame, results_dir: Path
             owner[key] = step.name
             values[key] = value
     return values
+
+
+def write_id_plots(plots: list[Step], per_image: pd.DataFrame, results_dir: Path) -> None:
+    """Plots over the whole ID (plot_id of the plot modules) -> <ID>_results/plots/."""
+    if any(hasattr(step, "plot_id") for step in plots):
+        pores = plotting.id_pores(per_image, writer.read_table, results_dir)
+        writer.write_plots(results_dir, plotting.render_id(plots, per_image, pores))
 
 
 def resolve_path(path) -> Path:

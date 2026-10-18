@@ -1,7 +1,7 @@
 # Pore Detection – Projektplan
 
 > Status: Phase 0–4 fertig (Abgleich an echten Bildern ganz am Ende), Werkzeuge, Filter und Korrekturen (7.3) umgesetzt, Untergrundkorrektur (7.4) umgesetzt, Proben-KOS (7.5), Porenindex (7.6), Plots (7.7), Launcher-Reiter Evaluations (7.8), Ergebnis-Excel (7.9) umgesetzt · Stand: 2026-10-18 ·
-> Schnittstellen-Version 0.10
+> Schnittstellen-Version 0.12
 
 ---
 
@@ -668,15 +668,19 @@ Auswertungsmodul `evaluation/pore_index.py` (Stufe `evaluation`, braucht das Pro
 - **Zonen:** Grenze bei halber Dicke; A_Mess,o/u = Probenfläche oben/unten. Poren über der Grenze
   werden **pixelweise geteilt**, jeder Teil zählt wie eine eigene Pore.
 - **Config:** `stress`, `pore_stress`, `q_values` (1; 1,5; 2; 3; 5; 10), `cracks_outer` (n_o),
-  `cracks_inner` (n_u).
+  `cracks_inner` (n_u), `hardness_outer` / `hardness_inner` (HBW, leer = nicht angegeben).
 - **Ausgabe pro Bild:** `phi_q…`, `phi_eff_q…` je q (z. B. `phi_q1_5`), `w_outer`, `w_inner`,
   `sample_area_outer_px2`, `sample_area_inner_px2`. **Pro Pore:** `zeta` und `stress_centroid`
-  (Schwerpunkt der ganzen Pore), `stress_max`.
+  (Schwerpunkt der ganzen Pore), `stress_max`, sowie ihr Beitrag A g^q je q
+  (`weighted_area_q…_px2`, mit der gewählten Variante; Summe über die Poren / A_Mess = Φ_q).
 - **Nur pro Bild** – noch keine Zusammenfassung über die ID (Auswahl mehrerer Schliffe später).
 - Geprüft gegen eine unabhängige Rechnung über das volle Pixelraster: alle drei Varianten gleich
   bis auf Rundung (10⁻¹⁵).
 - Offen: Lastfälle / beliebiges Spannungsfeld, Eingabe im Launcher (n_o, n_u, Varianten),
   Werte über die ID, Spannungsfeld als Ebene im Viewer, Härte außen/innen.
+- **Härte außen/innen** (Folie, 2026-10-18): nur Eingabe (Launcher, config.yaml) und Ausgabe, noch
+  ohne Wirkung auf Φ. Offen, ob g = σ/σ_max oder Auslastung σ/σ_W (σ_W aus der Härte) gemeint ist.
+  g ist nur in `PoreIndex.relative_stress` definiert; dort ist die Härte für Modelländerungen greifbar.
 
 ### 7.9 Ergebnis-Excel nach Themen (beschlossen und umgesetzt 2026-10-18)
 
@@ -689,7 +693,7 @@ Auswertungsmodul `evaluation/pore_index.py` (Stufe `evaluation`, braucht das Pro
 - **Modular:** jedes Auswertungsmodul gibt `excel_sheet` (Blatt, Standard: Modulname) und
   `excel_hidden` (nur JSON) an; die Spalten von `core` sind fest in `pipeline.CORE_EXCEL`.
   Schnittstelle 0.10.
-- `pore_index` schreibt seine Eingaben (Lastfall, Variante, n_o, n_u) mit in die Werte pro Bild.
+- `pore_index` schreibt seine Eingaben (Lastfall, Variante, n_o, n_u, Härte außen/innen als `hardness_outer_hbw` / `hardness_inner_hbw`) mit in die Werte pro Bild.
 - Auch nach einer Korrektur im Viewer wird die Excel so neu geschrieben.
 
 ### 7.8 Launcher: Reiter „Evaluations“ (beschlossen und umgesetzt 2026-10-18)
@@ -724,8 +728,8 @@ Auswertungsmodul `evaluation/pore_index.py` (Stufe `evaluation`, braucht das Pro
 - **Erste Plots:** `phi_over_q` (Φ_q und Φ_eff,q über q, Porosität als Linie), `pores_over_height`
   (Spannung am Porenschwerpunkt über der Höhe ζ, Punktgröße = Fläche), `pore_sizes`
   (Histogramm der Äquivalentdurchmesser, µm mit Maßstab), `pore_areas` (Größenverteilung der
-  Porenfläche wie in V2: log-Klassen nach Freedman-Diaconis, Dichtekurve, D50/D90/Mittel; bewusst
-  im V2-Aussehen statt im gemeinsamen Stil; Rechnung gegen V2 `verteilung.py` geprüft). Steht als
+  Porenfläche wie in V2: log-Klassen nach Freedman-Diaconis, Dichtekurve, D50/D90/Mittel; seit
+  2026-10-18 im gemeinsamen Stil (Rahmen, kein Gitter); Rechnung gegen V2 `verteilung.py` geprüft). Steht als
   erster Plot in `config.yaml`.
 - **Zweite Ansicht eines Plots** (Schnittstelle 0.9, `Plot.variant`): wird mitgezeichnet und als
   `plots/<name>.<variant>.png` gespeichert; der Viewer zeigt im Plotfeld eine Checkbox zum Umschalten
@@ -736,7 +740,25 @@ Auswertungsmodul `evaluation/pore_index.py` (Stufe `evaluation`, braucht das Pro
   Gespeichert ohne Außenrand, 960 × 600 px.
 - **Viewer:** Plot über die ganze Breite seines Platzes, Höhe nach Seitenverhältnis; einmal sauber
   verkleinert (scharfe Schrift).
-- Offen: Plots über die ganze ID.
+- **Plots über die ganze ID** (2026-10-18): dieselbe Plot-Datei, optionale Methode `plot_id(ax, images,
+  pores)` (alle Bilder; Porentabelle mit Spalte `image`), gespeichert in `<ID>_results/plots/`. Gezeichnet
+  am Ende eines vollständigen Laufs und nach jeder Korrektur (wie die ID-Werte). Häufigkeitsplots
+  (`pore_areas`, `pore_sizes`): **nur Dichtekurven, eine pro Bild, auf denselben Klassen** (aus allen
+  Poren der ID). `phi_over_q`: eine Farbe pro Bild (Φ_q durchgezogen, Φ_eff,q gestrichelt);
+  `pores_over_height`: alle Poren, Farbe nach Bild. Klassen und Dichte zentral in `core/plotting.py`.
+- **Dichtekurven** (2026-10-18): echte Dichte pro Dekade (Kerndichte auf dem Logarithmus), Fläche unter
+  der Kurve = Porenanzahl (Ansicht Anzahl: „Poren pro Dekade“) bzw. 100 % (normalized: „% der Poren
+  pro Dekade“); Werte > 100 % sind möglich, wenn die Poren enger als eine Dekade liegen. Im Histogramm
+  auf einer **zweiten y-Achse rechts** (andere Einheit als die Balken).
+- **`critical_pores`** (2026-10-18): Pareto der maßgebenden Poren – Balken = Beitrag A g^q der Top-Poren
+  (Nummer wie in der Porenliste, Farbe = Zone außen/innen), Summenkurve auf zweiter Achse; Parameter
+  `q` (einer der q_values) und `top`. Über die ID: Poren aller Schliffe, beschriftet Bild/Pore.
+  Rechts daneben die **Probe** (gerade ausgerichtet über das KOS, Außenseite oben, auf die Probe
+  zugeschnitten mit schmalem Rand Einbettmittel), die Top-Poren eingekreist und mit ihrer Nummer
+  beschriftet (Top 5 größer). Dafür neu: `Plot.needs_picture` → `core` liefert das Probenbild
+  (`plotting.sample_picture`, nur bei Bedarf) und `Plot.size_in` (breiterer Plot). Schnittstelle 0.12.
+  Ohne KOS und im ID-Plot nur der Pareto-Teil.
+- Offen: ID-Plots im Viewer anzeigen.
 
 ---
 

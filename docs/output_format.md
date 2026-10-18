@@ -30,6 +30,7 @@ One run processes one ID (= name of the input folder).
     ├── id_values.json              values over the whole ID (Evaluator.finalize)
     ├── errors.json                 skipped images
     ├── <ID>_results.xlsx           sheets by topic: Pores, <module sheets, e.g. Stress>, Detection, ID, Errors
+    ├── plots/<plot>.png            plots over the whole ID (plot_id of the plot modules; complete runs only)
     └── config_used.yaml            copy of the config used for this run
 ```
 

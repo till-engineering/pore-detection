@@ -60,6 +60,7 @@ def prepare_results_dir(output_dir: Path, image_id: str) -> Path:
     for folder in results_dir.glob(f"{image_id}_*"):
         if folder.is_dir():
             _remove_program_files(folder)
+    write_plots(results_dir, {})            # plots over the ID
     return results_dir
 
 
