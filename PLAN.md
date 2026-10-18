@@ -1,7 +1,7 @@
 # Pore Detection – Projektplan
 
 > Status: Phase 0–4 fertig (Abgleich an echten Bildern ganz am Ende), Werkzeuge, Filter und Korrekturen (7.3) umgesetzt, Untergrundkorrektur (7.4) umgesetzt, Proben-KOS (7.5), Porenindex (7.6), Plots (7.7), Launcher-Reiter Evaluations (7.8), Ergebnis-Excel (7.9) umgesetzt · Stand: 2026-10-18 ·
-> Schnittstellen-Version 0.12
+> Schnittstellen-Version 0.13
 
 ---
 
@@ -128,7 +128,9 @@ Pore_Detection/
 │   │
 │   ├── evaluation/          # 5. Auswertungsmodule (beliebig viele aktiv)
 │   │   ├── porosity.py      # Porenanzahl, Porosität
-│   │   └── pore_index.py    # spannungsgewichteter Porenindex (Porenkonzept, 7.6)
+│   │   ├── pore_index.py    # spannungsgewichteter Porenindex (Porenkonzept, 7.6)
+│   │   ├── comparison.py    # Vergleichsbild: Original | Poren rot (comparison.jpg)
+│   │   └── frame_picture.py # Probe mit KOS, Rahmen, Länge und Dicke bemaßt (frame_picture.jpg)
 │   │
 │   └── plots/               # 6. Plots als Bilder (beliebig viele aktiv, 7.7)
 │       └── phi_over_q.py, pores_over_height.py, pore_sizes.py
@@ -659,8 +661,9 @@ Auswertungsmodul `evaluation/pore_index.py` (Stufe `evaluation`, braucht das Pro
 - **Formeln** (Folie „Porenkonzept“): Φ_q = Σ A_i g_i^q / A_Mess;
   Φ_eff,q = w_o Σ_(i∈o) A_i g_i^q / A_Mess,o + w_u Σ_(i∈u) A_i g_i^q / A_Mess,u;
   w_o = (n_o+1)/(n_o+n_u+2), w_u = (n_u+1)/(n_o+n_u+2).
-- **Spannung g** über die bezogene Höhe ζ = z / Dicke (0 innen, 1 außen). Vorerst nur
-  `stress: bending` (Wechselbiegung, g = |2ζ − 1|). Lastfälle sind noch nicht festgelegt; später
+- **Spannung g** über die bezogene Höhe ζ = z / Dicke (0 innen, 1 außen). Standard
+  `stress: bending` (Wechselbiegung, g = |2ζ − 1|), alternativ `stress: pulsating` (schwellende
+  Beanspruchung laut Folie, g = ζ; ergänzt 2026-10-18). Weitere Lastfälle sind noch nicht festgelegt; später
   ein **beliebiges Spannungsfeld**, das im Launcher eingegeben wird (dann klären, wie das zur Regel
   „config.yaml einzige Quelle“ passt).
 - **Spannung einer Pore** (`pore_stress`, genau eine Variante, später Auswahl im Launcher):

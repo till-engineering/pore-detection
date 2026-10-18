@@ -1,6 +1,6 @@
 # Interfaces
 
-> Binding specification of all data passed between modules. Interface version: 0.12 (draft)
+> Binding specification of all data passed between modules. Interface version: 0.13 (draft)
 >
 > Rule: a module only receives and returns the types defined here. If a new method needs
 > data that is not defined here, this document and `core/types.py` are changed first.
@@ -23,6 +23,8 @@
 > Changes 0.10 → 0.11: optional `Plot.plot_id` (the same plot over the whole ID).
 > Changes 0.11 → 0.12: optional `Plot.needs_picture` (plot() gets `picture=`: the straightened sample,
 > `core.plotting.SamplePicture` with pore centroids, or None without frame) and `Plot.size_in`.
+> Changes 0.12 → 0.13: `EvaluationResult.images`: a key ending in `.jpg` is saved as JPG (8 bit, pictures
+> for humans), every other key as `<key>.tif`.
 
 ---
 
@@ -121,7 +123,7 @@ pores.get("area_px2") -> ndarray   # one value per pore, ordered by pore_id
 |-------|------|---------|
 | `per_image` | `dict[str, float \| int \| str]` | one value per column of the per-image results |
 | `per_pore` | `DataFrame \| None` | one row per pore, must contain column `pore_id` |
-| `images` | `dict[str, ndarray]` | images to save (e.g. overlay), key = output name |
+| `images` | `dict[str, ndarray]` | images to save (e.g. overlay), key = output name: `<key>.tif`; a key ending in `.jpg` is saved as it is (JPG, `uint8` only – pictures for humans, e.g. `comparison.jpg`) |
 
 Column and image names are chosen by the module. If two modules return the same name, the run
 is aborted at the first successful image with an error naming both modules.

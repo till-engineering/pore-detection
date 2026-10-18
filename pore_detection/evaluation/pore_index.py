@@ -16,7 +16,8 @@ its own. pore_stress selects how a part gets its stress:
     max       highest g in the part, times its area
 
 Stress profiles (stress): bending = alternating bending, g = |2 zeta - 1| (1 at both surfaces,
-0 in the neutral fibre). Further profiles (any stress field) later.
+0 in the neutral fibre), the default; pulsating = pulsating stress, g = zeta (0 at the inner, 1 at
+the outer surface). Further profiles (any stress field) later.
 
 g is defined in one place only (PoreIndex.relative_stress). Hardness outer / inner (HBW, slide
 "Porenkonzept") is an input that is recorded but not used in the model yet; it is at hand there for
@@ -37,6 +38,7 @@ from ..core.types import EvaluationResult
 
 STRESS_PROFILES = {
     "bending": lambda zeta: np.abs(2 * zeta - 1),
+    "pulsating": lambda zeta: zeta,
 }
 PORE_STRESS = ("centroid", "area", "max")
 ZONE_BOUNDARY = 0.5         # relative height of the boundary between inner and outer zone

@@ -115,13 +115,16 @@ postprocessing:
 evaluation:                 # any number of independent modules
   - name: porosity          # pore count, porosity per image and per ID, pore areas
   - name: pore_index        # stress-weighted pore index (Porenkonzept), needs sample.frame
-    stress: bending         # stress profile over the height: bending = |2 zeta - 1| (1 at both surfaces)
+    stress: bending         # stress profile over the height: bending = |2 zeta - 1| (1 at both surfaces),
+                            # pulsating = zeta (0 inner, 1 outer surface)
     pore_stress: area       # stress of a pore: centroid | area (every pixel its own) | max
     q_values: [1, 1.5, 2, 3, 5, 10]
     cracks_outer: 0         # n_o: crack origins at the outer surface (tests)
     cracks_inner: 0         # n_u: crack origins at the inner surface (tests)
     hardness_outer: null    # hardness outer surface in HBW, null = not given (not used in the model yet,
     hardness_inner: null    # hardness inner surface in HBW   only recorded; see PoreIndex.relative_stress)
+  - name: comparison        # comparison.jpg in the image folder: original | counted pores in red
+  - name: frame_picture     # frame_picture.jpg: sample with frame and dimensioned length / thickness
 
 plots:                      # any number; PNG per image in <image folder>/plots/, shown by the viewer in this order
   - name: pore_areas        # histogram of the pore areas (log classes, density, D50 / D90 / mean), as in V2;

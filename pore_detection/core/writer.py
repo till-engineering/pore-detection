@@ -17,6 +17,9 @@ from .types import ImageInfo
 OVERLAY_COLOR = (255, 0, 0)              # RGB, pores in overlays
 OVERLAY_ALPHA = 0.5                      # share of the overlay color on pore pixels
 TIFF_FAST = [cv2.IMWRITE_TIFF_COMPRESSION, cv2.IMWRITE_TIFF_COMPRESSION_PACKBITS]
+JPEG_QUALITY = [cv2.IMWRITE_JPEG_QUALITY, 90]
+# images of evaluation modules: <name>.tif, or <name>.jpg if the key ends with .jpg (pictures for humans)
+MODULE_IMAGE_SUFFIXES = {".tif", ".jpg"}
 
 # file names, see docs/output_format.md
 PORES_JSON = "pores.json"
@@ -50,7 +53,7 @@ def prepare_results_dir(output_dir: Path, image_id: str) -> Path:
     """Create <output_dir>/<ID>_results/ and delete the files a previous run created there.
 
     Only program files are deleted: the known top-level files and, inside the image folders
-    (<ID>_*), the known result files plus *.tif (images of evaluation modules).
+    (<ID>_*), the known result files plus *.tif / *.jpg (images of evaluation modules).
     Empty image folders are removed afterwards; anything else is left untouched.
     """
     results_dir = Path(output_dir) / f"{image_id}_results"
@@ -67,7 +70,7 @@ def prepare_results_dir(output_dir: Path, image_id: str) -> Path:
 def _remove_program_files(folder: Path) -> None:
     """Delete the result files of one image folder, and the folder if it is empty then."""
     for file in folder.iterdir():
-        if file.is_file() and (file.name in _IMAGE_FILES or file.suffix == ".tif"):
+        if file.is_file() and (file.name in _IMAGE_FILES or file.suffix in MODULE_IMAGE_SUFFIXES):
             file.unlink()
     write_plots(folder, {})
     if not any(folder.iterdir()):
@@ -111,7 +114,10 @@ def write_pores(folder: Path, original: np.ndarray, labels: np.ndarray, rejected
     if save_full_overlay:
         _imwrite(folder / OVERLAY_TIF, overlay(original, mask), TIFF_FAST)
     for name, image in images.items():
-        _imwrite(folder / f"{name}.tif", image, TIFF_FAST)
+        if name.endswith(".jpg"):
+            _imwrite(folder / name, image, JPEG_QUALITY)
+        else:
+            _imwrite(folder / f"{name}.tif", image, TIFF_FAST)
 
 
 def write_plots(folder: Path, plots: dict[str, bytes]) -> None:

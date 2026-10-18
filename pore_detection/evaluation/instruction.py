@@ -15,7 +15,7 @@ What a module gets and returns (once per image, modules of one image run in para
   The module never writes files – core writes everything it returns:
     per_image -> images.json + results Excel (one row per image)
     per_pore  -> pores.json (one row per pore, joined on pore_id)
-    images    -> <image folder>/<name>.tif
+    images    -> <image folder>/<name>.tif (key "<name>.jpg" -> <name>.jpg, 8 bit: pictures for humans)
   Column names are free, but must not clash with another module (the run stops with an error).
   It runs again after every manual correction in the viewer.
 """

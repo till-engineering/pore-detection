@@ -24,6 +24,9 @@ One run processes one ID (= name of the input folder).
     │   ├── corrections.json        manual corrections (only if there are any, see PLAN.md 7.3)
     │   ├── overlay.tif             only with output.save_full_overlay: true
     │   ├── <name>.tif              images returned by evaluation modules (key = name)
+    │   ├── <name>.jpg              pictures for humans returned by evaluation modules (key ends in .jpg),
+    │   │                           e.g. comparison.jpg: original | pores in red (module comparison),
+    │   │                           frame_picture.jpg: sample frame + length / thickness (module frame_picture)
     │   └── plots/<plot>.png        one picture per plot of the stage plots (registered name);
     │                               plots/<plot>.<variant>.png for the second view of a plot (Plot.variant)
     ├── images.json                 one row per image
@@ -40,7 +43,7 @@ One run processes one ID (= name of the input folder).
 - `images.json`, `errors.json` and the Excel file are written at the end of the run, also after a
   cancel or abort. `id_values.json` (and the `id_values` sheet) only after a complete run.
 - A new run **overwrites** `<ID>_results/`. Only files created by the program are deleted (the
-  names above, `*.tif` inside image folders); other files are left untouched, image folders are
+  names above, `*.tif` and `*.jpg` inside image folders); other files are left untouched, image folders are
   removed only if empty.
 
 ## 2. Formats
@@ -56,7 +59,7 @@ One run processes one ID (= name of the input folder).
 | ROI mask (sample = 255), full resolution | 8-bit TIFF, PackBits | viewer | always |
 | Original, full resolution | – (stays in the input folder) | viewer zoom reads it from there | never |
 | Overlay, full resolution | TIFF, PackBits, source bit depth | reports | only if `output.save_full_overlay: true` |
-| Images of evaluation modules | TIFF, PackBits | | when returned |
+| Images of evaluation modules | TIFF, PackBits; JPG (quality 90) if the key ends in `.jpg` | | when returned |
 
 - Full overlay: pore pixels blended 50 % with red over the original.
 - Preview files of older versions (`preview_*.jpg/png`) are deleted when a run overwrites the folder.
