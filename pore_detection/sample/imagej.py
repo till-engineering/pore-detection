@@ -3,9 +3,12 @@
     Image > Type > 8-bit                    unweighted RGB conversion (R + G + B) / 3
     Image > Adjust > Threshold, "Default"   IJ_IsoData, the specimen is the bright part
     Process > Binary > Fill Holes           pores inside the specimen belong to it
+    + only the largest part is kept         one specimen per image (as sample.frame assumes)
 
-No smoothing, no size filter – exactly these three steps. Very fast (a few passes over the
-image). Pores cut open by the specimen border are connected to the resin and are therefore
+No smoothing, no size filter – these three steps, then the largest connected part. Other bright
+parts in the embedding medium are dropped: copies or snippets of the scale overlay in panoramas
+(only the read one is removed by sample.scale; filled, their bar and text would count as pores),
+dust. Very fast (a few passes over the image). Pores cut open by the specimen border are connected to the resin and are therefore
 not filled: they lie outside the ROI.
 
 Self-contained (imports only core). CPU only; sample methods are not tiled and have no GPU path.
@@ -20,7 +23,7 @@ from ..core.step import RoiDetector
 
 @register("imagej")
 class ImageJ(RoiDetector):
-    """Specimen = bright part after ImageJ's "Default" auto threshold, holes filled."""
+    """Specimen = bright part after ImageJ's "Default" auto threshold, holes filled, largest part."""
 
     params = {}
 
@@ -32,7 +35,7 @@ class ImageJ(RoiDetector):
         histogram = cv2.calcHist([gray], [0], None, [256], [0, 256]).ravel().astype(np.int64)
         level = _ij_default_threshold(histogram)
         specimen = gray > level
-        return _fill_holes(specimen)
+        return _largest_part(_fill_holes(specimen))
 
 
 def _ij_default_threshold(histogram: np.ndarray) -> int:
@@ -74,6 +77,15 @@ def _ij_isodata(data: np.ndarray) -> int:
         if not ((moving + 1) <= result and moving < high - 1):
             break
     return int(round(result))
+
+
+def _largest_part(mask: np.ndarray) -> np.ndarray:
+    """Only the largest 8-connected part of the mask (empty mask stays empty)."""
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(mask.view(np.uint8), connectivity=8)
+    if count <= 2:                      # background + at most one part
+        return mask
+    largest = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
+    return labels == largest
 
 
 def _fill_holes(mask: np.ndarray) -> np.ndarray:

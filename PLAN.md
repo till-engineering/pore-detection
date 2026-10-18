@@ -815,7 +815,7 @@ Verbindlich in **`docs/output_format.md`**. Festgelegt:
 | 1 | Einfache Verfahren pro Stufe (`full_image`, `fixed_scale`, ein Detektor, Labeling, `pore_properties`, eine Auswertung), Bild-für-Bild-Pipeline mit Fehlerbehandlung, Schreibmodul, CLI, vollständige Config | Funktioniert korrekt | fertig |
 | 2 | Zuschneiden auf ROI, Tiling + Parallelisierung, dynamische GPU-Nutzung, Vorladen/Hintergrund-Schreiben | Schnell | fertig (5 × 99 MP: 31 s → 9 s); GPU-Weg in `core` + `gauss` als erstes Verfahren |
 | 3 | GUI: Launcher + Viewer | Bedienbar, Ergebnisse schnell prüfbar | fertig (Beta): Launcher fertig, Viewer mit Lupe, Overlays, Porenliste, volle Auflösung ohne Vorschaubilder, optische Kontrolle des Maßstabs; offen: Plots, Werkzeugspalte, Maßstab als Ebene |
-| 4 | Einbettmittel-Erkennung, Einbindung Maßstabsmodul, Abgleich an echten Bildern | Praxistauglich | ROI-Verfahren `imagej`, `grabcut` vorhanden; Maßstab `scale_bar` eingebunden (99 MP: 0,4 s statt 14 s in V2) |
+| 4 | Einbettmittel-Erkennung, Einbindung Maßstabsmodul, Abgleich an echten Bildern | Praxistauglich | ROI-Verfahren `imagej` (behält nur das größte Teil: Maßstabskopien/-schnipsel im Einbettmittel in Panoramen wären sonst Scheinporen, 2026-10-18), `grabcut` vorhanden; Maßstab `scale_bar` eingebunden (99 MP: 0,4 s statt 14 s in V2) |
 | 5 | Weitere Verfahren und Auswertungsmodule | Nach Bedarf | Werkzeuge, Filter, Korrekturen (7.3), Untergrundkorrektur + `hysteresis` (7.4), Proben-KOS (7.5), Porenindex pro Bild (7.6), Plots (7.7) umgesetzt; weitere nach Bedarf |
 
 Grundsatz: Erst korrekt (Phase 1), dann schnell (Phase 2).

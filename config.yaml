@@ -25,7 +25,7 @@ input:
 
 sample:                     # always run on the original image
   roi:                      # exactly one method -> roi_mask (full_image | imagej | grabcut)
-    name: imagej            # ImageJ standard: 8-bit, Default threshold, Fill Holes
+    name: imagej            # ImageJ standard: 8-bit, Default threshold, Fill Holes; largest part only
     # name: grabcut         # slower (~1.5 s/image), values from Pore_Detection_V2
     # work_max_px: 1200       # long edge of the working image; *_work_px refer to it
     # iterations: 3
