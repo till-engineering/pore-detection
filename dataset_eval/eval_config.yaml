@@ -34,3 +34,17 @@ pipeline:
   plots: []                     # the per-image plots of the program are not needed for the evaluation
   logging:
     level: WARNING              # keeps the console readable
+
+# Parameter search (python dataset_eval/tune.py): one setting for all images.
+# Paths point into the pipeline config (after the overrides above); list entries by their number,
+# e.g. postprocessing.label_steps.0.min_contrast. Results: <eval.output>/tune/
+tune:
+  images: 60                    # random sample of image / mask pairs (0 = all)
+  seed: 0                       # random sample and random trials repeatable
+  test_share: 0.3               # share of the images held back to check the best setting
+  objective: f1_p10             # f1_median | f1_p10 (bad images count) | f1_total | porosity_mae
+  trials: 200                   # full grid if it has at most this many combinations, else random ones
+  space:
+    detection.seed_threshold: [0.30, 0.35, 0.40, 0.45, 0.50]
+    detection.grow_threshold: [0.50, 0.55, 0.60, 0.65, 0.70]
+    detection.spot_threshold: [0.0, 0.15, 0.21, 0.27]
