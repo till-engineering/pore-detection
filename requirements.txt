@@ -15,3 +15,6 @@ rapidocr-onnxruntime>=1.2.3,<1.3
 
 # Optional, GPU paths only (separate index):
 # pip install torch --index-url https://download.pytorch.org/whl/cu126
+
+# Optional, detection method unet (needs PyTorch, see above):
+# segmentation-models-pytorch

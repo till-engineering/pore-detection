@@ -1,0 +1,55 @@
+# Training of the U-Net pore detector (detection method "unet").
+#
+#   python dataset_eval/train_unet.py
+#   python dataset_eval/train_unet.py --config other.yaml
+#
+# Relative paths are relative to the folder of this file. All keys are needed.
+# Result: <models>/<name>/ with weights.pt, model.yaml (recipe + threshold), split.yaml,
+# history.xlsx, training_curves.png, train_config_used.yaml. Use it in the pipeline with
+#   detection: {name: unet, model_dir: models/<name>, threshold: auto}   (configs/config_unet.yaml)
+
+data:
+  images: ../data/images        # micrographs (colour original, unchanged – no filters, no scaling)
+  masks: ../data/masks          # same file name (extension may differ), black = no pore, white = pore
+  mask_threshold: 127           # mask gray value above it = pore (0-255; JPG masks have gray edges)
+
+output:
+  models: ../models             # parent folder of all trained models
+  name: null                    # folder name of this model; null = unet_<date>_<time>
+
+model:
+  encoder: resnet50             # resnet50 (needed for micronet) | resnet34 | ... (segmentation_models_pytorch)
+  pretrained: micronet          # micronet (NASA, micrographs; resnet50 only) | imagenet (photos)
+  patch_px: 512                 # training patches and the windows of the pipeline run (multiple of 32)
+  overlap_px: 64                # run: windows / tiles overlap by this, only their centre is kept
+
+split:
+  val_share: 0.2                # share of the images for validation (best epoch, threshold)
+  group_pattern: null           # regex on the file name (without extension) that gives the sample, e.g.
+                                # "^[^_]+" -> P017_patch_03 = sample P017; all images of a sample go to
+                                # the same part; null = every image is its own sample
+  seed: 0                       # same split and same random patches every time
+
+training:
+  epochs: 100                   # at most
+  early_stopping: 15            # stop when the validation Dice did not improve for this many epochs
+  batch_size: 8                 # patches per step (8 x 512² fits 6 GB with float16)
+  patches_per_image: 16         # random patches per training image and epoch
+  pore_share: 0.5               # share of the patches placed on a pore pixel (rest anywhere)
+  learning_rate: 0.0003         # AdamW, decreases to 0 over the epochs (cosine)
+  weight_decay: 0.0001
+  bce_weight: 0.7               # loss = 0.7 x binary cross entropy + 0.3 x Dice loss (Stuckner et al. 2022)
+  dice_weight: 0.3
+  workers: 4                    # threads preparing the patches
+
+augment:                        # training only; 0 / null / false = off (see augment.py)
+  flip_rotate: true             # rotate by 90° steps and mirror
+  probability: 0.5              # each of the following is applied with this probability
+  brightness: 0.2               # x 0.8 ... 1.2
+  contrast: 0.2                 # +- 20 % around the patch mean
+  gamma: [0.7, 1.5]             # other camera curve
+  gradient: 0.3                 # uneven illumination: up to +-15 % across the patch
+  hue: 0.03                     # +- 11° hue (white balance, etching)
+  saturation: 0.2               # +- 20 % saturation
+  blur_sigma_px: [0.0, 1.0]     # slight defocus
+  noise: 0.02                   # gaussian noise, std up to 0.02

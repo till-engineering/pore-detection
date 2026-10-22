@@ -1,0 +1,146 @@
+# Variant unet: trained U-Net on the colour original, no preprocessing filters.
+# Copy of config.yaml with only preprocessing and detection changed -
+# copy it over config.yaml to test it (the program does not read it from here).
+#
+# Global configuration – Pore Detection
+# Placeholder: structure only, values and method names are not final.
+#
+# This is the single place for ALL settings. Values are changed here and
+# nowhere else: no defaults in code, no command-line overrides. The GUI never
+# changes it. Only exception: the GUI launcher may pass input/output paths
+# for a single run (input.path / output.dir below are the defaults).
+# It is read once at program start.
+# Methods are selected by their registered name; all other keys are passed
+# to the method as parameters. Size parameters carry their unit in the name
+# (e.g. min_area_px2 or min_area_um2).
+
+runtime:
+  device: auto              # auto | cuda | cpu  (methods use their GPU path only on cuda)
+  gpu_memory_fraction: 0.8  # max. share of free GPU memory a run may use
+  tile_size: 1024           # tile edge length in px for tileable steps
+  tile_batch_size: auto     # auto (from free GPU memory) | fixed number
+  threads: auto             # threads for tiles / evaluation / writing
+  prefetch: true            # load the next image in the background (needs RAM for 2 images)
+
+input:
+  path: test_images/193193  # ID folder (folder name = ID), images directly inside
+  extensions: [.tif, .tiff, .png, .jpg, .bmp]
+  gray_weights: [0.299, 0.587, 0.114]   # R, G, B weights for the gray working image
+
+sample:                     # always run on the original image
+  roi:                      # exactly one method -> roi_mask (full_image | imagej | grabcut)
+    name: imagej            # ImageJ standard: 8-bit, Default threshold, Fill Holes; largest part only
+    # name: grabcut         # slower (~1.5 s/image), values from Pore_Detection_V2
+    # work_max_px: 1200       # long edge of the working image; *_work_px refer to it
+    # iterations: 3
+    # denoise_ksize: 5
+    # texture_ksize_px: 9     # full resolution
+    # dark_offset: 0          # gray levels 0-255, + = more resin
+    # texture_clip_percentile: 99.0
+    # min_texture_separability: 0.45
+    # border_band_frac: 0.10  # border band for resin seeds (share of short edge)
+    # seed_erode_work_px: 4
+    # min_seed_frac: 0.0005
+    # min_area_frac: 0.02     # resin area: min. share of image area
+    # min_border_contact_frac: 0.12   # resin area: min. share of image perimeter touched
+    # max_hole_frac: 0.05     # fill air bubbles in the resin up to this share
+    # close_radius_work_px: 10
+    # min_material_contrast: 40.0     # gray levels 0-255
+    # min_specimen_frac: 0.02
+    # keep: all_above_min     # largest | all_above_min
+    # erode_border_px: 0      # full resolution
+  scale:                    # exactly one method -> pixel_size_um + mask of the scale overlay (fixed_scale | scale_bar)
+    name: scale_bar         # reads the burnt-in scale bar (ImageJ style), from Pore_Detection_V2
+    ocr_engines: [rapidocr] # rapidocr (~10 ms/reading) and/or tesseract (~0.3 s, needs the program)
+    ink_max: 120            # gray 0-255: up to here = bar / text
+    box_white_min: 255      # gray 0-255: box white (strict: microstructure is never pure white)
+    box_white_fallback: 250 # second attempt, e.g. JPEG
+    expected_min_um_per_px: 1.0e-2   # outside: only a warning in the log, the value is used
+    expected_max_um_per_px: 1.0e+2
+    exclusion_pad_px: 4     # margin around the overlay box, also not sample
+    # name: fixed_scale     # same scale for every image
+    # um_per_px: null       # null = unknown -> _um columns stay empty
+
+  frame:                    # exactly one method -> coordinate system of the sample (edge_lines | none)
+    name: edge_lines        # rectangular section: x along the outer (top) edge, z up, origin bottom left
+    normal_window_px: 5     # outline points before / after a point for its edge direction
+    corner_trim: 0.15       # share of every side left out at both ends (rounded corners)
+    # name: none            # no frame (e.g. round sections); steps that need one make the image fail
+
+preprocessing: []           # none: the U-Net takes the colour original exactly as in its training
+
+detection:                  # exactly one method
+  name: unet                # trained U-Net (python dataset_eval/train_unet.py)
+  model_dir: models/unet    # folder of the trained model (models/<name> from the training)
+  threshold: auto           # auto = threshold of model.yaml (best on the validation images) or 0..1
+
+postprocessing:
+  mask_steps: []            # chain: mask -> mask, executed in this order (all off for now – speed)
+    # - name: open            # removes single noise pixels
+      # radius_px: 1
+    # - name: close         # closes narrow gaps inside pores (off as in V2)
+    #   radius_px: 1
+    # - name: fill_holes      # fills only holes that are small compared to their pore
+      # max_ratio: 3.0        # largest hole = 3 x pore area (0 = every hole); a grain inside a
+                            # ring of grain boundaries is large and stays unfilled
+  labeling:                 # exactly one method: mask -> numbered pores
+    name: connected_components
+    connectivity: 8         # 8 = touching corners belong to the same pore, 4 = only edges
+  label_steps:              # chain: numbered pores -> numbered pores (new steps off for now – speed)
+                            # steps that change pores (merge, filters) BEFORE pore_properties
+    # - name: min_size        # noise limit: smaller objects are deleted (not "rejected")
+      # min_size_px: 4
+    # - name: merge_close     # parts of a torn pore become one again (BEFORE split_touching)
+      # max_gap_px: 1         # largest bridged gap (0 = only touching parts)
+      # bridge_gaps: true     # the gap becomes part of the pore
+    # - name: split_touching  # pores that grew together are split (watershed)
+      # min_distance_px: 3    # smallest distance between two pore centres
+      # min_area_ratio: 0.15  # smaller parts are no pore of their own
+    # filters: reject with a reason (visible in the viewer, can be counted again by hand)
+    # - name: min_diameter    # measurability
+      # min_diameter_px: 4.0
+    # - name: scratch         # grinding scratches: long, thin and straight
+      # min_aspect_ratio: 4.0
+      # max_width_px: 4.0     # or max_width_um: 4.0 (needs a scale) – exactly one of both
+      # min_solidity: 0.6     # ragged objects are no scratch and stay
+    # - name: compactness     # networks of grain boundaries
+      # min_solidity: 0.40
+    # - name: roundness       # roundness 4A/(pi feret²): gas pores > 0.7, cavities down to 0.2
+      # min_roundness: 0.20
+    - name: pore_properties # area_px2 per pore
+
+evaluation:                 # any number of independent modules
+  - name: porosity          # pore count, porosity per image and per ID, pore areas
+  - name: pore_index        # stress-weighted pore index (Porenkonzept), needs sample.frame
+    stress: bending         # stress profile over the height: bending = |2 zeta - 1| (1 at both surfaces),
+                            # pulsating = zeta (0 inner, 1 outer surface)
+    pore_stress: area       # stress of a pore: centroid | area (every pixel its own) | max
+    q_values: [1, 1.5, 2, 3, 5, 10]
+    cracks_outer: 0         # n_o: crack origins at the outer surface (tests); these four: defaults,
+                            # entered per image in the launcher (tab Evaluations)
+    cracks_inner: 0         # n_u: crack origins at the inner surface (tests)
+    hardness_outer: null    # hardness outer surface in HBW, null = not given (not used in the model yet,
+    hardness_inner: null    # hardness inner surface in HBW   only recorded; see PoreIndex.relative_stress)
+  - name: comparison        # comparison.jpg in the image folder: original | counted pores in red
+  - name: frame_picture     # frame_picture.jpg: sample with frame and dimensioned length / thickness
+
+plots:                      # any number; PNG per image in <image folder>/plots/, shown by the viewer in this order
+  - name: pore_areas        # histogram of the pore areas (log classes, density, D50 / D90 / mean), as in V2;
+                            # second view "normalized" (share in %), switch in the viewer
+  - name: phi_over_q        # pore index phi_q / phi_eff_q over q (needs pore_index)
+  - name: pores_over_height # stress at each pore over its relative height (needs pore_index)
+  - name: critical_pores    # Pareto: pores sorted by their contribution A g^q to phi_q (needs pore_index)
+    q: 10                   # one of the q_values of pore_index
+    top: 20                 # pores shown as bars
+  - name: pore_sizes        # histogram of the equivalent pore diameters
+
+output:
+  dir: test_images/results  # <dir>/<ID>_results/ is created (and overwritten)
+  save_full_overlay: false  # full-resolution overlay TIFF (large); masks + labels are always saved
+
+logging:
+  level: INFO               # DEBUG | INFO | WARNING | ERROR
+  file: null                # null = console only
+
+gui:
+  theme: system
