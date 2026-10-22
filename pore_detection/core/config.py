@@ -1,6 +1,8 @@
-"""Global configuration: read config.yaml once, pass it on as an immutable object.
+"""Global configuration: read the config once, pass it on as an immutable object.
 
-config.yaml always lies in the project folder (parent of the pore_detection package).
+The config is the ONE file config*.yaml in the project folder (parent of the pore_detection
+package): config.yaml, config_unet.yaml, ... – to switch, move another one from configs/ there.
+None or more than one is an error naming the files; it is looked up again at every load.
 It is assumed to be correct: no validation, no defaults.
 """
 
@@ -9,7 +11,17 @@ from typing import Any
 
 import yaml
 
-CONFIG_PATH = Path(__file__).resolve().parents[2] / "config.yaml"
+PROJECT_DIR = Path(__file__).resolve().parents[2]
+CONFIG_PATTERN = "config*.yaml"
+
+
+def config_path() -> Path:
+    """The one config*.yaml in the project folder."""
+    found = sorted(path for path in PROJECT_DIR.glob(CONFIG_PATTERN) if path.is_file())
+    if len(found) != 1:
+        names = ", ".join(path.name for path in found) or "none"
+        raise FileNotFoundError(f"exactly one {CONFIG_PATTERN} is allowed in {PROJECT_DIR}, found: {names}")
+    return found[0]
 
 
 class Config:
@@ -25,7 +37,7 @@ class Config:
         try:
             return self._data[key]
         except KeyError:
-            raise AttributeError(f"config key '{_join(self._path, key)}' not found in {CONFIG_PATH}") from None
+            raise AttributeError(f"config key '{_join(self._path, key)}' not found in the config") from None
 
     def __setattr__(self, key: str, value: Any):
         raise AttributeError("config is read-only")
@@ -45,8 +57,8 @@ class Config:
 
 
 def load_config() -> Config:
-    """Read config.yaml from the project folder."""
-    with open(CONFIG_PATH, encoding="utf-8") as file:
+    """Read the config (config*.yaml) from the project folder."""
+    with open(config_path(), encoding="utf-8") as file:
         return Config(yaml.safe_load(file))
 
 

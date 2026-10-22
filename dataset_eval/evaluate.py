@@ -30,7 +30,7 @@ from tqdm import tqdm
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 
-from pore_detection import Config, RunAborted, find_images, load_config, run  # noqa: E402
+from pore_detection import Config, RunAborted, config_path, find_images, load_config, run  # noqa: E402
 from pore_detection.core.io import load_image  # noqa: E402
 
 import metrics  # noqa: E402
@@ -62,6 +62,7 @@ def load_settings(path: Path) -> tuple[dict, Config]:
         folder = Path(settings[key])
         settings[key] = (folder if folder.is_absolute() else path.parent / folder).resolve()
     pipeline = merge(load_config().to_dict(), data.get("pipeline") or {})
+    print(f"pipeline config: {config_path().name} + overrides of {path.name}")
     return settings, Config(pipeline)
 
 

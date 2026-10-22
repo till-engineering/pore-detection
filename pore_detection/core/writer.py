@@ -121,18 +121,22 @@ def write_pores(folder: Path, original: np.ndarray, labels: np.ndarray, rejected
 
 
 def write_plots(folder: Path, plots: dict[str, bytes]) -> None:
-    """plots/<name>.png of one image (PNG bytes per plot name); old plot images are replaced, an
-    empty plots folder is removed."""
+    """plots/<name>.png of one image (PNG bytes per plot name; a name "all_q/x" = extra plot in a
+    subfolder); old plot images are replaced, empty plot folders are removed."""
     plots_dir = folder / PLOTS_DIR
     if plots_dir.is_dir():
-        for file in plots_dir.glob("*.png"):
+        for file in plots_dir.rglob("*.png"):
             file.unlink()
-    if plots:
-        plots_dir.mkdir(exist_ok=True)
-        for name, png in plots.items():
-            (plots_dir / f"{name}.png").write_bytes(png)
-    elif plots_dir.is_dir() and not any(plots_dir.iterdir()):
-        plots_dir.rmdir()
+    for name, png in plots.items():
+        path = plots_dir / f"{name}.png"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(png)
+    if plots_dir.is_dir():
+        for sub in sorted(plots_dir.rglob("*"), reverse=True):     # deepest first
+            if sub.is_dir() and not any(sub.iterdir()):
+                sub.rmdir()
+        if not any(plots_dir.iterdir()):
+            plots_dir.rmdir()
 
 
 def write_corrections(folder: Path, image: str, corrections: list[dict], added: list[int], removed: list[int],

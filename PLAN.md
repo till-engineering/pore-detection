@@ -1,7 +1,7 @@
 # Pore Detection – Projektplan
 
 > Status: Phase 0–4 fertig (Abgleich an echten Bildern ganz am Ende), Werkzeuge, Filter und Korrekturen (7.3) umgesetzt, Untergrundkorrektur (7.4) umgesetzt, Proben-KOS (7.5), Porenindex (7.6), Plots (7.7), Launcher-Reiter Evaluations (7.8), Ergebnis-Excel (7.9) umgesetzt · Stand: 2026-10-18 ·
-> Schnittstellen-Version 0.14
+> Schnittstellen-Version 0.15
 
 ---
 

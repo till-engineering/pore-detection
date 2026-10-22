@@ -1,6 +1,6 @@
 # Variant local_threshold: Sauvola threshold from mean and spread around every pixel, no background correction.
 # Copy of config.yaml with only preprocessing, detection and label_steps changed -
-# copy it over config.yaml to test it (the program does not read it from here).
+# to use it, move it into the project folder (exactly one config*.yaml may lie there).
 #
 # Global configuration – Pore Detection
 # Placeholder: structure only, values and method names are not final.
@@ -114,6 +114,11 @@ plots:                      # any number; PNG per image in <image folder>/plots/
   - name: critical_pores    # Pareto: pores sorted by their contribution A g^q to phi_q (needs pore_index)
     q: 10                   # one of the q_values of pore_index
     top: 20                 # pores shown as bars
+    all_q: true             # also save it for every q of pore_index in plots/all_q/ (not shown)
+  - name: critical_pores_split  # same Pareto, each bar split in log space: area | stress, zone = frame
+    q: 10                   # one of the q_values of pore_index
+    top: 20                 # pores shown as bars
+    all_q: true             # also save it for every q of pore_index in plots/all_q/ (not shown)
   - name: pore_sizes        # histogram of the equivalent pore diameters
 
 output:

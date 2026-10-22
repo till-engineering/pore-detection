@@ -12,7 +12,12 @@ sample frame; without it, and over the whole ID, only the Pareto part is drawn.
 The contributions come from the evaluation module pore_index (weighted_area_q…_px2, computed with
 its pore_stress); q must be one of its q_values. Over the whole ID: the critical pores of all
 images together, labelled image/pore.
+
+all_q: true (optional) also saves the plot for every q of pore_index (every weighted_area_q…
+column) in plots/all_q/<name>_q<q>.png – only saved, the viewer shows the plot with q.
 """
+
+import re
 
 import numpy as np
 
@@ -27,6 +32,7 @@ LEADER_PT = (12, 20, 30)                    # tried lengths of the line from the
 LEADER_LW = 0.6
 TURNS_DEG = (0, 30, -30, 60, -60, 90, -90, 135, -135, 180)     # tried directions, relative to "outwards"
 LABEL_ROOM = 0.07                           # free border around the sample picture, share of its long side
+ALL_Q_DIR = "all_q"                         # subfolder of plots/ for the plots of every q (all_q: true)
 
 
 @register("critical_pores")
@@ -34,7 +40,8 @@ class CriticalPores(Plot):
     """Pareto of the pore contributions A g^q to phi_q, colored by zone."""
 
     params = {"q": "exponent q (one of the q_values of pore_index)",
-              "top": "number of pores shown as bars"}
+              "top": "number of pores shown as bars",
+              "all_q": "true = also save the plot for every q of pore_index in plots/all_q/ (not shown)"}
     pore_columns = ["pore_id", "zeta"]
     needs_picture = True
     size_in = (11.0, 4.4)           # room for the sample on the right
@@ -115,6 +122,17 @@ class CriticalPores(Plot):
         summary = self._draw(ax, weighted, labels, pores["zeta"].to_numpy(dtype=float), "image/pore")
         ax.set_title(f"Critical pores for Φ_q, q = {self.q:g} – {len(images)} images, {len(weighted)} pores"
                      f"{summary}")
+
+    def extra_plots(self, pores) -> dict:
+        """all_q: this plot for every q of pore_index (found from the weighted_area_q…_px2 columns)."""
+        if not getattr(self, "all_q", False):
+            return {}
+        found = re.findall(r"^weighted_area_q([0-9_]+)_px2$", "\n".join(pores.columns), flags=re.MULTILINE)
+        result = {}
+        for text in sorted(found, key=lambda t: float(t.replace("_", "."))):
+            q = float(text.replace("_", "."))
+            result[f"{ALL_Q_DIR}/{self.name}_q{text}"] = type(self)(**{**self._params, "q": q, "all_q": False})
+        return result
 
     def _column(self, pores) -> str:
         column = "weighted_area_q" + f"{self.q:g}".replace(".", "_") + "_px2"

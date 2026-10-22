@@ -53,7 +53,7 @@ class _Field:
                 self.widget.setPlaceholderText("numbers, separated by commas")
             self.widget.textChanged.connect(on_change)
         else:                                       # nested values: only in config.yaml
-            self.widget = QLabel(f"{value!r} (change in config.yaml)")
+            self.widget = QLabel(f"{value!r} (change in the config)")
         self.set(value)
 
     def set(self, value) -> None:
@@ -104,7 +104,7 @@ class EvaluationsTab(QWidget):
         self._names: dict[int, str] = {}
         self._tables: dict[int, ImageInputs] = {}  # module index -> inputs per image
         self._images: list[str] = []                # file names in the ID folder
-        self.reset_button = QPushButton("Reset to config.yaml")
+        self.reset_button = QPushButton("Reset to config")
         self.reset_button.clicked.connect(self.reset)
         self.hint = QLabel()
         self.hint.setWordWrap(True)
@@ -183,12 +183,12 @@ class EvaluationsTab(QWidget):
                 table = ImageInputs(per_image, params, info.params)
                 table.set_images(self._images)
                 self._tables[index] = table
-                form.addRow(QLabel("Per image (empty = config.yaml):"))
+                form.addRow(QLabel("Per image (empty = config):"))
                 form.addRow(table)
             self._form_layout.addWidget(box)
             shown += 1
         if not shown:
-            self._form_layout.addWidget(QLabel("No evaluation module with inputs in config.yaml."))
+            self._form_layout.addWidget(QLabel("No evaluation module with inputs in the config."))
         self._form_layout.addStretch()
         self._update_marks()
 
@@ -200,8 +200,8 @@ class EvaluationsTab(QWidget):
             self._labels[key].setFont(font)
             changed += field.changed()
         self.hint.setText(
-            "Defaults from config.yaml. Changed values (bold) apply to the next run only and are "
-            "recorded in config_used.yaml; config.yaml is not changed."
+            "Defaults from the config. Changed values (bold) apply to the next run only and are "
+            "recorded in config_used.yaml; the config file is not changed."
             + (f"  ·  {changed} changed" if changed else ""))
         self.reset_button.setEnabled(changed > 0)
         self.changed.emit()
@@ -239,7 +239,7 @@ class EvaluationsTab(QWidget):
             if per_image:
                 entries[index]["per_image"] = per_image
             changes.append(f"{self._names[index]}: inputs for {len(per_image)} of {len(table.images)} images"
-                           + (" (others: config.yaml)" if len(per_image) < len(table.images) else ""))
+                           + (" (others: config)" if len(per_image) < len(table.images) else ""))
         return config, changes
 
 

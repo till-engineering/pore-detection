@@ -1,7 +1,8 @@
 """Launcher window: choose paths, show the config, start / cancel a run, follow progress and log.
 
-Uses only the public API of pore_detection. config.yaml is read again at every start, so a
-change in the file applies to the next run without restarting the launcher. The launcher never
+Uses only the public API of pore_detection. The config (the one config*.yaml in the project folder)
+is read again at every start, so a change in the file – or another config moved into the folder –
+applies to the next run without restarting the launcher. The launcher never
 writes the config: paths and the inputs of the tab "Evaluations" (evaluations.py) are passed to
 the run only, and recorded in config_used.yaml.
 """
@@ -19,8 +20,8 @@ from PySide6.QtWidgets import (QCheckBox, QFileDialog, QGridLayout, QGroupBox, Q
 
 from gui.launcher.evaluations import EvaluationsTab
 from gui.viewer.window import ViewerWindow
-from pore_detection import (CONFIG_PATH, LOG_FORMAT, Config, Corrections, RunAborted, RunResult, find_images,
-                            load_config, resolve_path, run)
+from pore_detection import (LOG_FORMAT, PROJECT_DIR, Config, Corrections, RunAborted, RunResult, config_path,
+                            find_images, load_config, resolve_path, run)
 
 log = logging.getLogger("pore_detection")
 
@@ -87,7 +88,7 @@ class LauncherWindow(QMainWindow):
             self.output_edit.setText(str(resolve_path(config.output.dir)))
             self.evaluations.refresh(config.to_dict())
         except Exception as error:  # broken config: the launcher still opens and shows it
-            self.input_edit.setPlaceholderText(f"config.yaml not readable: {error}")
+            self.input_edit.setPlaceholderText(f"config not readable: {error}")
         self.input_edit.textChanged.connect(self._list_images)
         self._list_images()
         paths = QGroupBox("Paths")
@@ -133,7 +134,8 @@ class LauncherWindow(QMainWindow):
         tabs = QTabWidget()
         tabs.addTab(self.log_view, "Log")
         tabs.addTab(self.evaluations, "Evaluations")
-        tabs.addTab(self.config_view, "Config (config.yaml, read-only)")
+        self._config_tab = tabs.addTab(self.config_view, "Config")    # title: file name, see _show_config
+        self._tabs = tabs
 
         layout = QVBoxLayout()
         layout.addWidget(paths)
@@ -150,9 +152,11 @@ class LauncherWindow(QMainWindow):
         self._log_handler.emitter.line.connect(self.log_view.appendPlainText)
         log.addHandler(self._log_handler)
 
-        # config view always shows the current file content
-        self._watcher = QFileSystemWatcher([str(CONFIG_PATH)])
+        # config view always shows the current file content; the project folder is watched too,
+        # so a config moved in or out is shown at once
+        self._watcher = QFileSystemWatcher([str(PROJECT_DIR)])
         self._watcher.fileChanged.connect(self._show_config)
+        self._watcher.directoryChanged.connect(self._show_config)
         self._show_config()
 
     @Slot()
@@ -169,18 +173,25 @@ class LauncherWindow(QMainWindow):
 
     @Slot()
     def _show_config(self) -> None:
+        path = None
         try:
-            text = CONFIG_PATH.read_text(encoding="utf-8")
-        except OSError as error:
-            text = f"cannot read {CONFIG_PATH}: {error}"
+            path = config_path()
+            text = path.read_text(encoding="utf-8")
+        except OSError as error:            # none / several configs, unreadable file
+            text = f"cannot read the config: {error}"
         self.config_view.setPlainText(text)
-        try:                                # unchanged evaluation inputs follow config.yaml
+        self._tabs.setTabText(self._config_tab, f"Config ({path.name if path else 'error'}, read-only)")
+        try:                                # unchanged evaluation inputs follow the config
             self.evaluations.refresh(load_config().to_dict())
         except Exception:
             pass                            # broken config: shown in the config view, reported at start
-        # editors often replace the file on save, which ends the watch: watch it again
-        if str(CONFIG_PATH) not in self._watcher.files() and CONFIG_PATH.exists():
-            self._watcher.addPath(str(CONFIG_PATH))
+        # watch only the current config; editors often replace the file on save, which ends the
+        # watch: watch it again
+        old = [file for file in self._watcher.files() if path is None or file != str(path)]
+        if old:
+            self._watcher.removePaths(old)
+        if path is not None and str(path) not in self._watcher.files() and path.exists():
+            self._watcher.addPath(str(path))
 
     # --- run ---
 
@@ -195,7 +206,7 @@ class LauncherWindow(QMainWindow):
         try:
             config = load_config()  # read again at every start
         except Exception as error:
-            self._message(f"config.yaml not readable – run not started:\n{error}")
+            self._message(f"config not readable – run not started:\n{error}")
             return
         try:                                # changed evaluation inputs: for this run only
             data, changes = self.evaluations.apply(config.to_dict())
@@ -211,6 +222,7 @@ class LauncherWindow(QMainWindow):
         self._total = 0
         self.viewer_button.setEnabled(False)
         self.log_view.clear()
+        self.log_view.appendPlainText(f"config: {config_path().name}")
         for change in changes:
             self.log_view.appendPlainText(f"evaluation input for this run: {change}")
         self.progress_bar.setRange(0, 0)  # busy until the first progress report

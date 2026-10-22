@@ -118,5 +118,5 @@ def _context_values(ctx) -> dict:
         x_px, z_px = ctx.sample_coords()                # (H, W) float32 each: every pixel in the frame
         values["zeta"] = np.clip(z_px / frame.thickness_px, 0, 1)   # relative height, 0 = inner, 1 = outer
         # single points: frame.to_sample(y_full, x_full) -> (x_px, z_px); full = array index + offset_px
-        # ctx.require_frame() raises (image skipped) if there is no frame – see evaluation/pore_index.py
+        # ctx.require_frame() raises FrameMissing if there is no frame: only this module is skipped – see evaluation/pore_index.py
     return values

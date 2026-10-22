@@ -33,7 +33,7 @@ from . import geometry, io, plotting, registry, writer
 from .config import Config
 from .pipeline import (CORE_EXCEL, FRAME_COLUMNS, _bounding_box, _check_scale, _finalize, _merge_results,
                        excel_layout, frame_from_columns, write_id_plots)
-from .types import ImageContext, LabeledPores
+from .types import FrameMissing, ImageContext, LabeledPores
 
 MANUAL = "manual"               # filter name of pores rejected by hand
 SEARCH_RADIUS_PX = 3            # a click this close to a pore still hits it
@@ -245,7 +245,10 @@ class Session:
         for step in self.store.evaluators:
             step = step.for_image(self.info.path.name)        # per-image inputs as in the run
             _check_scale(step, ctx)
-            results[step.name] = step.evaluate(ctx, pores)
+            try:
+                results[step.name] = step.evaluate(ctx, pores)
+            except FrameMissing:            # as in the run: only this module is left out
+                pass
         per_image, per_pore, images = _merge_results(results)
         self.store.layout.update(excel_layout(self.store.evaluators, results))
         keep = {k: v for k, v in self.row.items() if k in ("image", "path", "pixel_size_um", "scale_label",

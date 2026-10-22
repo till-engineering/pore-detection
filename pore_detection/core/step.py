@@ -151,3 +151,8 @@ class Plot(Step):
     # optional: the same plot over the whole ID (all images), saved in <ID>_results/plots/
     # def plot_id(self, ax, images: pd.DataFrame, pores: pd.DataFrame, variant: str = "") -> None
     #     images: images.json (one row per image), pores: pores.json of all images + column "image"
+
+    # optional: further copies of this plot that are only saved, not shown in the viewer
+    # def extra_plots(self, pores: pd.DataFrame) -> dict[str, "Plot"]
+    #     key = file stem below plots/ with a subfolder (e.g. "all_q/critical_pores_q5"), value = plot
+    #     instance with other parameters; drawn for the image and (with plot_id) over the ID

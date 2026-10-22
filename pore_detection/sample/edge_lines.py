@@ -2,7 +2,9 @@
 
 The whole sample is in the image and lies roughly horizontal (tilt well below 45°). The top edge
 is the outer surface, the bottom edge the inner one (PLAN.md 7.5). A sample cut by the image
-border makes the image fail.
+border (e.g. a cut-out from the inside of the sample) has no frame: a warning, no frame (None) –
+the image runs on, evaluation modules that need the frame are skipped. Every other problem of the
+edges makes the image fail.
 
 1. Outline of the sample (largest outer contour of the mask); every outline point gets its
    outward normal from the neighbouring points (+-normal_window_px along the outline).
@@ -16,6 +18,8 @@ border makes the image fail.
    to where the bottom edge meets the right edge.
 """
 
+import logging
+
 import cv2
 import numpy as np
 
@@ -26,6 +30,8 @@ from ..core.types import SampleFrame
 TOP, BOTTOM, LEFT, RIGHT = range(4)
 SIDE_NAMES = ("top", "bottom", "left", "right")
 MIN_POINTS = 10                 # fewer points on a side: no line can be fitted
+
+log = logging.getLogger("pore_detection")
 
 
 @register("edge_lines")
@@ -38,7 +44,12 @@ class EdgeLines(FrameDetector):
     }
 
     def detect_frame(self, info, roi_mask):
-        points, normals = self._outline(roi_mask)
+        outline = self._outline(roi_mask)
+        if outline is None:
+            log.warning("%s: sample touches the image border – no sample frame, modules that need one "
+                        "are skipped", info.name)
+            return None
+        points, normals = outline
 
         # sides first by the image axes, then by the axes of the fitted top edge
         side = _sides(normals, (0.0, 1.0))
@@ -72,7 +83,8 @@ class EdgeLines(FrameDetector):
         return SampleFrame((float(origin[0]), float(origin[1])), angle, thickness, float(length), wedge)
 
     def _outline(self, roi_mask):
-        """Outline points (y, x) of the largest sample part and their outward unit normals (dy, dx)."""
+        """Outline points (y, x) of the largest sample part and their outward unit normals (dy, dx);
+        None if the sample touches the image border."""
         contours, _ = cv2.findContours(roi_mask.view(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         if not contours:
             raise ValueError("no sample outline (roi_mask is empty)")
@@ -83,7 +95,7 @@ class EdgeLines(FrameDetector):
         on_border = ((contour[:, 0] == 0) | (contour[:, 0] == width - 1)
                      | (contour[:, 1] == 0) | (contour[:, 1] == height - 1))
         if on_border.sum() >= MIN_POINTS:
-            raise ValueError("sample touches the image border – the frame needs the whole sample in the image")
+            return None
         k = self.normal_window_px
         tangent = np.roll(contour, -k, axis=0) - np.roll(contour, k, axis=0)       # (dx, dy)
         normal_xy = np.stack([tangent[:, 1], -tangent[:, 0]], axis=1)

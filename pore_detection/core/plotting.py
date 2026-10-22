@@ -10,6 +10,9 @@ image itself does not fail – plots only show values that are already computed.
 Plots over the whole ID (optional Plot.plot_id) are drawn at the end of a run and after every
 manual correction, from images.json and the pores.json of all images (read back, never Excel).
 
+Extra plots (optional Plot.extra_plots, e.g. a plot for every q): drawn and saved with the others,
+in a subfolder of plots/ (key "all_q/critical_pores_q5"); the viewer shows only plots/<name>.png.
+
 Also here: log classes and kernel density for distribution plots, so that every plot (image and
 ID) computes them the same way – plots never import each other.
 """
@@ -84,7 +87,7 @@ def render(plots: list[Plot], image: dict, pores: pd.DataFrame, picture=None) ->
         if step.needs_picture:
             variant["picture"] = get_picture()
         step.plot(ax, image, pores, **variant)
-    return _render(plots, image.get("image"), missing, draw)
+    return _render(_with_extras(plots, pores), image.get("image"), missing, draw)
 
 
 def render_id(plots: list[Plot], images: pd.DataFrame, pores: pd.DataFrame) -> dict[str, bytes]:
@@ -95,10 +98,25 @@ def render_id(plots: list[Plot], images: pd.DataFrame, pores: pd.DataFrame) -> d
     def missing(step):
         return ([c for c in step.columns if c not in images.columns or images[c].isna().all()]
                 + [c for c in step.pore_columns if c not in pores.columns])
-    return _render(plots, "ID", missing, lambda step, ax, **variant: step.plot_id(ax, images, pores, **variant))
+    return _render(_with_extras(plots, pores), "ID", missing,
+                   lambda step, ax, **variant: step.plot_id(ax, images, pores, **variant))
 
 
-def _render(plots: list[Plot], where: str, missing, draw) -> dict[str, bytes]:
+def _with_extras(plots: list[Plot], pores: pd.DataFrame) -> list[tuple[str, Plot]]:
+    """(key, plot) of the configured plots, then the extra plots (optional Plot.extra_plots: saved in
+    a subfolder of plots/, not shown in the viewer)."""
+    items = [(step.name, step) for step in plots]
+    for step in plots:
+        if hasattr(step, "extra_plots"):
+            try:
+                items += list(step.extra_plots(pores).items())
+            except Exception as error:
+                log.warning("plot %s: extra plots skipped – %s: %s", step.name, type(error).__name__, error)
+    return items
+
+
+def _render(plots: list[tuple[str, Plot]], where: str, missing, draw) -> dict[str, bytes]:
+    """plots: (key, plot); the key is the file stem in plots/ (with a subfolder for extra plots)."""
     if not plots:
         return {}
     import matplotlib
@@ -106,7 +124,7 @@ def _render(plots: list[Plot], where: str, missing, draw) -> dict[str, bytes]:
     from matplotlib.figure import Figure     # object API: no global pyplot state, safe in threads
 
     result = {}
-    for step in plots:
+    for key, step in plots:
         try:
             gaps = missing(step)
             if gaps:
@@ -122,7 +140,7 @@ def _render(plots: list[Plot], where: str, missing, draw) -> dict[str, bytes]:
                         draw(step, ax)
                     buffer = io.BytesIO()
                     figure.savefig(buffer, format="png", bbox_inches="tight", pad_inches=PAD_IN)
-                views[variant_key(step.name, variant)] = buffer.getvalue()
+                views[variant_key(key, variant)] = buffer.getvalue()
             result.update(views)
         except MissingData as reason:
             log.warning("%s: plot %s skipped – %s", where, step.name, reason)

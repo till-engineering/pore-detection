@@ -19,7 +19,7 @@ import threading
 from pathlib import Path
 
 from ..core import unet_model
-from ..core.config import CONFIG_PATH
+from ..core.config import PROJECT_DIR
 from ..core.registry import register
 from ..core.step import Detector
 
@@ -42,7 +42,7 @@ class Unet(Detector):
     def __init__(self, **params):
         super().__init__(**params)
         folder = Path(self.model_dir)
-        self.folder = folder if folder.is_absolute() else CONFIG_PATH.parent / folder
+        self.folder = folder if folder.is_absolute() else PROJECT_DIR / folder
         recipe = unet_model.read_recipe(self.folder)
         unet_model._libraries()                     # missing torch / smp: clear message at the start
         self.tile_overlap_px = recipe["overlap_px"]

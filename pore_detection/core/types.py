@@ -7,6 +7,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+
+class FrameMissing(ValueError):
+    """A step needs the sample frame, but the image has none (ImageContext.require_frame)."""
+
 from . import geometry
 
 
@@ -91,9 +95,11 @@ class ImageContext:
         object.__setattr__(self, "roi_mask", _read_only(self.roi_mask))
 
     def require_frame(self) -> SampleFrame:
-        """The sample frame; raises (-> image skipped) if sample.frame is "none"."""
+        """The sample frame; raises FrameMissing if there is none (sample.frame "none", or the sample
+        touches the image border). In the evaluation only that module is skipped, before it the image fails."""
         if self.frame is None:
-            raise ValueError("sample frame required but not available (sample.frame is 'none')")
+            raise FrameMissing("sample frame required but not available (sample.frame 'none' or sample "
+                               "touches the image border)")
         return self.frame
 
     def sample_coords(self) -> tuple[np.ndarray, np.ndarray]:

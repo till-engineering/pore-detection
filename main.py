@@ -1,14 +1,19 @@
-"""Command line: python main.py – all settings come from config.yaml."""
+"""Command line: python main.py – all settings come from the one config*.yaml in the project folder."""
 
 import sys
 
 from tqdm import tqdm
 
-from pore_detection import RunAborted, load_config, run
+from pore_detection import RunAborted, config_path, load_config, run
 
 
 def main() -> int:
-    config = load_config()
+    try:
+        config = load_config()
+    except FileNotFoundError as error:
+        print(error, file=sys.stderr)
+        return 2
+    print(f"config: {config_path().name}")
     bar = None
 
     def progress(index: int, total: int, stage: str, name: str):

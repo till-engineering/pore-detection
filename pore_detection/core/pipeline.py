@@ -24,15 +24,13 @@ import numpy as np
 import pandas as pd
 
 from . import io, plotting, registry, tiling, writer
-from .config import CONFIG_PATH, Config
+from .config import PROJECT_DIR, Config
 from .device import gpu_name, select_device
 from .imaging import to_gray
 from .step import Step
-from .types import EvaluationResult, ImageContext, ImageInfo, SampleFrame, ScaleResult
+from .types import EvaluationResult, FrameMissing, ImageContext, ImageInfo, SampleFrame, ScaleResult
 
 log = logging.getLogger("pore_detection")
-
-PROJECT_DIR = CONFIG_PATH.parent
 
 # progress(image index 0-based, image count, stage, image name)
 Progress = Callable[[int, int, str, str], None]
@@ -265,7 +263,10 @@ def _process_image(config: Config, steps: _Steps, load: Callable[[], tuple[Image
         results: dict[str, EvaluationResult] = {}
         for step, future in futures:
             at("evaluation", step)
-            results[step.name] = future.result()
+            try:
+                results[step.name] = future.result()
+            except FrameMissing:            # e.g. a cut-out without sample edges: only this module is left out
+                log.warning("%s: evaluation %s skipped – no sample frame", info.name, step.name)
         at("evaluation")
         per_image, per_pore, images = _merge_results(results)
 

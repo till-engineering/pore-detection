@@ -1,6 +1,6 @@
 # Interfaces
 
-> Binding specification of all data passed between modules. Interface version: 0.14 (draft)
+> Binding specification of all data passed between modules. Interface version: 0.15 (draft)
 >
 > Rule: a module only receives and returns the types defined here. If a new method needs
 > data that is not defined here, this document and `core/types.py` are changed first.
@@ -27,6 +27,9 @@
 > for humans), every other key as `<key>.tif`.
 > Changes 0.13 → 0.14: optional `Step.image_params` (parameters that may differ per image) and the config
 > key `per_image` of a step; core uses `step.for_image(<file name>)` for every image.
+> Changes 0.14 → 0.15: optional `Plot.extra_plots(pores)` (further copies of a plot, e.g. one per q, saved
+> in a subfolder of `plots/`, not shown in the viewer). `FrameMissing` from `require_frame()`: an evaluation
+> module without frame is skipped instead of failing the image.
 
 ---
 
@@ -74,7 +77,7 @@
 | `frame` | `SampleFrame \| None` | – | coordinate system of the sample, `None` = `sample.frame` is `none` |
 
 ```python
-ctx.require_frame() -> SampleFrame              # raises (image skipped) if frame is None
+ctx.require_frame() -> SampleFrame              # raises FrameMissing if frame is None
 ctx.sample_coords() -> (x_px, z_px)             # float32 (H, W) each: every pixel of this context's
                                                 # area (crop / tile) in the sample frame
 ```
@@ -171,7 +174,11 @@ frame.to_sample(y_px, x_px) -> (x_px, z_px)   # image points (full image coordin
 - x runs along the outer edge, z perpendicular to it; z is in px, the relative height is
   `z_px / thickness_px` (0 = inner, 1 = outer surface).
 - A step that needs the frame calls `ctx.require_frame()` or `ctx.sample_coords()`; without a
-  frame the image fails with a clear message (like `_um` parameters without a scale).
+  frame they raise `FrameMissing`. In an evaluation module only that module is skipped (logged,
+  its columns stay empty for the image; plots that need its values are skipped too); in any stage
+  before the evaluation the image fails with a clear message (the pores themselves would differ).
+- No frame: `sample.frame: none`, or `edge_lines` finds the sample touching the image border (a
+  cut-out from the inside of the sample) – a warning, the image runs on.
 
 ---
 
@@ -234,6 +241,8 @@ class Plot(Step):
     def plot(self, ax, image: dict, pores: DataFrame) -> None: ...   # draw into a matplotlib Axes
     # optional: the same plot over the whole ID -> <ID>_results/plots/ (end of a complete run, after corrections)
     def plot_id(self, ax, images: DataFrame, pores: DataFrame) -> None: ...   # pores: all images + column image
+    # optional: further copies, only saved -> plots/<key>.png, key with a subfolder (e.g. "all_q/critical_pores_q5")
+    def extra_plots(self, pores: DataFrame) -> dict[str, Plot]: ...
 ```
 
 - With `variant` set, `core` draws the plot twice: `plot(ax, image, pores)` (normal view) and
