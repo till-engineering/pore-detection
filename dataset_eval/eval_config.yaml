@@ -1,0 +1,36 @@
+# Evaluation of the pore detection on a data set with ground-truth masks.
+#
+#   python dataset_eval/evaluate.py              run the pipeline + evaluate
+#   python dataset_eval/evaluate.py --no-run     evaluate the last pipeline results again
+#   python dataset_eval/evaluate.py --config other.yaml
+#
+# Relative paths are relative to the folder of this file. All keys under eval: are needed.
+
+eval:
+  images: ../data/images        # folder with the micrographs (folder name = ID of the pipeline run)
+  masks: ../data/masks          # folder with the masks: same file name (extension may differ),
+                                # black = no pore, white = pore
+  output: ../data/evaluation    # results: evaluation.xlsx, plots/, overlays/, pipeline/ (pipeline output)
+  mask_threshold: 127           # mask gray value above it = pore (0-255; JPG masks have gray edges)
+  match_iou: 0.5                # a detected pore and a GT pore are the same pore from this IoU on
+  rim_px: 2                     # errors within this distance of a GT pore edge count as "pore rim"
+  roi_warn_percent: 5.0         # image flagged if more of its GT pore area lies outside the detected ROI
+  worst_images: 5               # overlays: this many worst images by F1 and by porosity error each
+  overlay_max_px: 2000          # larger images are shrunk to this long edge in the overlays
+  size_classes_um: [0, 5, 10, 20, 50]     # lower class edges of the equivalent diameter, last class open
+  size_classes_px: [0, 5, 10, 20, 50, 100]  # used instead if an image has no readable scale
+
+# Overrides of the project config.yaml – only what is written here, everything else comes from it.
+#   dict    merged key by key (detection: {seed_threshold: 0.42} changes only this value)
+#   other   replaces the value, a list (e.g. label_steps) is replaced completely
+#   a method block with another name (e.g. frame: {name: none}) replaces the whole block
+# The config actually used is written to <output>/pipeline/<ID>_results/config_used.yaml.
+pipeline:
+  sample:
+    frame:
+      name: none                # patches are no complete rectangular sections
+  evaluation:                   # pore_index needs the frame; only porosity is cheap and useful here
+    - name: porosity
+  plots: []                     # the per-image plots of the program are not needed for the evaluation
+  logging:
+    level: WARNING              # keeps the console readable
