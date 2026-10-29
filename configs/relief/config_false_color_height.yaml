@@ -1,0 +1,160 @@
+# Variant false_color_height: height image in false colors (Keyence VHX depth composition: blue = deep,
+# red = high, scale stretched per image) -> relative height -> depth in multiples of the noise -> hysteresis.
+# Copy of config.yaml with sample.scale, preprocessing, detection and label_steps changed -
+# to use it, move it into the project folder (exactly one config*.yaml may lie there).
+#
+# Global configuration – Pore Detection
+# Placeholder: structure only, values and method names are not final.
+#
+# This is the single place for ALL settings. Values are changed here and
+# nowhere else: no defaults in code, no command-line overrides. The GUI never
+# changes it. Only exception: the GUI launcher may pass input/output paths
+# for a single run (input.path / output.dir below are the defaults).
+# It is read once at program start.
+# Methods are selected by their registered name; all other keys are passed
+# to the method as parameters. Size parameters carry their unit in the name
+# (e.g. min_area_px2 or min_area_um2).
+
+runtime:
+  device: auto              # auto | cuda | cpu  (methods use their GPU path only on cuda)
+  gpu_memory_fraction: 0.8  # max. share of free GPU memory a run may use
+  tile_size: 1024           # tile edge length in px for tileable steps
+  tile_batch_size: auto     # auto (from free GPU memory) | fixed number
+  threads: auto             # threads for tiles / evaluation / writing
+  prefetch: true            # load the next image in the background (needs RAM for 2 images)
+
+input:
+  path: test_images/vhx_height  # ID folder (folder name = ID), images directly inside
+  extensions: [.tif, .tiff, .png, .jpg, .jpeg, .bmp]
+  gray_weights: [0.299, 0.587, 0.114]   # R, G, B weights for the gray working image
+
+sample:                     # always run on the original image
+  roi:                      # exactly one method -> roi_mask (full_image | imagej | grabcut)
+    name: full_image            # ImageJ standard: 8-bit, Default threshold, Fill Holes; largest part only
+    # name: grabcut         # slower (~1.5 s/image), values from Pore_Detection_V2
+    # work_max_px: 1200       # long edge of the working image; *_work_px refer to it
+    # iterations: 3
+    # denoise_ksize: 5
+    # texture_ksize_px: 9     # full resolution
+    # dark_offset: 0          # gray levels 0-255, + = more resin
+    # texture_clip_percentile: 99.0
+    # min_texture_separability: 0.45
+    # border_band_frac: 0.10  # border band for resin seeds (share of short edge)
+    # seed_erode_work_px: 4
+    # min_seed_frac: 0.0005
+    # min_area_frac: 0.02     # resin area: min. share of image area
+    # min_border_contact_frac: 0.12   # resin area: min. share of image perimeter touched
+    # max_hole_frac: 0.05     # fill air bubbles in the resin up to this share
+    # close_radius_work_px: 10
+    # min_material_contrast: 40.0     # gray levels 0-255
+    # min_specimen_frac: 0.02
+    # keep: all_above_min     # largest | all_above_min
+    # erode_border_px: 0      # full resolution
+  scale:                    # exactly one method -> pixel_size_um + mask of the scale overlay (fixed_scale | scale_bar)
+    name: fixed_scale       # VHX false color images carry no burnt-in scale bar
+    um_per_px: null         # null = unknown -> _um columns stay empty; enter it from the microscope
+    # name: scale_bar       # reads the burnt-in scale bar (ImageJ style), see configs/hellfeld/config.yaml
+
+  frame:                    # exactly one method -> coordinate system of the sample (edge_lines | none)
+    name: edge_lines        # rectangular section: x along the outer (top) edge, z up, origin bottom left
+    normal_window_px: 5     # outline points before / after a point for its edge direction
+    corner_trim: 0.15       # share of every side left out at both ends (rounded corners)
+    # name: none            # no frame (e.g. round sections); steps that need one make the image fail
+
+preprocessing:              # optional filter chain on the gray image, executed in this order
+  - name: false_color_height  # relative height 0 (deep) .. 1 (high) from the hue of the color original
+    hue_deep_deg: 240       # blue = deepest color of the scale
+    hue_high_deg: 0         # red = highest color; the scale runs blue -> cyan -> green -> yellow -> red
+    min_saturation: 0.25    # less saturated pixels (gray, white: no measurement, overlays) carry no height
+    min_value: 0.15         # darker pixels (black) carry no height
+  - name: gauss             # the depth composition is noisy pixel by pixel
+    sigma_px: 1.5
+  - name: height_map        # depth below the surroundings in multiples of the matrix noise: gray 1 / (1 + depth)
+    deep: dark              # false_color_height: 0 = deep
+    height_um_full_scale: 1 # unknown (scale stretched per image) - cancels out with depth_unit: noise
+    reference: median       # typical height around, robust against the noise
+    reference_radius_px: 50 # larger than the largest pore (tune on real images)
+    depth_unit: noise       # depth in sigma: the stretch of the color scale cancels out
+
+detection:                  # exactly one method
+  name: hysteresis          # deep cores grow into their shallower rim
+  seed_threshold: 0.167     # gray 0..1 = 1 / (1 + depth): deeper than 5 sigma = certain pore cores
+  grow_threshold: 0.333     # gray 0..1: connected pixels deeper than 2 sigma belong to the core's pore
+  spot_sigma_px: 0.8        # micro pores: smoothing for the spot measure (unused while spot_threshold is 0)
+  spot_threshold: 0         # off: the depth map has no dark micro spots of its own
+
+postprocessing:
+  mask_steps: []            # chain: mask -> mask, executed in this order (all off for now – speed)
+    # - name: open            # removes single noise pixels
+      # radius_px: 1
+    # - name: close         # closes narrow gaps inside pores (off as in V2)
+    #   radius_px: 1
+    # - name: fill_holes      # fills only holes that are small compared to their pore
+      # max_ratio: 3.0        # largest hole = 3 x pore area (0 = every hole); a grain inside a
+                            # ring of grain boundaries is large and stays unfilled
+  labeling:                 # exactly one method: mask -> numbered pores
+    name: connected_components
+    connectivity: 8         # 8 = touching corners belong to the same pore, 4 = only edges
+  label_steps:              # chain: numbered pores -> numbered pores (new steps off for now – speed)
+                            # steps that change pores (merge, filters) BEFORE pore_properties
+    - name: min_size        # noise limit: smaller objects are deleted (not "rejected")
+      min_size_px: 4
+    # - name: merge_close     # parts of a torn pore become one again (BEFORE split_touching)
+      # max_gap_px: 1         # largest bridged gap (0 = only touching parts)
+      # bridge_gaps: true     # the gap becomes part of the pore
+    # - name: split_touching  # pores that grew together are split (watershed)
+      # min_distance_px: 3    # smallest distance between two pore centres
+      # min_area_ratio: 0.15  # smaller parts are no pore of their own
+    # filters: reject with a reason (visible in the viewer, can be counted again by hand)
+    # - name: min_diameter    # measurability
+      # min_diameter_px: 4.0
+    # - name: scratch         # grinding scratches: long, thin and straight
+      # min_aspect_ratio: 4.0
+      # max_width_px: 4.0     # or max_width_um: 4.0 (needs a scale) – exactly one of both
+      # min_solidity: 0.6     # ragged objects are no scratch and stay
+    # - name: compactness     # networks of grain boundaries
+      # min_solidity: 0.40
+    # - name: roundness       # roundness 4A/(pi feret²): gas pores > 0.7, cavities down to 0.2
+      # min_roundness: 0.20
+    - name: pore_properties # area_px2 per pore
+
+evaluation:                 # any number of independent modules
+  - name: porosity          # pore count, porosity per image and per ID, pore areas
+  - name: pore_index        # stress-weighted pore index (Porenkonzept), needs sample.frame
+    stress: bending         # stress profile over the height: bending = |2 zeta - 1| (1 at both surfaces),
+                            # pulsating = zeta (0 inner, 1 outer surface)
+    pore_stress: area       # stress of a pore: centroid | area (every pixel its own) | max
+    q_values: [1, 1.5, 2, 3, 5, 10]
+    cracks_outer: 0         # n_o: crack origins at the outer surface (tests); these four: defaults,
+                            # entered per image in the launcher (tab Evaluations)
+    cracks_inner: 0         # n_u: crack origins at the inner surface (tests)
+    hardness_outer: null    # hardness outer surface in HBW, null = not given (not used in the model yet,
+    hardness_inner: null    # hardness inner surface in HBW   only recorded; see PoreIndex.relative_stress)
+  - name: comparison        # comparison.jpg in the image folder: original | counted pores in red
+  - name: frame_picture     # frame_picture.jpg: sample with frame and dimensioned length / thickness
+
+plots:                      # any number; PNG per image in <image folder>/plots/, shown by the viewer in this order
+  - name: pore_areas        # histogram of the pore areas (log classes, density, D50 / D90 / mean), as in V2;
+                            # second view "normalized" (share in %), switch in the viewer
+  - name: phi_over_q        # pore index phi_q / phi_eff_q over q (needs pore_index)
+  - name: pores_over_height # stress at each pore over its relative height (needs pore_index)
+  - name: critical_pores    # Pareto: pores sorted by their contribution A g^q to phi_q (needs pore_index)
+    q: 10                   # one of the q_values of pore_index
+    top: 20                 # pores shown as bars
+    all_q: true             # also save it for every q of pore_index in plots/all_q/ (not shown)
+  - name: critical_pores_split  # same Pareto, each bar split in log space: area | stress, zone = frame
+    q: 10                   # one of the q_values of pore_index
+    top: 20                 # pores shown as bars
+    all_q: true             # also save it for every q of pore_index in plots/all_q/ (not shown)
+  - name: pore_sizes        # histogram of the equivalent pore diameters
+
+output:
+  dir: test_images/results  # <dir>/<ID>_results/ is created (and overwritten)
+  save_full_overlay: false  # full-resolution overlay TIFF (large); masks + labels are always saved
+
+logging:
+  level: INFO               # DEBUG | INFO | WARNING | ERROR
+  file: null                # null = console only
+
+gui:
+  theme: system

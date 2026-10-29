@@ -72,7 +72,9 @@ preprocessing:              # optional filter chain on the gray image, executed 
     deep: dark              # dark | bright: which end of the gray scale is deep in the export
     height_um_full_scale: 1 # height in µm from gray 0 to the largest gray value - SET FROM THE EXPORT;
                             # 1 = unknown: depth in shares of the gray range, then the thresholds below mean nothing
+    reference: opening      # opening (below the highest points around, clean data) | median (noisy data)
     reference_radius_px: 30 # depth below the surroundings within this radius, larger than the largest pore
+    depth_unit: um          # um (as height_um_full_scale says) | noise (multiples of the matrix noise)
   # no background_correction: the gray value is a height, not a brightness
 
 detection:                  # exactly one method

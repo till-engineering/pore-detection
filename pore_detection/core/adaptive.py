@@ -127,6 +127,36 @@ def depth_below_surroundings(depth: np.ndarray, radius_px: float) -> np.ndarray:
     return np.maximum(depth, 0, out=depth)
 
 
+def local_median(image: np.ndarray, roi: np.ndarray, radius_px: float) -> np.ndarray:
+    """Typical value of the surroundings: median within radius_px (larger than the largest pore) on a
+    copy shrunk to about 8 px radius, back to full size. Robust against noise and against the pores
+    themselves (a small share of the window), unlike a grey opening, which follows the noise peaks.
+    Outside the sample the median of the sample is used, so the resin does not pull it at the edge.
+    cv2 has large median windows only for uint8: the shrunk copy is mapped to 256 levels between its
+    1st and 99th percentile (outliers clipped, they do not shift a median)."""
+    factor = max(1.0, radius_px / 8)
+    small = downscale(image, factor)
+    sample = downscale(roi, factor)
+    values = small[sample] if sample.any() else small.ravel()
+    low, high = np.percentile(values, [1, 99]).astype(np.float32)
+    small[~sample] = np.median(values)
+    step = max(float(high - low), 1e-6) / 255
+    levels = np.clip(np.rint((small - low) / step), 0, 255).astype(np.uint8)
+    levels = cv2.medianBlur(levels, max(3, 2 * round(radius_px / factor) + 1))
+    small = levels.astype(np.float32) * np.float32(step) + low
+    height, width = image.shape
+    return cv2.resize(small, (width, height), interpolation=cv2.INTER_LINEAR)
+
+
+def spread(image: np.ndarray, roi: np.ndarray) -> float:
+    """Robust standard deviation of the sample: 1.4826 x MAD (= sigma of a normal distribution).
+    Pores are a small share and hardly change it."""
+    values = image[roi]
+    if not values.size:
+        return 0.0
+    return float(1.4826 * np.median(np.abs(values - np.median(values))))
+
+
 def pore_rings(pores, gap_px: float, ring_px: float) -> tuple[np.ndarray, np.ndarray]:
     """Index per counted pore (1..count, in the order of pores.ids) for its own pixels and for a ring
     of matrix around it: from gap_px to gap_px + ring_px outside the pore, without any pore pixels

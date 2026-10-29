@@ -5,3 +5,5 @@ __pycache__/
 *.pyc
 test_images/
 models/
+temporäre Sachen/
+syntetic_test/example_images/
