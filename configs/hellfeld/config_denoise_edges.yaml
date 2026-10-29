@@ -1,4 +1,4 @@
-# Variant color_distance: color-aware gray image: dark phases with their own color become lighter.
+# Variant denoise_edges: edge-preserving noise reduction before the background correction.
 # Copy of config.yaml with only preprocessing, detection and label_steps changed -
 # to use it, move it into the project folder (exactly one config*.yaml may lie there).
 #
@@ -24,7 +24,7 @@ runtime:
 
 input:
   path: test_images/193193  # ID folder (folder name = ID), images directly inside
-  extensions: [.tif, .tiff, .png, .jpg, .bmp]
+  extensions: [.tif, .tiff, .png, .jpg, .jpeg, .bmp]
   gray_weights: [0.299, 0.587, 0.114]   # R, G, B weights for the gray working image
 
 sample:                     # always run on the original image
@@ -68,8 +68,10 @@ sample:                     # always run on the original image
     # name: none            # no frame (e.g. round sections); steps that need one make the image fail
 
 preprocessing:              # optional filter chain on the gray image, executed in this order
-  - name: color_distance    # brightness along the matrix color + penalty for other colors (first in the chain)
-    color_weight: 0.5       # 0 = only brightness along the matrix color; higher = colored phases lighter
+  - name: denoise_edges     # smooths noise, keeps edges
+    method: bilateral       # bilateral | nl_means (stronger, ~10x slower)
+    strength: 0.02          # gray difference 0..1 still smoothed, about the image noise
+    radius_px: 2            # neighbourhood radius in px (or radius_um), max. 5
   - name: background_correction   # divide by the local matrix brightness: matrix ~1, pores ~0.2
     window_px: 100          # closing window, larger than the largest pore
     work_scale: 4           # background computed on a copy shrunk by this factor

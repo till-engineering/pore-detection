@@ -1,7 +1,3 @@
-# Variant unet: trained U-Net on the colour original, no preprocessing filters.
-# Copy of config.yaml with only preprocessing and detection changed -
-# to use it, move it into the project folder (exactly one config*.yaml may lie there).
-#
 # Global configuration – Pore Detection
 # Placeholder: structure only, values and method names are not final.
 #
@@ -9,7 +5,8 @@
 # nowhere else: no defaults in code, no command-line overrides. The GUI never
 # changes it. Only exception: the GUI launcher may pass input/output paths
 # for a single run (input.path / output.dir below are the defaults).
-# It is read once at program start.
+# It is read once at program start. The program uses the ONE config*.yaml in
+# the project folder: move this file or a variant from configs/ there.
 # Methods are selected by their registered name; all other keys are passed
 # to the method as parameters. Size parameters carry their unit in the name
 # (e.g. min_area_px2 or min_area_um2).
@@ -24,7 +21,7 @@ runtime:
 
 input:
   path: test_images/193193  # ID folder (folder name = ID), images directly inside
-  extensions: [.tif, .tiff, .png, .jpg, .bmp]
+  extensions: [.tif, .tiff, .png, .jpg, .jpeg, .bmp]
   gray_weights: [0.299, 0.587, 0.114]   # R, G, B weights for the gray working image
 
 sample:                     # always run on the original image
@@ -67,12 +64,19 @@ sample:                     # always run on the original image
     corner_trim: 0.15       # share of every side left out at both ends (rounded corners)
     # name: none            # no frame (e.g. round sections); steps that need one make the image fail
 
-preprocessing: []           # none: the U-Net takes the colour original exactly as in its training
+preprocessing:              # optional filter chain on the gray image, executed in this order
+  - name: background_correction   # divide by the local matrix brightness: matrix ~1, pores ~0.2
+    window_px: 100          # closing window, larger than the largest pore
+    work_scale: 4           # background computed on a copy shrunk by this factor
 
 detection:                  # exactly one method
-  name: unet                # trained U-Net (python dataset_eval/train_unet.py)
-  model_dir: models/unet_2026-10-22_1952   # folder of the trained model (models/<name> from the training)
-  threshold: auto           # auto = threshold of model.yaml (best on the validation images) or 0..1
+  name: hysteresis          # dark cores grow into their soft rim
+  seed_threshold: 0.40      # gray 0..1 (after background_correction): certain pore cores
+  grow_threshold: 0.55      # gray 0..1: connected pixels below it belong to the core's pore
+  spot_sigma_px: 0.8        # micro pores: smoothing for the spot measure (about the optical blur)
+  spot_threshold: 0.21      # dark spots (not lines) above it are micro pores; 0 = off
+  # name: threshold
+  # threshold: 0.3          # gray 0..1, darker = pore (tune on real images)
 
 postprocessing:
   mask_steps: []            # chain: mask -> mask, executed in this order (all off for now – speed)

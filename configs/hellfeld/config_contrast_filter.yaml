@@ -1,4 +1,4 @@
-# Variant tophat_correction: subtract the local matrix brightness instead of dividing (background_correction).
+# Variant contrast_filter: filter: pores must be clearly darker than the matrix around them.
 # Copy of config.yaml with only preprocessing, detection and label_steps changed -
 # to use it, move it into the project folder (exactly one config*.yaml may lie there).
 #
@@ -24,7 +24,7 @@ runtime:
 
 input:
   path: test_images/193193  # ID folder (folder name = ID), images directly inside
-  extensions: [.tif, .tiff, .png, .jpg, .bmp]
+  extensions: [.tif, .tiff, .png, .jpg, .jpeg, .bmp]
   gray_weights: [0.299, 0.587, 0.114]   # R, G, B weights for the gray working image
 
 sample:                     # always run on the original image
@@ -68,8 +68,8 @@ sample:                     # always run on the original image
     # name: none            # no frame (e.g. round sections); steps that need one make the image fail
 
 preprocessing:              # optional filter chain on the gray image, executed in this order
-  - name: tophat_correction       # subtract the local matrix brightness (black top-hat), matrix ~1
-    window_px: 100          # closing window, larger than the largest pore (or window_um)
+  - name: background_correction   # divide by the local matrix brightness: matrix ~1, pores ~0.2
+    window_px: 100          # closing window, larger than the largest pore
     work_scale: 4           # background computed on a copy shrunk by this factor
 
 detection:                  # exactly one method
@@ -92,6 +92,10 @@ postprocessing:
     name: connected_components
     connectivity: 8         # 8 = touching corners belong to the same pore, 4 = only edges
   label_steps:              # chain: numbered pores -> numbered pores; steps that change pores BEFORE pore_properties
+    - name: contrast_filter # rejects pores hardly darker than the matrix around them
+      min_contrast: 0.4     # 1 - dark / around (0..1)
+      gap_px: 2             # ring starts this far outside the pore, skips the soft rim (or gap_um)
+      ring_px: 3            # ring width (or ring_um)
     - name: pore_properties # area_px2 per pore
 
 evaluation:                 # any number of independent modules

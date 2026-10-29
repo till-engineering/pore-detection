@@ -1,5 +1,5 @@
-# Variant contrast_filter: filter: pores must be clearly darker than the matrix around them.
-# Copy of config.yaml with only preprocessing, detection and label_steps changed -
+# Variant relief_height: shaded-relief images (several light directions merged) -> depth map -> hysteresis.
+# Copy of config.yaml with only preprocessing and detection changed -
 # to use it, move it into the project folder (exactly one config*.yaml may lie there).
 #
 # Global configuration – Pore Detection
@@ -24,12 +24,12 @@ runtime:
 
 input:
   path: test_images/193193  # ID folder (folder name = ID), images directly inside
-  extensions: [.tif, .tiff, .png, .jpg, .bmp]
+  extensions: [.tif, .tiff, .png, .jpg, .jpeg, .bmp]
   gray_weights: [0.299, 0.587, 0.114]   # R, G, B weights for the gray working image
 
 sample:                     # always run on the original image
   roi:                      # exactly one method -> roi_mask (full_image | imagej | grabcut)
-    name: imagej            # ImageJ standard: 8-bit, Default threshold, Fill Holes; largest part only
+    name: full_image            # ImageJ standard: 8-bit, Default threshold, Fill Holes; largest part only
     # name: grabcut         # slower (~1.5 s/image), values from Pore_Detection_V2
     # work_max_px: 1200       # long edge of the working image; *_work_px refer to it
     # iterations: 3
@@ -68,16 +68,23 @@ sample:                     # always run on the original image
     # name: none            # no frame (e.g. round sections); steps that need one make the image fail
 
 preprocessing:              # optional filter chain on the gray image, executed in this order
-  - name: background_correction   # divide by the local matrix brightness: matrix ~1, pores ~0.2
-    window_px: 100          # closing window, larger than the largest pore
-    work_scale: 4           # background computed on a copy shrunk by this factor
+  - name: relief_height     # slope along the light added up to a depth: gray 1 / (1 + depth), matrix 1
+    light_angle_deg: -70    # base: direction the light shines in (shadow -> highlight), 0 = right, 90 = up
+    angle_tolerance_deg: 20 # estimate per image within this of the base -> base (comparable results)
+    min_certainty: 0.05     # estimate certainty 0..1 below it -> base (pure noise ~0, test image ~0.15)
+    estimate_work_scale: 4  # light direction estimated on a copy shrunk by this factor
+    integration_length_px: 30   # slope errors add up over about this length, about the largest pore
+    cross_smoothing: 1      # smooth height across the light (the image holds no slope across it)
+    reference_radius_px: 30 # depth below the surroundings within this radius, larger than the largest pore
+  # no background_correction: relief_height uses its own local mean, and background_correction
+  # clips at 1 and cuts off the highlights
 
 detection:                  # exactly one method
-  name: hysteresis          # dark cores grow into their soft rim
-  seed_threshold: 0.40      # gray 0..1 (after background_correction): certain pore cores
-  grow_threshold: 0.55      # gray 0..1: connected pixels below it belong to the core's pore
-  spot_sigma_px: 0.8        # micro pores: smoothing for the spot measure (about the optical blur)
-  spot_threshold: 0.21      # dark spots (not lines) above it are micro pores; 0 = off
+  name: hysteresis          # deep cores grow into their shallower rim
+  seed_threshold: 0.33      # gray 0..1 (after relief_height): depth > 2 = certain pore cores (tune on real images)
+  grow_threshold: 0.50      # gray 0..1: connected pixels with depth > 1 belong to the core's pore
+  spot_sigma_px: 0.8        # micro pores: smoothing for the spot measure (unused while spot_threshold is 0)
+  spot_threshold: 0         # off: the depth map has no dark micro spots of its own
 
 postprocessing:
   mask_steps: []            # chain: mask -> mask, executed in this order (all off for now – speed)
@@ -91,11 +98,27 @@ postprocessing:
   labeling:                 # exactly one method: mask -> numbered pores
     name: connected_components
     connectivity: 8         # 8 = touching corners belong to the same pore, 4 = only edges
-  label_steps:              # chain: numbered pores -> numbered pores; steps that change pores BEFORE pore_properties
-    - name: contrast_filter # rejects pores hardly darker than the matrix around them
-      min_contrast: 0.4     # 1 - dark / around (0..1)
-      gap_px: 2             # ring starts this far outside the pore, skips the soft rim (or gap_um)
-      ring_px: 3            # ring width (or ring_um)
+  label_steps:              # chain: numbered pores -> numbered pores (new steps off for now – speed)
+                            # steps that change pores (merge, filters) BEFORE pore_properties
+    # - name: min_size        # noise limit: smaller objects are deleted (not "rejected")
+      # min_size_px: 4
+    # - name: merge_close     # parts of a torn pore become one again (BEFORE split_touching)
+      # max_gap_px: 1         # largest bridged gap (0 = only touching parts)
+      # bridge_gaps: true     # the gap becomes part of the pore
+    # - name: split_touching  # pores that grew together are split (watershed)
+      # min_distance_px: 3    # smallest distance between two pore centres
+      # min_area_ratio: 0.15  # smaller parts are no pore of their own
+    # filters: reject with a reason (visible in the viewer, can be counted again by hand)
+    # - name: min_diameter    # measurability
+      # min_diameter_px: 4.0
+    # - name: scratch         # grinding scratches: long, thin and straight
+      # min_aspect_ratio: 4.0
+      # max_width_px: 4.0     # or max_width_um: 4.0 (needs a scale) – exactly one of both
+      # min_solidity: 0.6     # ragged objects are no scratch and stay
+    # - name: compactness     # networks of grain boundaries
+      # min_solidity: 0.40
+    # - name: roundness       # roundness 4A/(pi feret²): gas pores > 0.7, cavities down to 0.2
+      # min_roundness: 0.20
     - name: pore_properties # area_px2 per pore
 
 evaluation:                 # any number of independent modules

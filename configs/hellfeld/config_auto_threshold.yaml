@@ -1,4 +1,4 @@
-# Variant adaptive_hysteresis: hysteresis with thresholds measured per image (matrix level - k x noise).
+# Variant auto_threshold: one automatic threshold per image from the histogram (baseline).
 # Copy of config.yaml with only preprocessing, detection and label_steps changed -
 # to use it, move it into the project folder (exactly one config*.yaml may lie there).
 #
@@ -24,7 +24,7 @@ runtime:
 
 input:
   path: test_images/193193  # ID folder (folder name = ID), images directly inside
-  extensions: [.tif, .tiff, .png, .jpg, .bmp]
+  extensions: [.tif, .tiff, .png, .jpg, .jpeg, .bmp]
   gray_weights: [0.299, 0.587, 0.114]   # R, G, B weights for the gray working image
 
 sample:                     # always run on the original image
@@ -73,11 +73,9 @@ preprocessing:              # optional filter chain on the gray image, executed 
     work_scale: 4           # background computed on a copy shrunk by this factor
 
 detection:                  # exactly one method
-  name: adaptive_hysteresis # thresholds = matrix level - k x pixel noise, measured per image
-  seed_k: 30                # cores: darker than the matrix by this many noise sigmas
-  grow_k: 20                # growth: darker by this many noise sigmas (< seed_k)
-  spot_sigma_px: 0.8        # micro pores: smoothing for the spot measure (or spot_sigma_um)
-  spot_threshold: 0.21      # dark spots (not lines) above it are micro pores; 0 = off
+  name: auto_threshold      # one threshold per image from the histogram of the sample
+  method: kapur             # otsu | triangle | kapur (maximum entropy; fits few pores)
+  offset: -0.1              # added to the found threshold (gray 0..1, + = more pore)
 
 postprocessing:
   mask_steps: []            # chain: mask -> mask, executed in this order (all off for now – speed)

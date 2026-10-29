@@ -1,13 +1,18 @@
 """Helpers for methods that adapt to each image: lengths in px or µm, matrix brightness and noise,
-growing pores from seeds, spot measure, values per pore.
+growing pores from seeds, spot measure, values per pore, light direction of shaded-relief images.
 
 Only used by methods (no stage of its own); everything works on NumPy arrays with OpenCV.
 """
+
+import logging
+import math
 
 import cv2
 import numpy as np
 
 from .imaging import downscale
+
+log = logging.getLogger("pore_detection")
 
 
 def length_px(step, name: str, ctx) -> float:
@@ -110,6 +115,18 @@ def disk(radius_px: float) -> np.ndarray:
     return cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (size, size))
 
 
+def depth_below_surroundings(depth: np.ndarray, radius_px: float) -> np.ndarray:
+    """Depth (large = deep) minus its grey opening with a disk of radius_px, at least 0, in place:
+    depth below the surroundings. Pores narrower than the disk stay, tilt, slow waves and bumps -> 0.
+    The opening on a copy shrunk to about 8 px radius (full size costs ~10 s on 100 MP)."""
+    factor = max(1.0, radius_px / 8)
+    small = cv2.morphologyEx(downscale(depth, factor), cv2.MORPH_OPEN, disk(radius_px / factor),
+                             borderType=cv2.BORDER_REFLECT_101)
+    height, width = depth.shape
+    depth -= cv2.resize(small, (width, height), interpolation=cv2.INTER_LINEAR)
+    return np.maximum(depth, 0, out=depth)
+
+
 def pore_rings(pores, gap_px: float, ring_px: float) -> tuple[np.ndarray, np.ndarray]:
     """Index per counted pore (1..count, in the order of pores.ids) for its own pixels and for a ring
     of matrix around it: from gap_px to gap_px + ring_px outside the pore, without any pore pixels
@@ -125,3 +142,58 @@ def pore_rings(pores, gap_px: float, ring_px: float) -> tuple[np.ndarray, np.nda
     near = cv2.dilate(any_pore.view(np.uint8), disk(gap_px)) > 0 if gap_px >= 0.5 else any_pore
     spread[near] = 0
     return own, spread
+
+
+def light_angle(step, ctx, image: np.ndarray, level: float, radius_px: float) -> float:
+    """Light direction of a shaded-relief image in degrees (0 = to the right, 90 = up): the base
+    step.light_angle_deg, or the estimate (see estimate_light_angle, on a copy shrunk by
+    step.estimate_work_scale, offsets up to radius_px) if its certainty reaches step.min_certainty
+    and it lies more than step.angle_tolerance_deg off the base. The angle used is logged."""
+    estimate, certainty = estimate_light_angle(image, level, radius_px, step.estimate_work_scale)
+    base = float(step.light_angle_deg)
+    if estimate is None or certainty < step.min_certainty:
+        log.info("%s: light direction uncertain (certainty %.2f) -> base %.0f°", ctx.info.name, certainty, base)
+        return base
+    difference = abs((estimate - base + 180) % 360 - 180)
+    if difference <= step.angle_tolerance_deg:
+        log.debug("%s: light %.0f° estimated (certainty %.2f) -> base %.0f°", ctx.info.name, estimate, certainty, base)
+        return base
+    log.warning("%s: light %.0f° estimated (certainty %.2f), %.0f° off the base %.0f° -> estimate used",
+                ctx.info.name, estimate, certainty, difference, base)
+    return estimate
+
+
+def estimate_light_angle(image: np.ndarray, level: float, radius_px: float,
+                         work_scale: float) -> tuple[float | None, float]:
+    """(angle in degrees, certainty 0..1) of the light in a shaded-relief image: a depression has its
+    shadow behind and its highlight ahead along the light. On a copy shrunk by work_scale the
+    cross-correlation of the dark parts (below level) and the bright parts (above) over offsets up to
+    radius_px gives the mean offset shadow -> highlight; certainty = its asymmetry (0 = none, e.g.
+    pure noise, 1 = all pairs in one direction). (None, 0) if the image has no contrast at all."""
+    small = downscale(image, work_scale)
+    dark = np.maximum(level - small, 0)
+    bright = np.maximum(small - level, 0)
+    radius = max(2, round(radius_px / work_scale))
+    # zero padding of at least radius: offsets up to radius do not wrap around
+    height = cv2.getOptimalDFTSize(small.shape[0] + radius)
+    width = cv2.getOptimalDFTSize(small.shape[1] + radius)
+    spectra = []
+    for part in (bright, dark):
+        padded = np.zeros((height, width), np.float32)
+        padded[:small.shape[0], :small.shape[1]] = part
+        spectra.append(cv2.dft(padded, flags=cv2.DFT_COMPLEX_OUTPUT))
+    # corr[v] = sum over p of bright(p + v) x dark(p): large where the highlight lies at v from the shadow
+    corr = cv2.idft(cv2.mulSpectrums(spectra[0], spectra[1], 0, conjB=True),
+                    flags=cv2.DFT_REAL_OUTPUT | cv2.DFT_SCALE)
+    offsets = np.arange(-radius, radius + 1)
+    window = corr[np.ix_(offsets % height, offsets % width)].astype(np.float64)
+    vy, vx = np.meshgrid(offsets, offsets, indexing="ij")
+    distance = np.hypot(vx, vy)
+    inside = (distance > 0) & (distance <= radius)
+    asymmetry = (window - window[::-1, ::-1])[inside]         # corr[v] - corr[-v]
+    total = (window + window[::-1, ::-1])[inside].sum()
+    if total <= 0:
+        return None, 0.0
+    mx = (asymmetry * vx[inside] / distance[inside]).sum()
+    my = (asymmetry * vy[inside] / distance[inside]).sum()
+    return math.degrees(math.atan2(-my, mx)), float(math.hypot(mx, my) / total)  # y points down

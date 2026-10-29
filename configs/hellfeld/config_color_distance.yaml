@@ -1,4 +1,4 @@
-# Variant local_threshold: Sauvola threshold from mean and spread around every pixel, no background correction.
+# Variant color_distance: color-aware gray image: dark phases with their own color become lighter.
 # Copy of config.yaml with only preprocessing, detection and label_steps changed -
 # to use it, move it into the project folder (exactly one config*.yaml may lie there).
 #
@@ -24,7 +24,7 @@ runtime:
 
 input:
   path: test_images/193193  # ID folder (folder name = ID), images directly inside
-  extensions: [.tif, .tiff, .png, .jpg, .bmp]
+  extensions: [.tif, .tiff, .png, .jpg, .jpeg, .bmp]
   gray_weights: [0.299, 0.587, 0.114]   # R, G, B weights for the gray working image
 
 sample:                     # always run on the original image
@@ -67,14 +67,19 @@ sample:                     # always run on the original image
     corner_trim: 0.15       # share of every side left out at both ends (rounded corners)
     # name: none            # no frame (e.g. round sections); steps that need one make the image fail
 
-preprocessing: []           # no filter: the local threshold adapts to the illumination itself
+preprocessing:              # optional filter chain on the gray image, executed in this order
+  - name: color_distance    # brightness along the matrix color + penalty for other colors (first in the chain)
+    color_weight: 0.5       # 0 = only brightness along the matrix color; higher = colored phases lighter
+  - name: background_correction   # divide by the local matrix brightness: matrix ~1, pores ~0.2
+    window_px: 100          # closing window, larger than the largest pore
+    work_scale: 4           # background computed on a copy shrunk by this factor
 
 detection:                  # exactly one method
-  name: local_threshold     # threshold from mean and std in a window around every pixel
-  method: sauvola           # sauvola | niblack
-  k: 0.5                    # sauvola 0.1-0.5 (higher = stricter); niblack negative, e.g. -2
-  r: 0.5                    # sauvola: dynamic range of the std (0.5 for gray 0..1)
-  window_px: 201            # window, larger than the largest pore (or window_um)
+  name: hysteresis          # dark cores grow into their soft rim
+  seed_threshold: 0.40      # gray 0..1 (after background_correction): certain pore cores
+  grow_threshold: 0.55      # gray 0..1: connected pixels below it belong to the core's pore
+  spot_sigma_px: 0.8        # micro pores: smoothing for the spot measure (about the optical blur)
+  spot_threshold: 0.21      # dark spots (not lines) above it are micro pores; 0 = off
 
 postprocessing:
   mask_steps: []            # chain: mask -> mask, executed in this order (all off for now – speed)

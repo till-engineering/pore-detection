@@ -1,4 +1,4 @@
-# Variant auto_threshold: one automatic threshold per image from the histogram (baseline).
+# Variant multiscale_spots: hysteresis with micro pores found on several scales.
 # Copy of config.yaml with only preprocessing, detection and label_steps changed -
 # to use it, move it into the project folder (exactly one config*.yaml may lie there).
 #
@@ -24,7 +24,7 @@ runtime:
 
 input:
   path: test_images/193193  # ID folder (folder name = ID), images directly inside
-  extensions: [.tif, .tiff, .png, .jpg, .bmp]
+  extensions: [.tif, .tiff, .png, .jpg, .jpeg, .bmp]
   gray_weights: [0.299, 0.587, 0.114]   # R, G, B weights for the gray working image
 
 sample:                     # always run on the original image
@@ -73,9 +73,11 @@ preprocessing:              # optional filter chain on the gray image, executed 
     work_scale: 4           # background computed on a copy shrunk by this factor
 
 detection:                  # exactly one method
-  name: auto_threshold      # one threshold per image from the histogram of the sample
-  method: kapur             # otsu | triangle | kapur (maximum entropy; fits few pores)
-  offset: -0.1              # added to the found threshold (gray 0..1, + = more pore)
+  name: multiscale_spots    # hysteresis + micro pores from the spot measure on several scales
+  seed_threshold: 0.40      # gray 0..1 (after background_correction): certain pore cores
+  grow_threshold: 0.55      # gray 0..1: connected pixels below it belong to the core's pore
+  spot_sigmas_px: [0.8, 1.5, 3.0]   # smoothings of the spot measure (spot_sigmas_um: same for every objective)
+  spot_threshold: 0.27      # spot measure above it = micro pore core
 
 postprocessing:
   mask_steps: []            # chain: mask -> mask, executed in this order (all off for now – speed)
