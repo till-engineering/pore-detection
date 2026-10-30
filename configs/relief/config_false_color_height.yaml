@@ -29,27 +29,19 @@ input:
   gray_weights: [0.299, 0.587, 0.114]   # R, G, B weights for the gray working image
 
 sample:                     # always run on the original image
-  roi:                      # exactly one method -> roi_mask (full_image | imagej | grabcut)
-    name: full_image            # ImageJ standard: 8-bit, Default threshold, Fill Holes; largest part only
-    # name: grabcut         # slower (~1.5 s/image), values from Pore_Detection_V2
-    # work_max_px: 1200       # long edge of the working image; *_work_px refer to it
-    # iterations: 3
-    # denoise_ksize: 5
-    # texture_ksize_px: 9     # full resolution
-    # dark_offset: 0          # gray levels 0-255, + = more resin
-    # texture_clip_percentile: 99.0
-    # min_texture_separability: 0.45
-    # border_band_frac: 0.10  # border band for resin seeds (share of short edge)
-    # seed_erode_work_px: 4
-    # min_seed_frac: 0.0005
-    # min_area_frac: 0.02     # resin area: min. share of image area
-    # min_border_contact_frac: 0.12   # resin area: min. share of image perimeter touched
-    # max_hole_frac: 0.05     # fill air bubbles in the resin up to this share
-    # close_radius_work_px: 10
-    # min_material_contrast: 40.0     # gray levels 0-255
-    # min_specimen_frac: 0.02
-    # keep: all_above_min     # largest | all_above_min
-    # erode_border_px: 0      # full resolution
+  roi:                      # exactly one method -> roi_mask (full_image | imagej | grabcut | height_roughness)
+    name: height_roughness  # false color height image: sample smooth, resin rough (Otsu on the roughness)
+    hue_deep_deg: 240       # as false_color_height below
+    hue_high_deg: 0
+    min_saturation: 0.25
+    min_value: 0.15
+    texture_window_px: 15   # window for the local roughness, full resolution (tune on real images)
+    outlier_clip: 5         # deviations above 5x their median are clipped (gap to the resin, deep pores)
+    work_max_px: 1200       # long edge of the working image; *_work_px refer to it
+    min_roughness_ratio: 1.5  # resin at least 1.5x rougher than the sample, otherwise no resin -> whole image
+    smooth_radius_work_px: 4  # opening / closing of the rough part (pores inside go, gaps in the resin close)
+    erode_border_px: 25     # full resolution: rounded edge and gap to the resin are no sample (tune on real images)
+    # name: full_image      # the whole image is sample
   scale:                    # exactly one method -> pixel_size_um + mask of the scale overlay (fixed_scale | scale_bar)
     name: fixed_scale       # VHX false color images carry no burnt-in scale bar
     um_per_px: null         # null = unknown -> _um columns stay empty; enter it from the microscope

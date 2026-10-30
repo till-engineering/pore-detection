@@ -131,21 +131,62 @@ def local_median(image: np.ndarray, roi: np.ndarray, radius_px: float) -> np.nda
     """Typical value of the surroundings: median within radius_px (larger than the largest pore) on a
     copy shrunk to about 8 px radius, back to full size. Robust against noise and against the pores
     themselves (a small share of the window), unlike a grey opening, which follows the noise peaks.
-    Outside the sample the median of the sample is used, so the resin does not pull it at the edge.
-    cv2 has large median windows only for uint8: the shrunk copy is mapped to 256 levels between its
-    1st and 99th percentile (outliers clipped, they do not shift a median)."""
+
+    At the edge of the sample the window sees only its inner side; on a tilted or wavy surface a
+    plain median there lies beside the true level and a whole band along the edge looks deep. So
+    first a local plane is taken off (local_plane, sample pixels only - it carries the slope on
+    beyond the edge; sigma = radius / 2: wider, the curvature of slow waves already bends the band
+    along the edge, measured on synthetic images), the median runs on the flat rest, outside the
+    sample that rest is 0. The sample on the shrunk copy is shrunk by one pixel for this: its border pixels are
+    partly resin. cv2 has large median windows only for uint8: the rest is mapped to 256 levels
+    between its 1st and 99th percentile (outliers clipped, they do not shift a median)."""
     factor = max(1.0, radius_px / 8)
     small = downscale(image, factor)
     sample = downscale(roi, factor)
-    values = small[sample] if sample.any() else small.ravel()
-    low, high = np.percentile(values, [1, 99]).astype(np.float32)
-    small[~sample] = np.median(values)
+    if not sample.all():
+        inner = cv2.erode(sample.view(np.uint8), np.ones((3, 3), np.uint8)) > 0
+        sample = inner if inner.any() else sample
+    if not sample.any():
+        sample = np.ones_like(sample)
+    plane = local_plane(small, sample, max(1.0, radius_px / 2 / factor))
+    rest = np.where(sample, small - plane, 0).astype(np.float32)
+    low, high = np.percentile(rest[sample], [1, 99]).astype(np.float32)
     step = max(float(high - low), 1e-6) / 255
-    levels = np.clip(np.rint((small - low) / step), 0, 255).astype(np.uint8)
+    levels = np.clip(np.rint((rest - low) / step), 0, 255).astype(np.uint8)
     levels = cv2.medianBlur(levels, max(3, 2 * round(radius_px / factor) + 1))
-    small = levels.astype(np.float32) * np.float32(step) + low
+    small = levels.astype(np.float32) * np.float32(step) + low + plane
     height, width = image.shape
     return cv2.resize(small, (width, height), interpolation=cv2.INTER_LINEAR)
+
+
+def local_plane(image: np.ndarray, weights: np.ndarray, sigma: float) -> np.ndarray:
+    """Local linear fit: at every pixel the plane a + b x + c y with the least squared error over
+    the pixels where weights is True, each weighted with a gaussian (sigma) of its distance, value
+    at that pixel. Outside the weights it continues the slope of the nearby sample. Where hardly any
+    weight is near (far from the sample) the weighted median of the image is used. For small (shrunk)
+    images: nine gaussian blurs and a 3x3 solve per pixel, in float64."""
+    height, width = image.shape
+    y, x = np.mgrid[0:height, 0:width].astype(np.float64)
+    y -= height / 2                                     # centred: keeps the sums well conditioned
+    x -= width / 2
+    w = weights.astype(np.float64)
+    z = np.where(weights, image, 0).astype(np.float64)
+
+    def blur(values):
+        return cv2.GaussianBlur(values, (0, 0), sigma, borderType=cv2.BORDER_CONSTANT)
+
+    s, sx, sy = blur(w), blur(w * x), blur(w * y)
+    sxx, sxy, syy = blur(w * x * x), blur(w * x * y), blur(w * y * y)
+    sz, sxz, syz = blur(z), blur(z * x), blur(z * y)
+    matrix = np.stack([np.stack([s, sx, sy], -1), np.stack([sx, sxx, sxy], -1),
+                       np.stack([sy, sxy, syy], -1)], -2)
+    vector = np.stack([sz, sxz, syz], -1)[..., None]
+    plane = np.full((height, width), np.median(image[weights]), np.float64)
+    near = s > 1e-3 * s.max()
+    near &= np.abs(np.linalg.det(matrix)) > 1e-12 * np.maximum(s, 1e-300) ** 3 * sigma ** 4
+    coefficients = np.linalg.solve(matrix[near], vector[near])[..., 0]
+    plane[near] = coefficients[:, 0] + coefficients[:, 1] * x[near] + coefficients[:, 2] * y[near]
+    return plane.astype(np.float32)
 
 
 def spread(image: np.ndarray, roi: np.ndarray) -> float:

@@ -7,9 +7,9 @@ does not depend on brightness and hardly on JPEG compression, and the exact colo
 microscope is not needed.
 
 1. Hue of every pixel (0..360°).
-2. Position on the scale: the scale runs from hue_deep_deg to hue_high_deg through decreasing hue
-   (240 blue -> 120 green -> 0 red); deep 0, high 1. Hues outside that arc (magenta, purple) go to
-   the nearer end of the scale.
+2. Position on the scale (core/imaging.py, false_color_height): the scale runs from hue_deep_deg
+   to hue_high_deg through decreasing hue (240 blue -> 120 green -> 0 red); deep 0, high 1. Hues
+   outside that arc (magenta, purple) go to the nearer end of the scale.
 3. Pixels without color (saturation below min_saturation or value below min_value: gray, white,
    black, e.g. gaps of the measurement or overlays) carry no height: they get the median height of
    the sample. Their share is logged if it exceeds 1 %.
@@ -25,9 +25,9 @@ CPU only.
 
 import logging
 
-import cv2
 import numpy as np
 
+from ..core import imaging
 from ..core.registry import register
 from ..core.step import Filter
 
@@ -47,26 +47,8 @@ class FalseColorHeight(Filter):
     }
 
     def process(self, ctx, image):
-        original = ctx.original
-        rgb = original.astype(np.float32) * np.float32(1 / np.iinfo(original.dtype).max)
-        hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)         # float input: hue 0..360, s and v 0..1
-        del rgb
-        hue, saturation, value = cv2.split(hsv)
-        del hsv
-
-        arc = (self.hue_deep_deg - self.hue_high_deg) % 360
-        if arc == 0:
-            raise ValueError("false_color_height: hue_deep_deg and hue_high_deg must differ")
-        # degrees from the deep end towards the high end (decreasing hue), 0..360
-        along = np.subtract(np.float32(self.hue_deep_deg), hue, out=hue)
-        np.mod(along, np.float32(360), out=along)
-        # outside the arc: the nearer end (beyond high by along - arc, before deep by 360 - along)
-        beyond = along > arc
-        along[beyond & (along - arc <= 360 - along)] = arc
-        along[beyond & (along - arc > 360 - along)] = 0
-        height = np.multiply(along, np.float32(1 / arc), out=along)
-
-        colorless = (saturation < self.min_saturation) | (value < self.min_value)
+        height, colorless = imaging.false_color_height(ctx.original, self.hue_deep_deg, self.hue_high_deg,
+                                                       self.min_saturation, self.min_value)
         if colorless.any():
             valid = ctx.roi_mask & ~colorless
             share = colorless[ctx.roi_mask].mean() if ctx.roi_mask.any() else 0.0
