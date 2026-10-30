@@ -288,13 +288,13 @@ class GaussFilter(Filter):
 
 ```yaml
 runtime:        # device, gpu_memory_fraction, tile_size, tile_batch_size, threads, prefetch
-input:          # path (ID-Ordner), extensions, gray_weights
+input:          # path (ID-Ordner), extensions, gray_weights, views
 sample:         # roi · scale · frame: je genau ein Verfahren
 preprocessing:  # Kette von Vorfiltern (Graustufen)
 detection:      # genau ein Verfahren
 postprocessing: # mask_steps (Kette) · labeling (genau eins) · label_steps (Kette)
 evaluation:     # Liste von Auswertungsmodulen
-output:         # dir, save_full_overlay
+output:         # dir, save_full_overlay, draw_on
 logging:        # level, file
 gui:            # Darstellung
 ```
@@ -774,6 +774,20 @@ Auswertungsmodul `evaluation/pore_index.py` (Stufe `evaluation`, braucht das Pro
 - Offen: ID-Plots im Viewer anzeigen.
 
 ---
+
+### 7.10 Zwei Ansichten einer Aufnahme (beschlossen und umgesetzt 2026-10-30)
+
+Anlass: Auf dem Falschfarben-Höhenbild der VHX trennt sich die Probe nicht sicher vom Einbettmittel
+(`height_roughness`: Harz nur 1,4x rauer). Die VHX exportiert dieselbe Aufnahme in mehreren Ansichten,
+pixelgenau deckungsgleich.
+
+- Dateien `<Aufnahme>_<Ansicht>` (Text nach dem letzten `_` = Ansicht). `input.views: {sample, pores}`:
+  `sample` (ROI, Maßstab, Rahmen) läuft auf der Sample-Ansicht, alles danach auf der Poren-Ansicht.
+  Eine Maske gilt 1:1 für beide. `views: null` = ein Bild pro Aufnahme wie bisher.
+- Fehlt eine Ansicht oder sind beide verschieden groß: Aufnahme schlägt fehl (Stufe `load`), Lauf geht weiter.
+- Dateien anderer Ansichten werden ignoriert, eine Warnung pro Lauf listet sie.
+- Ergebnisname `<ID>_<Aufnahme>`; Werte pro Bild (Launcher, `per_image`) hängen an der Aufnahme.
+- `output.draw_on: pores | sample`: Bild für Overlays, Rahmenbild und Viewer (`images.json`: `draw_path`).
 
 ## 8. Ausgabe
 

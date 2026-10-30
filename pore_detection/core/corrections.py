@@ -145,7 +145,14 @@ class Session:
         self.folder = store.results_dir / image
         table = writer.read_table(store.results_dir / writer.IMAGES_JSON)
         self.row = table[table["image"] == image].iloc[0].to_dict()
-        self.info, self.original = io.load_image(Path(self.row["path"]), _image_id(image, self.row["path"]))
+        path = Path(self.row["path"])
+        views = store.config.input.views if "views" in store.config.input else None    # runs older than input.views
+        recording = path.stem.rpartition("_")[0] if views else path.stem
+        self.key = recording if views else path.name                # key of the per-image inputs, as in the run
+        self.info, self.original = io.load_image(path, image[:-len(recording) - 1], recording)
+        draw_path = self.row.get("draw_path")
+        draw_path = Path(draw_path) if isinstance(draw_path, str) else path    # older runs: the original
+        self.drawing = self.original if draw_path == path else io.load_image(draw_path, self.info.image_id)[1]
         self.roi = _read(self.folder / writer.ROI_MASK_TIF, cv2.IMREAD_GRAYSCALE) > 0
         self.top, self.bottom, self.left, self.right = _bounding_box(self.roi)
         self.current = _Labels(_read(self.folder / writer.LABELS_TIF, cv2.IMREAD_UNCHANGED),
@@ -218,7 +225,7 @@ class Session:
         changes), then write everything in the background."""
         snapshot = self.current.copy()
         row, per_pore, images = self._evaluate(snapshot)
-        picture = lambda: plotting.sample_picture(self.original, snapshot.labels, frame_from_columns(row))  # noqa: E731
+        picture = lambda: plotting.sample_picture(self.drawing, snapshot.labels, frame_from_columns(row))  # noqa: E731
         plots = plotting.render(self.store.plots, row, per_pore, picture)      # the viewer shows them at once
         self.row = row
         self.state = replace(self._snapshot(row, per_pore, snapshot), plots=plots)
@@ -243,7 +250,7 @@ class Session:
             pores = step.process(ctx, pores)
         results = {}
         for step in self.store.evaluators:
-            step = step.for_image(self.info.path.name)        # per-image inputs as in the run
+            step = step.for_image(self.key)                   # per-image inputs as in the run
             _check_scale(step, ctx)
             try:
                 results[step.name] = step.evaluate(ctx, pores)
@@ -251,8 +258,9 @@ class Session:
                 pass
         per_image, per_pore, images = _merge_results(results)
         self.store.layout.update(excel_layout(self.store.evaluators, results))
-        keep = {k: v for k, v in self.row.items() if k in ("image", "path", "pixel_size_um", "scale_label",
-                                                             "scale_bar_px", "scale_box_px", *FRAME_COLUMNS)}
+        keep = {k: v for k, v in self.row.items() if k in ("image", "path", "draw_path", "pixel_size_um",
+                                                             "scale_label", "scale_bar_px", "scale_box_px",
+                                                             *FRAME_COLUMNS)}
         row = {**keep, "manual_corrections": len(self.store._lists.get(self.image, [])), **per_image}
         return row, per_pore, images
 
@@ -260,7 +268,7 @@ class Session:
                images: dict, plots: dict[str, bytes], corrections: list[dict]) -> None:
         """Background job: image folder, then images.json, Excel and ID values."""
         store = self.store
-        writer.write_pores(self.folder, self.original, state.labels, state.rejected_labels, rejected, per_pore,
+        writer.write_pores(self.folder, self.drawing, state.labels, state.rejected_labels, rejected, per_pore,
                            images, store.config.output.save_full_overlay)
         writer.write_plots(self.folder, plots)
         writer.write_corrections(self.folder, self.image, corrections, sorted(state.added), sorted(state.removed),
@@ -416,11 +424,6 @@ def _decode(data: bytes) -> np.ndarray:
 
 def _rejected_dict(table: pd.DataFrame) -> dict[int, tuple[str, str]]:
     return {int(i): (str(f), str(r)) for i, f, r in zip(table["pore_id"], table["filter"], table["reason"])}
-
-
-def _image_id(image: str, path: str) -> str:
-    """<ID>_<file stem> -> ID."""
-    return image[:-len(Path(path).stem) - 1]
 
 
 def _number(value) -> float | None:

@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (QCheckBox, QFileDialog, QGridLayout, QGroupBox, Q
 from gui.launcher.evaluations import EvaluationsTab
 from gui.viewer.window import ViewerWindow
 from pore_detection import (LOG_FORMAT, PROJECT_DIR, Config, Corrections, RunAborted, RunResult, config_path,
-                            find_images, load_config, resolve_path, run)
+                            find_recordings, load_config, resolve_path, run)
 
 log = logging.getLogger("pore_detection")
 
@@ -161,10 +161,13 @@ class LauncherWindow(QMainWindow):
 
     @Slot()
     def _list_images(self) -> None:
-        """File names in the ID folder for the per-image inputs (only names are read, no images)."""
+        """Recordings in the ID folder for the per-image inputs: file names, with input.views the
+        recording names (only names are read, no images)."""
         try:
             text = self.input_edit.text().strip()
-            images = [path.name for path in find_images(Path(text), load_config().input.extensions)] if text else []
+            config = load_config()
+            recordings = find_recordings(Path(text), config.input.extensions, config.input.views)[0] if text else []
+            images = [recording.key for recording in recordings]
         except Exception:                   # no folder (yet), broken config
             images = []
         self.evaluations.set_images(images)

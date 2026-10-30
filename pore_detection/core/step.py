@@ -33,7 +33,7 @@ class Step:
     def __init__(self, **params):
         """Parameters exactly as in config.yaml; each one becomes an attribute (self.sigma_px).
 
-        Optional key per_image: {<image file name>: {parameter: value}} – values of image_params
+        Optional key per_image: {<image key>: {parameter: value}} – values of image_params
         for single images (passed by the launcher), see for_image()."""
         per_image = params.pop("per_image", None) or {}
         for image, values in per_image.items():
@@ -47,8 +47,8 @@ class Step:
             setattr(self, key, value)
 
     def for_image(self, image: str) -> "Step":
-        """This step with the per-image values of one image (file name, e.g. "img_01.tif"); itself
-        if there are none. A new instance, so values derived in __init__ follow too."""
+        """This step with the per-image values of one image (key: file name, e.g. "img_01.tif"; with
+        input.views the recording, e.g. "img_01"); itself if there are none. A new instance, so values derived in __init__ follow too."""
         values = self._per_image.get(image)
         if not values:
             return self

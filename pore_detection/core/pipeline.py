@@ -122,10 +122,14 @@ def run(config: Config, input_path=None, output_dir=None,
     gpu_wanted = any(step.tileable and tiling.gpu_path(step) for step in steps.filters + steps.detection)
     device = select_device(config.runtime.device, gpu_wanted)
     gpu = tiling.Gpu(config.runtime.gpu_memory_fraction, config.runtime.tile_batch_size) if device == "cuda" else None
-    files = io.find_images(input_dir, config.input.extensions)
+    views = config.input.views
+    files, ignored = io.find_recordings(input_dir, config.input.extensions, views)
     threads = os.cpu_count() if config.runtime.threads == "auto" else config.runtime.threads
     log.info("ID %s: %d images in %s, device %s, %d threads", image_id, len(files), input_dir,
              gpu_name() if gpu else device, threads)
+    if ignored:
+        log.warning("%d files are neither view %s nor %s and are ignored: %s", len(ignored), views.sample,
+                    views.pores, ", ".join(path.name for path in ignored))
 
     try:
         results_dir = writer.prepare_results_dir(output_dir, image_id)
@@ -160,24 +164,24 @@ def run(config: Config, input_path=None, output_dir=None,
         except Exception as error:
             fail(done.name, "write", "-", f"{type(error).__name__}: {error}")
 
-    def load(path: Path) -> Callable[[], tuple[ImageInfo, np.ndarray]]:
+    def load(recording: io.Recording) -> Callable[[], tuple[ImageInfo, np.ndarray, np.ndarray]]:
         if config.runtime.prefetch:
-            return loader.submit(io.load_image, path, image_id).result
-        return lambda: io.load_image(path, image_id)
+            return loader.submit(io.load_recording, recording, image_id, views).result
+        return lambda: io.load_recording(recording, image_id, views)
 
     try:
         next_load = load(files[0]) if files else None
-        for index, path in enumerate(files):
+        for index, recording in enumerate(files):
             if cancel is not None and cancel.is_set():
                 cancelled = True
                 log.info("run cancelled after %d of %d images", index, len(files))
                 break
             current_load = next_load
             next_load = load(files[index + 1]) if index + 1 < len(files) else None
-            name = f"{image_id}_{path.stem}"
+            name = f"{image_id}_{recording.name}"
             report = (lambda stage: progress(index, len(files), stage, name)) if progress else (lambda stage: None)
             try:
-                done = _process_image(config, steps, current_load, results_dir, pool, gpu, report)
+                done = _process_image(config, steps, current_load, recording, results_dir, pool, gpu, report)
             except RunAborted:
                 raise
             except _ImageFailed as failure:
@@ -206,10 +210,12 @@ def run(config: Config, input_path=None, output_dir=None,
     return RunResult(len(rows), len(errors), errors, results_dir, duration, cancelled, device)
 
 
-def _process_image(config: Config, steps: _Steps, load: Callable[[], tuple[ImageInfo, np.ndarray]],
-                   results_dir: Path, pool: ThreadPoolExecutor, gpu: tiling.Gpu | None,
+def _process_image(config: Config, steps: _Steps, load: Callable[[], tuple[ImageInfo, np.ndarray, np.ndarray]],
+                   recording: io.Recording, results_dir: Path, pool: ThreadPoolExecutor, gpu: tiling.Gpu | None,
                    report: Callable[[str], None]) -> _Done:
-    """One image through all stages; returns its row of the per-image table and its write job."""
+    """One recording through all stages; returns its row of the per-image table and its write job.
+    The sample stage runs on the sample view, everything after it on the pores view (the same image
+    without input.views)."""
     stage, method = "load", "-"
 
     def at(new_stage: str, step: Step | None = None):
@@ -219,12 +225,14 @@ def _process_image(config: Config, steps: _Steps, load: Callable[[], tuple[Image
 
     try:
         at("load")
-        info, original = load()
+        info, original, sample_view = load()
+        drawing = sample_view if config.output.draw_on == "sample" else original     # overlays, frame picture
 
-        # both sample methods only read the original: the scale runs in parallel with the ROI
-        scale_future = pool.submit(steps.scale.detect_scale, info, original)
+        # both sample methods only read the sample view: the scale runs in parallel with the ROI
+        scale_future = pool.submit(steps.scale.detect_scale, info, sample_view)
         at("sample.roi", steps.roi)
-        roi_mask = steps.roi.detect_roi(info, original)
+        roi_mask = steps.roi.detect_roi(info, sample_view)
+        del sample_view
         at("sample.scale", steps.scale)
         scale = scale_future.result()
         if scale.scale_mask is not None:
@@ -256,7 +264,7 @@ def _process_image(config: Config, steps: _Steps, load: Callable[[], tuple[Image
             pores = step.process(ctx, pores)
 
         at("evaluation")
-        evaluators = [step.for_image(info.path.name) for step in steps.evaluators]     # per-image inputs
+        evaluators = [step.for_image(recording.key) for step in steps.evaluators]     # per-image inputs
         for step in evaluators:
             _check_scale(step, ctx)
         futures = [(step, pool.submit(step.evaluate, ctx, pores)) for step in evaluators]
@@ -280,13 +288,14 @@ def _process_image(config: Config, steps: _Steps, load: Callable[[], tuple[Image
         raise _ImageFailed(stage, method, error) from error
 
     # values of the modules first: the order of the columns in images.json and the Excel sheets
-    row = {"image": info.name, "path": str(info.path), **per_image, **_scale_columns(scale),
+    draw_path = str(recording.sample if config.output.draw_on == "sample" else recording.pores)
+    row = {"image": info.name, "path": str(info.path), "draw_path": draw_path, **per_image, **_scale_columns(scale),
            **frame_columns(frame, scale.pixel_size_um), "manual_corrections": 0}
 
     def write():
-        writer.write_image(results_dir, info, original, full_labels, full_rejected, pores.rejected, roi_mask,
+        writer.write_image(results_dir, info, drawing, full_labels, full_rejected, pores.rejected, roi_mask,
                            per_pore, images, config.output.save_full_overlay)
-        picture = lambda: plotting.sample_picture(original, full_labels, frame)      # noqa: E731 – only if needed
+        picture = lambda: plotting.sample_picture(drawing, full_labels, frame)      # noqa: E731 – only if needed
         writer.write_plots(results_dir / info.name, plotting.render(steps.plots, row, per_pore, picture))
     return _Done(info.name, row, write, excel_layout(steps.evaluators, results))
 
@@ -346,7 +355,7 @@ def _scale_columns(scale: ScaleResult) -> dict:
 
 # sheet of the results Excel for the columns of core (None = JSON only); see excel_layout
 CORE_EXCEL: dict[str, str | None] = {
-    "image": writer.PORES_SHEET, "path": None,
+    "image": writer.PORES_SHEET, "path": None, "draw_path": None,
     "pixel_size_um": writer.DETECTION_SHEET, "scale_label": writer.DETECTION_SHEET,
     "scale_bar_px": None, "scale_box_px": None,
     "frame_origin_px": None, "frame_angle_deg": writer.DETECTION_SHEET, "frame_wedge_deg": writer.DETECTION_SHEET,

@@ -27,8 +27,12 @@ input:
   path: test_images/vhx_height  # ID folder (folder name = ID), images directly inside
   extensions: [.tif, .tiff, .png, .jpg, .jpeg, .bmp]
   gray_weights: [0.299, 0.587, 0.114]   # R, G, B weights for the gray working image
+  views: null              # null = one image per recording; or two views of one recording, files <recording>_<view>:
+  # views:
+  #   sample: hell          # ROI, scale and frame come from <recording>_hell
+  #   pores: hoehe          # everything after the sample stage runs on <recording>_hoehe
 
-sample:                     # always run on the original image
+sample:                     # always run on the original image (with input.views: the sample view)
   roi:                      # exactly one method -> roi_mask (full_image | imagej | grabcut | height_roughness)
     name: height_roughness  # false color height image: sample smooth, resin rough (Otsu on the roughness)
     hue_deep_deg: 240       # as false_color_height below
@@ -38,7 +42,7 @@ sample:                     # always run on the original image
     texture_window_px: 15   # window for the local roughness, full resolution (tune on real images)
     outlier_clip: 5         # deviations above 5x their median are clipped (gap to the resin, deep pores)
     work_max_px: 1200       # long edge of the working image; *_work_px refer to it
-    min_roughness_ratio: 1.5  # resin at least 1.5x rougher than the sample, otherwise no resin -> whole image
+    min_roughness_ratio: 1.4  # resin at least 1.4x rougher than the sample, otherwise no resin -> whole image (real VHX: ~1.4)
     smooth_radius_work_px: 4  # opening / closing of the rough part (pores inside go, gaps in the resin close)
     erode_border_px: 25     # full resolution: rounded edge and gap to the resin are no sample (tune on real images)
     # name: full_image      # the whole image is sample
@@ -143,6 +147,7 @@ plots:                      # any number; PNG per image in <image folder>/plots/
 output:
   dir: test_images/results  # <dir>/<ID>_results/ is created (and overwritten)
   save_full_overlay: false  # full-resolution overlay TIFF (large); masks + labels are always saved
+  draw_on: pores            # pores | sample: image of the overlays, frame picture and viewer (sample only with input.views)
 
 logging:
   level: INFO               # DEBUG | INFO | WARNING | ERROR

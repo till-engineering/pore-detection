@@ -1,6 +1,6 @@
 # Interfaces
 
-> Binding specification of all data passed between modules. Interface version: 0.15 (draft)
+> Binding specification of all data passed between modules. Interface version: 0.16 (draft)
 >
 > Rule: a module only receives and returns the types defined here. If a new method needs
 > data that is not defined here, this document and `core/types.py` are changed first.
@@ -30,6 +30,9 @@
 > Changes 0.14 → 0.15: optional `Plot.extra_plots(pores)` (further copies of a plot, e.g. one per q, saved
 > in a subfolder of `plots/`, not shown in the viewer). `FrameMissing` from `require_frame()`: an evaluation
 > module without frame is skipped instead of failing the image.
+> Changes 0.15 → 0.16: optional `input.views` (two views of one recording, `<recording>_<view>`): the
+> stage `sample` gets the sample view as original, all later stages the pores view; the key of `per_image`
+> and of `for_image()` is then the recording instead of the file name. The types are unchanged.
 
 ---
 
@@ -261,10 +264,12 @@ class Plot(Step):
 
 - A step lists in `image_params` the parameters that may differ per image (e.g. `pore_index`: crack
   origins and hardness of every section). The launcher shows them as a table with one row per image.
-- They reach the step as config key `per_image: {<image file name>: {parameter: value}}` (recorded in
+- They reach the step as config key `per_image: {<image key>: {parameter: value}}` (recorded in
   `config_used.yaml`); an image without an entry keeps the value of `config.yaml`. Other parameters
   under `per_image` stop the run with an error.
-- `core` calls `step.for_image(<file name>)` for every image (also for manual corrections): a new
+- Image key = file name; with `input.views` the recording (`img_01` of `img_01_hell.tif` /
+  `img_01_hoehe.tif`).
+- `core` calls `step.for_image(<image key>)` for every image (also for manual corrections): a new
   instance with these values, so `__init__` runs again with them. The step itself needs no extra code.
 
 ### 3.1 CPU and GPU path

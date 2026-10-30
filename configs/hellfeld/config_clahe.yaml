@@ -26,8 +26,12 @@ input:
   path: test_images/193193  # ID folder (folder name = ID), images directly inside
   extensions: [.tif, .tiff, .png, .jpg, .jpeg, .bmp]
   gray_weights: [0.299, 0.587, 0.114]   # R, G, B weights for the gray working image
+  views: null              # null = one image per recording; or two views of one recording, files <recording>_<view>:
+  # views:
+  #   sample: hell          # ROI, scale and frame come from <recording>_hell
+  #   pores: hoehe          # everything after the sample stage runs on <recording>_hoehe
 
-sample:                     # always run on the original image
+sample:                     # always run on the original image (with input.views: the sample view)
   roi:                      # exactly one method -> roi_mask (full_image | imagej | grabcut)
     name: imagej            # ImageJ standard: 8-bit, Default threshold, Fill Holes; largest part only
     # name: grabcut         # slower (~1.5 s/image), values from Pore_Detection_V2
@@ -130,6 +134,7 @@ plots:                      # any number; PNG per image in <image folder>/plots/
 output:
   dir: test_images/results  # <dir>/<ID>_results/ is created (and overwritten)
   save_full_overlay: false  # full-resolution overlay TIFF (large); masks + labels are always saved
+  draw_on: pores            # pores | sample: image of the overlays, frame picture and viewer (sample only with input.views)
 
 logging:
   level: INFO               # DEBUG | INFO | WARNING | ERROR

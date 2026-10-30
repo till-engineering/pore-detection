@@ -37,7 +37,8 @@ One run processes one ID (= name of the input folder).
     └── config_used.yaml            copy of the config used for this run
 ```
 
-- `<image>` = file name without extension. Images always lie directly in the ID folder.
+- `<image>` = file name without extension; with `input.views` the recording (`img_01` of
+  `img_01_hell.tif` / `img_01_hoehe.tif`). Images always lie directly in the ID folder.
 - An image folder is written only after the image passed all stages; if writing fails, the files
   written so far are removed again.
 - `images.json`, `errors.json` and the Excel file are written at the end of the run, also after a
@@ -86,7 +87,8 @@ it); the values of the evaluation modules come first, then the columns of core.
 | Column | Meaning |
 |--------|---------|
 | `image` | `<ID>_<image>` (= name of the image folder) |
-| `path` | source file |
+| `path` | source file (with `input.views`: the pores view) |
+| `draw_path` | image the overlays, the frame picture and the viewer show (`output.draw_on`) |
 | `pixel_size_um` | scale in µm per px, `null` = unknown |
 | `scale_label` | text read from the scale label, `null` = none |
 | `scale_bar_px` | measured scale bar `[top, bottom, left, right]` (bottom/right exclusive), `null` = none |
@@ -112,7 +114,7 @@ only. Every sheet starts with `image`, one row per image, header row frozen.
 | `ID` | `id_values` (finalize) |
 | `Errors` | `errors` |
 
-- **JSON only:** `path`, `scale_bar_px`, `scale_box_px`, `frame_origin_px` and the `excel_hidden`
+- **JSON only:** `path`, `draw_path`, `scale_bar_px`, `scale_box_px`, `frame_origin_px` and the `excel_hidden`
   values of the modules (e.g. `sample_area_outer_px2`, `sample_area_inner_px2` of `pore_index`).
 - Columns of core: fixed in `pipeline.CORE_EXCEL`; a value without a sheet goes to `Other`.
 - List cells are written as text.

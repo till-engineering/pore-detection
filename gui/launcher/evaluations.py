@@ -103,7 +103,7 @@ class EvaluationsTab(QWidget):
         self._labels: dict[tuple[int, str], QLabel] = {}
         self._names: dict[int, str] = {}
         self._tables: dict[int, ImageInputs] = {}  # module index -> inputs per image
-        self._images: list[str] = []                # file names in the ID folder
+        self._images: list[str] = []                # file names (with input.views: recordings) in the ID folder
         self.reset_button = QPushButton("Reset to config")
         self.reset_button.clicked.connect(self.reset)
         self.hint = QLabel()
@@ -207,7 +207,7 @@ class EvaluationsTab(QWidget):
         self.changed.emit()
 
     def set_images(self, images: list[str]) -> None:
-        """Image file names of the chosen ID folder (rows of the per-image tables)."""
+        """File names (with input.views: recording names) of the chosen ID folder (rows of the per-image tables)."""
         self._images = list(images)
         for table in self._tables.values():
             table.set_images(self._images)

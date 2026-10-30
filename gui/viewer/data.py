@@ -269,11 +269,14 @@ def load_image(run: Run, index: int) -> Image:
     row = run.row(index)
     folder = run.results_dir / row["image"]
 
+    # the image to draw on (output.draw_on); runs older than that only have the original
+    shown = row["draw_path"] if isinstance(row.get("draw_path"), str) else row["path"]
+
     def original():
         try:
-            return read_rgb(Path(row["path"])), ""
+            return read_rgb(Path(shown)), ""
         except (OSError, ValueError):
-            return None, f"original not found: {row['path']}"
+            return None, f"original not found: {shown}"
 
     with ThreadPoolExecutor(4) as pool:
         jobs = (pool.submit(_decode, folder / LABELS_TIF, cv2.IMREAD_UNCHANGED),
