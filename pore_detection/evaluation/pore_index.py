@@ -86,6 +86,8 @@ class PoreIndex(Evaluator):
     choices = {"stress": _field_choices, "pore_stress": list(PORE_STRESS)}
     # test data of every single section: entered per image in the launcher (empty = config.yaml)
     image_params = {"cracks_outer", "cracks_inner", "hardness_outer", "hardness_inner"}
+    # the folder is fixed per setup: config.yaml only, the launcher offers its files under `stress`
+    config_only = {"stress_fields_dir"}
     excel_sheet = "Stress"
     excel_hidden = {"sample_area_outer_px2", "sample_area_inner_px2"}
 

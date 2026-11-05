@@ -47,6 +47,7 @@ class MethodInfo:
     choices: dict[str, list[str] | Callable[[dict], list[str]]]   # parameter name -> allowed values, or a
                                     # function of the module's config entry giving them (e.g. files of a folder)
     image_params: set[str]      # parameters that may differ per image
+    config_only: set[str]       # parameters set in config.yaml only (no field in the launcher)
 
 
 def register(name: str):
@@ -111,6 +112,7 @@ def list_methods() -> dict[str, list[MethodInfo]]:
                 gpu=hasattr(cls, "process_gpu") or hasattr(cls, "detect_gpu"),
                 choices={key: values if callable(values) else list(values) for key, values in cls.choices.items()},
                 image_params=set(cls.image_params),
+                config_only=set(cls.config_only),
             )
             for name, cls in sorted(methods.items())
         ]

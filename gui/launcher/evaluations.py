@@ -189,7 +189,7 @@ class EvaluationsTab(QWidget):
             form = QFormLayout(box)
             per_image = [key for key in params if info and key in info.image_params]
             for key, value in params.items():
-                if key in per_image:
+                if key in per_image or (info and key in info.config_only):
                     continue
                 field = _Field(value, _choices(info, key, entry) if info else None, self._update_marks)
                 label = QLabel(key)

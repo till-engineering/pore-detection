@@ -30,6 +30,7 @@ class Step:
     tileable: bool = False          # local operation, may run on tiles
     tile_overlap_px: int = 0        # required border around each tile
     image_params: set[str] = set()  # parameters that may differ per image (entered per image in the launcher)
+    config_only: set[str] = set()   # parameters set in config.yaml only (the launcher shows no field)
 
     def __init__(self, **params):
         """Parameters exactly as in config.yaml; each one becomes an attribute (self.sigma_px).
