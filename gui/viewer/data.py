@@ -28,6 +28,7 @@ ROI_MASK_TIF = "roi_mask.tif"
 REJECTED_LABELS_TIF = "rejected_labels.tif"
 REJECTED_JSON = "rejected.json"
 CORRECTIONS_JSON = "corrections.json"
+STRESS_FIELD_TIF = "stress_field.tif"   # pore_index: field over the sample rectangle (row 0 = outer edge)
 PLOTS_DIR = "plots"         # in the image folder: <plot name>.png
 MANUAL = "manual"           # filter name of pores rejected by hand
 
@@ -182,6 +183,7 @@ class Image:
     overview_roi: np.ndarray     # bool, overview size
     message: str                 # problem while loading, "" if none
     frame: Frame | None = None   # coordinate system of the sample, None = none in the run
+    stress_map: np.ndarray | None = None    # float32 stress field over the sample rectangle, None = none
     plots: dict = field(default_factory=dict)   # plot name -> PNG bytes (plots/<name>.png)
     overview_masks: dict = field(default_factory=dict, repr=False)   # pores, rejected, added, removed
     _boxes: dict = field(default_factory=dict, repr=False)
@@ -284,6 +286,8 @@ def load_image(run: Run, index: int) -> Image:
                 pool.submit(read_bool, folder / ROI_MASK_TIF), pool.submit(original))
         labels, rejected_labels, roi, (rgb, message) = (job.result() for job in jobs)
     plots = {path.stem: path.read_bytes() for path in (folder / PLOTS_DIR).glob("*.png")}
+    stress_path = folder / STRESS_FIELD_TIF
+    stress_map = _decode(stress_path, cv2.IMREAD_UNCHANGED) if stress_path.exists() else None
     corrections = folder / CORRECTIONS_JSON
     saved = json.loads(corrections.read_text(encoding="utf-8")) if corrections.exists() else {}
 
@@ -295,7 +299,7 @@ def load_image(run: Run, index: int) -> Image:
     image = Image(index, row["image"], row, read_table(folder / PORES_JSON), Scale.from_row(row), rgb, labels,
                   rejected_labels, read_table(folder / REJECTED_JSON), frozenset(saved.get("added", [])),
                   frozenset(saved.get("removed", [])), roi, overview, shrink_mask(roi, size), message,
-                  Frame.from_row(row), plots)
+                  Frame.from_row(row), stress_map=stress_map, plots=plots)
     update_overview(image)
     return image
 

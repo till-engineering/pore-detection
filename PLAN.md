@@ -661,29 +661,39 @@ Auswertungsmodul `evaluation/pore_index.py` (Stufe `evaluation`, braucht das Pro
 - **Formeln** (Folie „Porenkonzept“): Φ_q = Σ A_i g_i^q / A_Mess;
   Φ_eff,q = w_o Σ_(i∈o) A_i g_i^q / A_Mess,o + w_u Σ_(i∈u) A_i g_i^q / A_Mess,u;
   w_o = (n_o+1)/(n_o+n_u+2), w_u = (n_u+1)/(n_o+n_u+2).
-- **Spannung g** über die bezogene Höhe ζ = z / Dicke (0 innen, 1 außen). Standard
-  `stress: bending` (Wechselbiegung, g = |2ζ − 1|), alternativ `stress: pulsating` (schwellende
-  Beanspruchung laut Folie, g = ζ; ergänzt 2026-10-18). Weitere Lastfälle sind noch nicht festgelegt; später
-  ein **beliebiges Spannungsfeld**, das im Launcher eingegeben wird (dann klären, wie das zur Regel
-  „config.yaml einzige Quelle“ passt).
+- **Spannung g = Spannungsfeld σ(ξ, ζ)** (umgesetzt 2026-11-05, ersetzt die fest eingebauten
+  Lastfälle): ξ = x / Länge, ζ = z / Dicke im Proben-KOS (0 innen, 1 außen), beide auf 0..1 begrenzt.
+  Ein Feld = eine YAML-Datei im Ordner `stress_fields_dir` (relativ zum Projektordner), **gleiches
+  Format wie im Fatigue_crack_labeler** (`formula` als NumPy-Ausdruck oder `grid` mit bilinearer
+  Interpolation, z. B. aus einer FEM-Rechnung; Code `core/stress.py` von dort kopiert). Beide
+  Programme dürfen auf denselben Ordner zeigen. `stress` = Dateiname ohne `.yaml`; im Launcher als
+  Auswahl der lesbaren Dateien des Ordners (neu eingelesen bei jeder Aktualisierung des Formulars).
+  Mitgeliefert: `stress_fields/bending.yaml` (|2ζ − 1|) und `pulsating.yaml` (ζ) – gleiche Werte wie
+  die früheren Lastfälle (geprüft: Differenz 0). **Keine Normierung**: die Werte des Feldes gehen
+  unverändert ein (Sache des Nutzers, ggf. q anpassen); Felder sind Beträge.
+  Ältere `config_used.yaml` ohne `stress_fields_dir` nutzen den Ordner `stress_fields`.
 - **Spannung einer Pore** (`pore_stress`, genau eine Variante, später Auswahl im Launcher):
   `centroid` (g am Schwerpunkt × Fläche), `area` (jedes Pixel mit seinem g), `max` (höchstes g × Fläche).
 - **Zonen:** Grenze bei halber Dicke; A_Mess,o/u = Probenfläche oben/unten. Poren über der Grenze
   werden **pixelweise geteilt**, jeder Teil zählt wie eine eigene Pore.
-- **Config:** `stress`, `pore_stress`, `q_values` (1; 1,5; 2; 3; 5; 10), `cracks_outer` (n_o),
+- **Config:** `stress_fields_dir`, `stress`, `pore_stress`, `q_values` (1; 1,5; 2; 3; 5; 10), `cracks_outer` (n_o),
   `cracks_inner` (n_u), `hardness_outer` / `hardness_inner` (HBW, leer = nicht angegeben).
-- **Ausgabe pro Bild:** `phi_q…`, `phi_eff_q…` je q (z. B. `phi_q1_5`), `w_outer`, `w_inner`,
-  `sample_area_outer_px2`, `sample_area_inner_px2`. **Pro Pore:** `zeta` und `stress_centroid`
+- **Ausgabe pro Bild:** `stress_field` (Schlüssel), `stress_unit`, `phi_q…`, `phi_eff_q…` je q
+  (z. B. `phi_q1_5`), `w_outer`, `w_inner`, `sample_area_outer_px2`, `sample_area_inner_px2`;
+  Bild `stress_field.tif` (float32, das Feld über dem Probenrechteck, Zeile 0 = Außenkante, Raster
+  768 Zellen entlang der längeren Seite wie im Labeler). **Pro Pore:** `xi`, `zeta` und `stress_centroid`
   (Schwerpunkt der ganzen Pore), `stress_max`, sowie ihr Beitrag A g^q je q
   (`weighted_area_q…_px2`, mit der gewählten Variante; Summe über die Poren / A_Mess = Φ_q).
 - **Nur pro Bild** – noch keine Zusammenfassung über die ID (Auswahl mehrerer Schliffe später).
 - Geprüft gegen eine unabhängige Rechnung über das volle Pixelraster: alle drei Varianten gleich
   bis auf Rundung (10⁻¹⁵).
-- Offen: Lastfälle / beliebiges Spannungsfeld, Eingabe im Launcher (n_o, n_u, Varianten),
-  Werte über die ID, Spannungsfeld als Ebene im Viewer, Härte außen/innen.
+- **Viewer:** Ebene „Stress field“ (standardmäßig aus): Heatmap (Turbo) aus `stress_field.tif`
+  über dem Probenrechteck, eigener Deckkraft-Regler, Farbskala min–max mit Einheit, σ unter der Maus
+  in der Infoleiste – wie im Labeler.
+- Offen: Werte über die ID, Härte außen/innen.
 - **Härte außen/innen** (Folie, 2026-10-18): nur Eingabe (Launcher, config.yaml) und Ausgabe, noch
   ohne Wirkung auf Φ. Offen, ob g = σ/σ_max oder Auslastung σ/σ_W (σ_W aus der Härte) gemeint ist.
-  g ist nur in `PoreIndex.relative_stress` definiert; dort ist die Härte für Modelländerungen greifbar.
+  g ist nur in `PoreIndex.stress_at` definiert; dort ist die Härte für Modelländerungen greifbar.
 
 ### 7.9 Ergebnis-Excel nach Themen (beschlossen und umgesetzt 2026-10-18)
 

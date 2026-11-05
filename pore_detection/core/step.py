@@ -25,7 +25,8 @@ from .types import EvaluationResult, ImageContext, ImageInfo, LabeledPores, Samp
 class Step:
     name: str = ""                  # registered name, set by @register
     params: dict[str, str] = {}     # parameter name -> description (for list_methods)
-    choices: dict[str, list[str]] = {}  # parameter name -> allowed values (launcher shows a selection)
+    choices: dict = {}              # parameter name -> allowed values (launcher shows a selection), or a
+                                    # function(config entry as dict) -> values, called when the launcher builds its form
     tileable: bool = False          # local operation, may run on tiles
     tile_overlap_px: int = 0        # required border around each tile
     image_params: set[str] = set()  # parameters that may differ per image (entered per image in the launcher)

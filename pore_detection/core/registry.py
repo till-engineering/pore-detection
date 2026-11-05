@@ -7,6 +7,7 @@ Every file in the stage folders (sample, preprocessing, ...) is imported once at
 import importlib
 import pkgutil
 from dataclasses import dataclass
+from typing import Callable
 
 from .config import Config
 from .step import (Detector, Evaluator, Filter, FrameDetector, LabelStep, Labeler, MaskStep, Plot,
@@ -43,7 +44,8 @@ class MethodInfo:
     tileable: bool
     tile_overlap_px: int
     gpu: bool                   # has a GPU path
-    choices: dict[str, list[str]]   # parameter name -> allowed values
+    choices: dict[str, list[str] | Callable[[dict], list[str]]]   # parameter name -> allowed values, or a
+                                    # function of the module's config entry giving them (e.g. files of a folder)
     image_params: set[str]      # parameters that may differ per image
 
 
@@ -107,7 +109,7 @@ def list_methods() -> dict[str, list[MethodInfo]]:
                 tileable=cls.tileable,
                 tile_overlap_px=cls.tile_overlap_px,
                 gpu=hasattr(cls, "process_gpu") or hasattr(cls, "detect_gpu"),
-                choices={key: list(values) for key, values in cls.choices.items()},
+                choices={key: values if callable(values) else list(values) for key, values in cls.choices.items()},
                 image_params=set(cls.image_params),
             )
             for name, cls in sorted(methods.items())

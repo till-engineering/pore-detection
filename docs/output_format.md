@@ -23,7 +23,10 @@ One run processes one ID (= name of the input folder).
     │   ├── rejected.json           rejected pores: pore_id, filter (manual = by hand), reason
     │   ├── corrections.json        manual corrections (only if there are any, see PLAN.md 7.3)
     │   ├── overlay.tif             only with output.save_full_overlay: true
-    │   ├── <name>.tif              images returned by evaluation modules (key = name)
+    │   ├── <name>.tif              images returned by evaluation modules (key = name),
+    │   │                           e.g. stress_field.tif of pore_index: float32 stress field over the
+    │   │                           sample rectangle (row 0 = outer edge, column 0 = left edge),
+    │   │                           shown by the viewer as the layer "Stress field"
     │   ├── <name>.jpg              pictures for humans returned by evaluation modules (key ends in .jpg),
     │   │                           e.g. comparison.jpg: original | pores in red (module comparison),
     │   │                           frame_picture.jpg: sample frame + length / thickness (module frame_picture)

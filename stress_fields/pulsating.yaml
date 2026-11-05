@@ -1,0 +1,4 @@
+# Pulsating load, relative stress: 0 at the inner (bottom), 1 at the outer (top) surface
+name: Pulsating (relative)
+unit: "-"
+formula: "zeta"

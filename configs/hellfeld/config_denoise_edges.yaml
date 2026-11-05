@@ -105,15 +105,17 @@ postprocessing:
 evaluation:                 # any number of independent modules
   - name: porosity          # pore count, porosity per image and per ID, pore areas
   - name: pore_index        # stress-weighted pore index (Porenkonzept), needs sample.frame
-    stress: bending         # stress profile over the height: bending = |2 zeta - 1| (1 at both surfaces),
-                            # pulsating = zeta (0 inner, 1 outer surface)
+    stress_fields_dir: stress_fields  # folder of the stress fields, one YAML file each (format of the
+                            # Fatigue_crack_labeler); may point to the labeler's folder to share the files
+    stress: bending         # stress field = file name without .yaml, selectable in the launcher
+                            # (stress_fields/: bending = |2 zeta - 1|, pulsating = zeta)
     pore_stress: area       # stress of a pore: centroid | area (every pixel its own) | max
     q_values: [1, 1.5, 2, 3, 5, 10]
     cracks_outer: 0         # n_o: crack origins at the outer surface (tests); these four: defaults,
                             # entered per image in the launcher (tab Evaluations)
     cracks_inner: 0         # n_u: crack origins at the inner surface (tests)
     hardness_outer: null    # hardness outer surface in HBW, null = not given (not used in the model yet,
-    hardness_inner: null    # hardness inner surface in HBW   only recorded; see PoreIndex.relative_stress)
+    hardness_inner: null    # hardness inner surface in HBW   only recorded; see PoreIndex.stress_at)
   - name: comparison        # comparison.jpg in the image folder: original | counted pores in red
   - name: frame_picture     # frame_picture.jpg: sample with frame and dimensioned length / thickness
 

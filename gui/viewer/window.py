@@ -8,8 +8,9 @@ not imported here); without it the viewer is read-only.
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 
+import numpy as np
 from PySide6.QtCore import QEvent, QObject, Qt, Signal
-from PySide6.QtGui import QColor, QFont, QIcon, QKeySequence, QPainter, QPixmap, QShortcut
+from PySide6.QtGui import QColor, QFont, QIcon, QKeySequence, QPainter, QPixmap, QShortcut, QTransform
 from PySide6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QDialog, QFormLayout, QFrame,
                                QGridLayout, QHBoxLayout, QLabel, QMainWindow, QPlainTextEdit, QPushButton,
                                QScrollArea, QSlider, QTableWidget, QTableWidgetItem, QTreeWidget,
@@ -19,7 +20,7 @@ from . import style
 from .data import MANUAL, Image, Run, apply_state, load_image
 from .image_view import ImageView
 from .loupe import Loupe, loupe_box
-from .render import Layers, compose, frame_graphics, outline, shrink
+from .render import Layers, colorbar, compose, frame_graphics, heatmap, outline, shrink
 from .plot_view import PlotView
 from .scale_check import ScaleCheck, scale_crop_box
 
@@ -43,6 +44,8 @@ TOOLS = {
     "area": ("⬚", "reject every counted pore lying completely inside the traced area", "#d63370", "outline"),
 }
 ADDED = style.ADDED
+STRESS = "#f08c00"          # patch of the stress field layer (the layer itself uses the turbo colour map)
+STRESS_OPACITY = 45         # start value of the stress layer opacity in %
 
 
 def format_number(value, unit: str = "") -> str:
@@ -132,6 +135,7 @@ class ViewerWindow(QMainWindow):
         self.session = None                 # correction session of the shown image (opened on first use)
         self.tool: str | None = None
         self.selected_rejected = False      # the selected pore is a rejected one
+        self._heat = None                   # (image, pixmap, transform, low, high) of the stress layer
         self.run = Run.load(results_dir)
         self.setWindowTitle(f"Pore Detection – Viewer – {self.run.results_dir.name}")
         self.resize(1500, 950)
@@ -271,6 +275,8 @@ class ViewerWindow(QMainWindow):
         bar_layout.setContentsMargins(16, 7, 16, 7)
         self.info_label = QLabel(objectName="info")
         bar_layout.addWidget(self.info_label)
+        self.stress_value = QLabel(objectName="infoValue")      # stress field under the mouse (layer on)
+        bar_layout.addWidget(self.stress_value)
         bar_layout.addStretch()
         bar_layout.addWidget(QLabel("Opacity", objectName="hint"))
         self.opacity = QSlider(Qt.Orientation.Horizontal)
@@ -415,6 +421,8 @@ class ViewerWindow(QMainWindow):
         self.removed_row = LayerRow("Removed by hand", style.REMOVED, checked=True)
         self.added_row = LayerRow("Added by hand", ADDED, checked=True)
         self.pores_row = LayerRow("Pores", style.PORE, checked=True)
+        self.stress_row = LayerRow("Stress field", STRESS, checked=False)
+        self.stress_row.check.toggled.connect(self._show_stress)   # pixmap above the image: no new rendering
         for layer in (self.embedding_row, self.rejected_row, self.removed_row, self.added_row, self.pores_row):
             layer.check.toggled.connect(self._layers_changed)
         self.frame_row.check.toggled.connect(self._show_frame)  # vector graphics: no new rendering
@@ -422,6 +430,32 @@ class ViewerWindow(QMainWindow):
                       self.pores_row):
             layers_layout.addWidget(layer)
         self.embedding_check, self.pores_check = self.embedding_row.check, self.pores_row.check
+        layers_layout.addWidget(self.stress_row)
+        self.stress_controls = QWidget()
+        stress_layout = QVBoxLayout(self.stress_controls)
+        stress_layout.setContentsMargins(26, 2, 8, 2)
+        stress_layout.setSpacing(3)
+        bar_row = QHBoxLayout()
+        self.stress_low = QLabel(objectName="hint")
+        self.stress_high = QLabel(objectName="hint")
+        bar_label = QLabel()
+        bar_label.setPixmap(colorbar())
+        bar_row.addWidget(self.stress_low)
+        bar_row.addWidget(bar_label)
+        bar_row.addWidget(self.stress_high)
+        bar_row.addStretch()
+        stress_layout.addLayout(bar_row)
+        opacity_row = QHBoxLayout()
+        opacity_row.addWidget(QLabel("Opacity", objectName="hint"))
+        self.stress_opacity = QSlider(Qt.Orientation.Horizontal)
+        self.stress_opacity.setRange(0, 100)
+        self.stress_opacity.setValue(STRESS_OPACITY)
+        self.stress_opacity.valueChanged.connect(lambda v: self.view.set_heat_opacity(v / 100))
+        opacity_row.addWidget(self.stress_opacity, stretch=1)
+        stress_layout.addLayout(opacity_row)
+        self.stress_controls.setVisible(False)
+        self.stress_row.check.toggled.connect(self.stress_controls.setVisible)
+        layers_layout.addWidget(self.stress_controls)
         layers_layout.addStretch()
         layout.addWidget(card("Layers", layers), stretch=1)
         return column
@@ -549,10 +583,12 @@ class ViewerWindow(QMainWindow):
         self._clear_hover()
         self._update_counts()
         self._update_frame_row()
+        self._update_stress_row()
         self._fill_pore_list()
         self.view.set_selection([], QColor())
         self._render(fit=True)
         self._show_frame()
+        self._show_stress()
         self._show_plots()
         self._update_detail_source()
         self.loupe.show_message(NO_SELECTION)
@@ -674,6 +710,7 @@ class ViewerWindow(QMainWindow):
         return image.nearest_pore(x, y, radius, counted=self.tool != "restore", rejected=self.tool != "remove")
 
     def _on_hover(self, x: int, y: int) -> None:
+        self._show_stress_value(x, y)
         target = self._target(x, y)
         key = None if target is None else target[:2]
         if key == self.hover_key:
@@ -692,6 +729,7 @@ class ViewerWindow(QMainWindow):
         self.view.set_hover(outline(labels[top:bottom, left:right] == pore_id, left, top), color)
 
     def _clear_hover(self) -> None:
+        self.stress_value.setText("")
         self.hover_key = None
         self.view.set_hover([], QColor())
 
@@ -799,6 +837,52 @@ class ViewerWindow(QMainWindow):
             self.view.set_frame([], [], [], QColor())
             return
         self.view.set_frame(*frame_graphics(image.frame), QColor(style.FRAME))
+
+    def _update_stress_row(self) -> None:
+        """Stress layer: field name as its count; not selectable without a map (no pore_index, no frame)."""
+        image = self.image
+        available = image.stress_map is not None and image.frame is not None
+        self.stress_row.setEnabled(available)
+        field = image.row.get("stress_field")
+        self.stress_row.count.setText(field if available and isinstance(field, str) else "none")
+        self.stress_row.setToolTip("stress field of pore_index over the sample rectangle" if available else
+                                   "no stress field in this run (needs pore_index and a sample frame)")
+
+    def _stress_unit(self) -> str:
+        unit = self.image.row.get("stress_unit") if self.image is not None else None
+        return f" {unit}" if isinstance(unit, str) and unit not in ("", "-") else ""
+
+    def _show_stress(self, *_) -> None:
+        """Stress field as a heatmap over the sample rectangle (computed once per image)."""
+        image = self.image
+        if (image is None or image.stress_map is None or image.frame is None
+                or not self.stress_row.check.isChecked()):
+            self.view.set_heatmap(None, QTransform(), 0)
+            self.stress_value.setText("")
+            return
+        if self._heat is None or self._heat[0] is not image:
+            self._heat = (image, *heatmap(image.frame, image.stress_map))
+        _, pixmap, transform, low, high = self._heat
+        self.stress_low.setText(format_number(low))
+        self.stress_high.setText(format_number(high) + self._stress_unit())
+        self.view.set_heatmap(pixmap, transform, self.stress_opacity.value() / 100)
+
+    def _show_stress_value(self, x: int, y: int) -> None:
+        """Stress under the mouse (cell of the map) while the layer is on."""
+        heat = self._heat
+        if heat is None or heat[0] is not self.image or not self.stress_row.check.isChecked():
+            self.stress_value.setText("")
+            return
+        values = heat[0].stress_map
+        inverse, ok = heat[2].inverted()
+        if not ok:
+            return
+        u, v = inverse.map(x + 0.5, y + 0.5)        # pixel centre
+        column, row = int(np.floor(u)), int(np.floor(v))
+        if 0 <= row < values.shape[0] and 0 <= column < values.shape[1]:
+            self.stress_value.setText(f"   ·   σ = {format_number(float(values[row, column]))}{self._stress_unit()}")
+        else:
+            self.stress_value.setText("")
 
     def _update_counts(self) -> None:
         image = self.image

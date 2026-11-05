@@ -1,0 +1,4 @@
+# Alternating bending, relative stress: 1 at both surfaces, 0 in the middle
+name: Bending (relative)
+unit: "-"
+formula: "abs(2*zeta - 1)"

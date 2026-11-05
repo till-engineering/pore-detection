@@ -46,6 +46,11 @@ class ImageView(QGraphicsView):
         self.frame_axes = QGraphicsPathItem()   # sample frame: axes (solid) and outline (dashed)
         self.frame_outline = QGraphicsPathItem()
         self.frame_labels: list[QGraphicsSimpleTextItem] = []
+        self.heat = QGraphicsPixmapItem()       # stress field over the sample rectangle (off by default)
+        self.heat.setTransformationMode(Qt.TransformationMode.SmoothTransformation)
+        self.heat.setZValue(1.2)                # above the image and its detail, below frame and outlines
+        self.heat.setVisible(False)
+        self.scene().addItem(self.heat)
         for item in (self.frame_axes, self.frame_outline):
             item.setZValue(1.5)                 # above the image, below the selection
             self.scene().addItem(item)
@@ -86,6 +91,7 @@ class ImageView(QGraphicsView):
         self.base.setPixmap(QPixmap())
         self.set_selection([], QColor())
         self.set_frame([], [], [], QColor())
+        self.set_heatmap(None, QTransform(), 0)
         self.set_detail_source(None)
 
     def set_detail_source(self, source: DetailSource | None) -> None:
@@ -135,6 +141,17 @@ class ImageView(QGraphicsView):
             label.setZValue(1.5)
             self.scene().addItem(label)
             self.frame_labels.append(label)
+
+    def set_heatmap(self, pixmap: QPixmap | None, transform: QTransform, opacity: float) -> None:
+        """Stress field layer; None hides it."""
+        self.heat.setVisible(pixmap is not None)
+        if pixmap is not None:
+            self.heat.setPixmap(pixmap)
+            self.heat.setTransform(transform)
+            self.heat.setOpacity(opacity)
+
+    def set_heat_opacity(self, opacity: float) -> None:
+        self.heat.setOpacity(opacity)
 
     def set_hover(self, lines, color: QColor) -> None:
         """Outline of the pore a click would pick ([] = none); the cursor shows that it can be picked."""

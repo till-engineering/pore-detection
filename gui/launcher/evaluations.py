@@ -45,7 +45,7 @@ class _Field:
             self.widget.valueChanged.connect(on_change)
         elif self.kind == "choice":
             self.widget = QComboBox()
-            self.widget.addItems(choices)
+            self.set_choices(choices)
             self.widget.currentTextChanged.connect(on_change)
         elif self.kind in ("list", "text"):
             self.widget = QLineEdit()
@@ -55,6 +55,22 @@ class _Field:
         else:                                       # nested values: only in config.yaml
             self.widget = QLabel(f"{value!r} (change in the config)")
         self.set(value)
+
+    def set_choices(self, choices: list[str]) -> None:
+        """Items of a selection; the value of config.yaml stays selectable even if it is not among
+        them (e.g. a stress field file that is missing – the run then names the problem)."""
+        items = list(choices)
+        if self.default is not None and str(self.default) not in items:
+            items.append(str(self.default))
+        widget = self.widget
+        if [widget.itemText(i) for i in range(widget.count())] == items:
+            return
+        current = widget.currentText()
+        widget.blockSignals(True)
+        widget.clear()
+        widget.addItems(items)
+        widget.setCurrentText(current if current in items else str(self.default))
+        widget.blockSignals(False)
 
     def set(self, value) -> None:
         widget = self.widget
@@ -131,13 +147,17 @@ class EvaluationsTab(QWidget):
             self._build(entries)
             self._structure = structure
             return
+        methods = {info.name: info for info in list_methods()["evaluation"]}
         for index, entry in enumerate(entries):
+            info = methods.get(entry["name"])
             for key, value in entry.items():
                 if (index, key) not in self._fields:    # name, per-image parameters
                     continue
                 field = self._fields[(index, key)]
                 was_changed = field.changed()
                 field.default = value
+                if field.kind == "choice" and info and callable(info.choices.get(key)):
+                    field.set_choices(_choices(info, key, entry))     # e.g. new files in a folder
                 if not was_changed:
                     field.set(value)
         self._update_marks()
@@ -171,7 +191,7 @@ class EvaluationsTab(QWidget):
             for key, value in params.items():
                 if key in per_image:
                     continue
-                field = _Field(value, info.choices.get(key) if info else None, self._update_marks)
+                field = _Field(value, _choices(info, key, entry) if info else None, self._update_marks)
                 label = QLabel(key)
                 if info and key in info.params:
                     label.setToolTip(info.params[key])
@@ -243,8 +263,20 @@ class EvaluationsTab(QWidget):
         return config, changes
 
 
+def _choices(info, key: str, entry: dict) -> list[str] | None:
+    """Allowed values of a parameter; a function (e.g. files of a folder) is called with the
+    module's config entry."""
+    choices = info.choices.get(key)
+    if callable(choices):
+        try:
+            return list(choices(entry))
+        except Exception:               # e.g. unreadable folder: the run reports it
+            return []
+    return choices
+
+
 def _kind(value, choices) -> str:
-    if choices:
+    if choices is not None and (choices or isinstance(value, str)):
         return "choice"
     if isinstance(value, bool):
         return "bool"
