@@ -405,9 +405,10 @@ def frame_from_columns(row: dict) -> SampleFrame | None:
     origin = row.get("frame_origin_px")
     if origin is None or (isinstance(origin, float) and np.isnan(origin)):
         return None
+    wedge = row.get("frame_wedge_deg")              # empty for a frame set by hand
     return SampleFrame((float(origin[0]), float(origin[1])), float(row["frame_angle_deg"]),
                        float(row["frame_thickness_px"]), float(row["frame_length_px"]),
-                       float(row["frame_wedge_deg"]))
+                       float("nan") if wedge is None else float(wedge))
 
 
 def _check_scale(step: Step, ctx: ImageContext) -> None:

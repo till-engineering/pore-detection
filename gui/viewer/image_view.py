@@ -14,7 +14,9 @@ from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen, QPixmap, 
 from PySide6.QtWidgets import (QGraphicsItem, QGraphicsPathItem, QGraphicsPixmapItem, QGraphicsScene,
                                QGraphicsSimpleTextItem, QGraphicsView)
 
-from .render import to_pixmap
+from .render import frame_preview, to_pixmap
+
+FRAME_CLICKS = 5          # clicks of the frame tool (PLAN.md 7.11)
 
 DETAIL_ZOOM = 0.35          # screen px per image px from which the full resolution is drawn
 ZOOM_STEP = 1.25
@@ -29,6 +31,8 @@ class ImageView(QGraphicsView):
     hovered = Signal(int, int)              # mouse over the image (no button pressed): full-resolution x, y
     hover_left = Signal()                   # mouse left the image
     outlined = Signal(list)                 # outline drawn in mode "outline": [(x, y), …] full-resolution px
+    frame_clicked = Signal(list)            # mode "frame": the five clicks [(x, y), …] full-resolution px (float)
+    frame_progress = Signal(int)            # mode "frame": number of clicks so far (0 … 4)
 
     def __init__(self):
         super().__init__()
@@ -54,8 +58,9 @@ class ImageView(QGraphicsView):
         for item in (self.frame_axes, self.frame_outline):
             item.setZValue(1.5)                 # above the image, below the selection
             self.scene().addItem(item)
-        self.mode = "select"                    # select | click | outline
+        self.mode = "select"                    # select | click | outline | frame
         self.points: list[QPointF] = []
+        self.frame_points: list[tuple[float, float]] = []     # clicks of the frame tool so far
         for item in (self.base, self.detail, self.selection, self.hover, self.drawing):
             self.scene().addItem(item)
         self.setMouseTracking(True)
@@ -166,6 +171,29 @@ class ImageView(QGraphicsView):
         self._pointer = bool(lines)
         self._update_cursor()
 
+    def remove_frame_point(self) -> None:
+        """Frame tool: take back the last click."""
+        if self.mode == "frame" and self.frame_points:
+            self.frame_points.pop()
+            self._draw_frame_preview(None)
+            self.frame_progress.emit(len(self.frame_points))
+
+    def _draw_frame_preview(self, mouse: QPointF | None) -> None:
+        points = list(self.frame_points)
+        if mouse is not None:
+            points.append((mouse.x(), mouse.y()))
+        path = QPainterPath()
+        for line in frame_preview(points, 2.0 * max(self.full_size)):
+            path.moveTo(line.p1())
+            path.lineTo(line.p2())
+        for x, y in self.frame_points:              # the clicks themselves as small crosses
+            r = 6 / max(self.zoom(), 1e-6)
+            path.moveTo(x - r, y)
+            path.lineTo(x + r, y)
+            path.moveTo(x, y - r)
+            path.lineTo(x, y + r)
+        self.drawing.setPath(path)
+
     def _update_cursor(self) -> None:
         if self.mode == "select":
             self.viewport().setCursor(Qt.CursorShape.PointingHandCursor if self._pointer
@@ -174,16 +202,18 @@ class ImageView(QGraphicsView):
             self.viewport().setCursor(Qt.CursorShape.CrossCursor)
 
     def set_mode(self, mode: str, color: QColor | None = None) -> None:
-        """select: drag pans, click selects · click: click for a tool · outline: drag draws an outline."""
+        """select: drag pans, click selects · click: click for a tool · outline: drag draws an outline ·
+        frame: drag pans, five clicks set the sample frame (right click / remove_frame_point: one back)."""
         self.mode = mode
         self.points = []
+        self.frame_points = []
         self.drawing.setPath(QPainterPath())
         pen = QPen(color or QColor(0, 0, 0), 2)
         pen.setCosmetic(True)
         self.drawing.setPen(pen)
         fill = QColor(color or QColor(0, 0, 0))
         fill.setAlpha(50)
-        self.drawing.setBrush(fill)
+        self.drawing.setBrush(fill if mode == "outline" else QColor(0, 0, 0, 0))
         self.setDragMode(QGraphicsView.DragMode.NoDrag if mode == "outline"
                          else QGraphicsView.DragMode.ScrollHandDrag)
         self.set_hover([], QColor())
@@ -241,6 +271,8 @@ class ImageView(QGraphicsView):
             elif self._hover_xy is not None:
                 self._hover_xy = None
                 self.hover_left.emit()
+        if self.mode == "frame" and event.buttons() == Qt.MouseButton.NoButton:
+            self._draw_frame_preview(self.mapToScene(event.position().toPoint()))
         if self.mode == "outline" and self.points:
             self.points.append(self.mapToScene(event.position().toPoint()))
             path = QPainterPath(self.points[0])
@@ -262,8 +294,24 @@ class ImageView(QGraphicsView):
             return
         super().mouseReleaseEvent(event)
         self._update_cursor()                   # dragging set the hand cursor
-        if self._press is not None and (event.position() - self._press).manhattanLength() < 4 \
-                and event.button() == Qt.MouseButton.LeftButton:
+        is_click = self._press is not None and (event.position() - self._press).manhattanLength() < 4
+        if self.mode == "frame" and is_click:
+            self._press = None
+            point = self.mapToScene(event.position().toPoint())
+            if event.button() == Qt.MouseButton.RightButton:
+                self.remove_frame_point()
+            elif event.button() == Qt.MouseButton.LeftButton:
+                self.frame_points.append((point.x(), point.y()))
+                if len(self.frame_points) == FRAME_CLICKS:
+                    points, self.frame_points = self.frame_points, []
+                    self.drawing.setPath(QPainterPath())
+                    self.frame_progress.emit(0)
+                    self.frame_clicked.emit(points)
+                    return
+                self._draw_frame_preview(point)
+                self.frame_progress.emit(len(self.frame_points))
+            return
+        if is_click and event.button() == Qt.MouseButton.LeftButton:
             point = self.mapToScene(event.position().toPoint())
             x, y = int(point.x()), int(point.y())
             if 0 <= x < self.full_size[0] and 0 <= y < self.full_size[1]:

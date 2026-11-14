@@ -80,6 +80,36 @@ def frame_graphics(frame) -> tuple[list[QLineF], list[QLineF], list[tuple[QPoint
     return axes, outline_lines, labels
 
 
+def frame_preview(points: list[tuple[float, float]], reach: float) -> list[QLineF]:
+    """Lines of the frame tool while it is clicked (PLAN.md 7.11), full image px. `points` = clicks
+    so far plus the mouse position: 1-2 the long edge (line through both, `reach` px to each side),
+    3 the parallel edge, 4-5 the left / right edge (perpendicular, between both long edges).
+    Only a preview: the frame itself is computed by the correction session."""
+    lines: list[QLineF] = []
+    if len(points) < 2:
+        return lines
+    (x1, y1), (x2, y2) = points[0], points[1]
+    dx, dy = x2 - x1, y2 - y1
+    norm = (dx * dx + dy * dy) ** 0.5
+    if norm < 1e-6:
+        return lines
+    dx, dy = dx / norm, dy / norm
+    nx, ny = -dy, dx                                    # perpendicular to the long edge
+
+    def long_line(x, y) -> QLineF:
+        return QLineF(QPointF(x - reach * dx, y - reach * dy), QPointF(x + reach * dx, y + reach * dy))
+
+    lines.append(long_line(x1, y1))
+    if len(points) >= 3:
+        x3, y3 = points[2]
+        lines.append(long_line(x3, y3))
+        for x, y in points[3:5]:
+            t1 = (x1 - x) * nx + (y1 - y) * ny          # along the perpendicular to both long edges
+            t3 = (x3 - x) * nx + (y3 - y) * ny
+            lines.append(QLineF(QPointF(x + t1 * nx, y + t1 * ny), QPointF(x + t3 * nx, y + t3 * ny)))
+    return lines
+
+
 def heatmap(frame, values: np.ndarray) -> tuple[QPixmap, QTransform, float, float]:
     """Stress field layer as the labeler draws it: the map of pore_index (row 0 = outer edge,
     column 0 = left edge, one cell = sample rectangle / map size) as pixmap, its transform into full

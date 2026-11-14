@@ -161,5 +161,7 @@ Excel file and `id_values.json`. A new run starts again from the automatic resul
 ```
 
 `action`: `restore` (count a rejected pore), `remove` (reject a counted pore / delete a drawn one),
-`draw` (outline becomes a pore), `area` (counted pores completely inside are rejected).
+`draw` (outline becomes a pore), `area` (counted pores completely inside are rejected),
+`frame` (sample frame set by hand from five clicks `points`, PLAN.md 7.11; `x`, `y` = its origin;
+the `frame_*` columns of `images.json` hold the new frame, `frame_wedge_deg` empty).
 `added`: pore ids counted by hand, `removed`: rejected by hand, `drawn`: drawn by hand.

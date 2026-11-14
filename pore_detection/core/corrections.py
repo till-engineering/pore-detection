@@ -8,6 +8,8 @@ Tools (coordinates in pixels of the full image):
     draw(points)    the outline becomes a new pore; it swallows every pore it touches, is clipped
                     to the sample and passes no filter
     area(points)    counted pores lying completely inside are rejected (drawn ones are erased)
+    set_frame(points)  five clicks set the sample frame by hand (core/manual_frame.py, PLAN.md 7.11);
+                    the frame columns, the evaluation and the plots follow it
     undo(), reset() the last / all corrections of the image are taken back
 
 A pore is addressed by a point (within SEARCH_RADIUS_PX), as in Pore_Detection_V2. After every
@@ -31,9 +33,10 @@ import yaml
 
 from . import geometry, io, plotting, registry, writer
 from .config import Config
+from .manual_frame import frame_from_clicks
 from .pipeline import (CORE_EXCEL, FRAME_COLUMNS, _bounding_box, _check_scale, _finalize, _merge_results,
-                       excel_layout, frame_from_columns, write_id_plots)
-from .types import FrameMissing, ImageContext, LabeledPores
+                       excel_layout, frame_columns, frame_from_columns, write_id_plots)
+from .types import FrameMissing, ImageContext, LabeledPores, SampleFrame
 
 MANUAL = "manual"               # filter name of pores rejected by hand
 SEARCH_RADIUS_PX = 3            # a click this close to a pore still hits it
@@ -41,7 +44,7 @@ SEARCH_RADIUS_PX = 3            # a click this close to a pore still hits it
 
 @dataclass(frozen=True)
 class Correction:
-    action: str                                 # restore | remove | draw | area
+    action: str                                 # restore | remove | draw | area | frame (x, y = new origin)
     x: float
     y: float
     points: tuple[tuple[float, float], ...] = ()
@@ -71,10 +74,11 @@ class _Labels:
     added: set[int] = field(default_factory=set)        # counted by hand (restored or drawn)
     removed: set[int] = field(default_factory=set)      # rejected by hand
     drawn: set[int] = field(default_factory=set)
+    frame: SampleFrame | None = None            # sample frame (automatic or set by hand), None = none
 
     def copy(self) -> "_Labels":
         return _Labels(self.labels.copy(), self.rejected_labels.copy(), dict(self.rejected),
-                       set(self.added), set(self.removed), set(self.drawn))
+                       set(self.added), set(self.removed), set(self.drawn), self.frame)
 
 
 @dataclass(frozen=True)
@@ -91,6 +95,8 @@ class State:
     corrections: int                # number of corrections of this image
     hit: bool                       # False: the last action hit no pore and changed nothing
     plots: dict[str, bytes] | None = None   # PNG per plot after a change; None = unchanged (files on disk)
+    images: dict[str, np.ndarray] | None = None     # images of the evaluation modules after a change
+                                                    # (e.g. stress_field); None = unchanged (files on disk)
 
 
 class Corrections:
@@ -107,7 +113,9 @@ class Corrections:
         self.evaluators = [registry.create("evaluation", e) for e in config.evaluation]
         self.plots = [registry.create("plots", e) for e in config.plots]
         self.layout: dict[str, str | None] = dict(CORE_EXCEL)   # column -> sheet of the results Excel
-        self._automatic: dict[str, tuple[bytes, bytes, dict]] = {}     # image -> automatic state (TIFF bytes)
+        self._automatic: dict[str, tuple[bytes, bytes, dict, SampleFrame | None]] = {}   # image -> automatic
+                                                    # state (TIFF bytes, rejected, frame)
+        self._image_names: dict[str, set[str]] = {}    # image -> names of evaluation images written so far
         self._lists: dict[str, list[Correction]] = {}
         self.lock = threading.Lock()                # one action at a time
         self._writer = ThreadPoolExecutor(1, thread_name_prefix="corrections")
@@ -157,7 +165,8 @@ class Session:
         self.top, self.bottom, self.left, self.right = _bounding_box(self.roi)
         self.current = _Labels(_read(self.folder / writer.LABELS_TIF, cv2.IMREAD_UNCHANGED),
                                _read(self.folder / writer.REJECTED_LABELS_TIF, cv2.IMREAD_UNCHANGED),
-                               _rejected_dict(writer.read_table(self.folder / writer.REJECTED_JSON)))
+                               _rejected_dict(writer.read_table(self.folder / writer.REJECTED_JSON)),
+                               frame=frame_from_columns(self.row))
         saved_path = self.folder / writer.CORRECTIONS_JSON
         if saved_path.exists():                     # corrected earlier while the viewer was open
             saved = json.loads(saved_path.read_text(encoding="utf-8"))
@@ -178,6 +187,12 @@ class Session:
 
     def area(self, points) -> State:
         return self._do(Correction.outline("area", points))
+
+    def set_frame(self, points) -> State:
+        """Sample frame from five clicks (x, y); ValueError if they give no rectangle (nothing changes)."""
+        points = tuple((float(px), float(py)) for px, py in points)
+        origin_y, origin_x = frame_from_clicks(points).origin_px
+        return self._do(Correction("frame", origin_x, origin_y, points))
 
     def undo(self) -> State:
         corrections = self.store._lists.get(self.image, [])
@@ -203,8 +218,8 @@ class Session:
     def _rebuild(self, corrections: list[Correction]) -> State:
         """Start again from the automatic state and apply `corrections`."""
         with self.store.lock:
-            labels, rejected_labels, rejected = self.store._automatic[self.image]
-            self.current = _Labels(_decode(labels), _decode(rejected_labels), dict(rejected))
+            labels, rejected_labels, rejected, frame = self.store._automatic[self.image]
+            self.current = _Labels(_decode(labels), _decode(rejected_labels), dict(rejected), frame=frame)
             self.store._lists[self.image] = [c for c in corrections if _apply(self.current, c, self.roi)]
             return self._finish()
 
@@ -213,7 +228,7 @@ class Session:
         if self.image not in self.store._automatic:
             self.store._automatic[self.image] = ((self.folder / writer.LABELS_TIF).read_bytes(),
                                                  (self.folder / writer.REJECTED_LABELS_TIF).read_bytes(),
-                                                 dict(self.current.rejected))
+                                                 dict(self.current.rejected), self.current.frame)
 
     def _unchanged(self) -> State:
         if self.state is None:
@@ -228,10 +243,14 @@ class Session:
         picture = lambda: plotting.sample_picture(self.drawing, snapshot.labels, frame_from_columns(row))  # noqa: E731
         plots = plotting.render(self.store.plots, row, per_pore, picture)      # the viewer shows them at once
         self.row = row
-        self.state = replace(self._snapshot(row, per_pore, snapshot), plots=plots)
+        self.state = replace(self._snapshot(row, per_pore, snapshot), plots=plots, images=images)
         corrections = [c.to_dict() for c in self.store._lists.get(self.image, [])]
         rejected = self.state.rejected
-        self.store._submit(lambda: self._write(snapshot, rejected, row, per_pore, images, plots, corrections))
+        written = self.store._image_names.setdefault(self.image, set())
+        stale = written - set(images)               # e.g. stress_field after the frame is gone again
+        written |= set(images)
+        self.store._submit(lambda: self._write(snapshot, rejected, row, per_pore, images, plots, corrections,
+                                               stale))
         return self.state
 
     def _evaluate(self, state: "_Labels"):
@@ -241,7 +260,7 @@ class Session:
         ids = np.flatnonzero(np.bincount(pixels[1], minlength=1)).astype(np.int32)
         ctx = ImageContext(replace(self.info, offset_px=(top, left)), self.original[top:bottom, left:right],
                            self.roi[top:bottom, left:right], _number(self.row.get("pixel_size_um")),
-                           frame_from_columns(self.row))
+                           state.frame)
         pores = LabeledPores(labels, len(ids), pd.DataFrame({"pore_id": ids}),
                              state.rejected_labels[top:bottom, left:right], _rejected_table(state.rejected))
         pores.__dict__["pixels"] = pixels           # fill the cache: no second pass over the image
@@ -261,15 +280,18 @@ class Session:
         keep = {k: v for k, v in self.row.items() if k in ("image", "path", "draw_path", "pixel_size_um",
                                                              "scale_label", "scale_bar_px", "scale_box_px",
                                                              *FRAME_COLUMNS)}
+        keep.update(frame_columns(state.frame, _number(self.row.get("pixel_size_um"))))
         row = {**keep, "manual_corrections": len(self.store._lists.get(self.image, [])), **per_image}
         return row, per_pore, images
 
     def _write(self, state: "_Labels", rejected: pd.DataFrame, row: dict, per_pore: pd.DataFrame,
-               images: dict, plots: dict[str, bytes], corrections: list[dict]) -> None:
+               images: dict, plots: dict[str, bytes], corrections: list[dict], stale: set[str]) -> None:
         """Background job: image folder, then images.json, Excel and ID values."""
         store = self.store
         writer.write_pores(self.folder, self.drawing, state.labels, state.rejected_labels, rejected, per_pore,
                            images, store.config.output.save_full_overlay)
+        for name in stale:                          # an evaluation image the module no longer returns
+            (self.folder / (name if name.endswith(".jpg") else f"{name}.tif")).unlink(missing_ok=True)
         writer.write_plots(self.folder, plots)
         writer.write_corrections(self.folder, self.image, corrections, sorted(state.added), sorted(state.removed),
                                  sorted(state.drawn))
@@ -311,6 +333,10 @@ def _apply(state: _Labels, c: Correction, roi: np.ndarray) -> bool:
             state.removed.discard(pore)             # back to the automatic state
         else:
             state.added.add(pore)
+        return True
+
+    if c.action == "frame":
+        state.frame = frame_from_clicks(c.points)
         return True
 
     if c.action == "remove":

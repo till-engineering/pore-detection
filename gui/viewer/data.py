@@ -311,6 +311,9 @@ def apply_state(image: Image, state) -> None:
     image.added, image.removed = state.added, state.removed
     if getattr(state, "plots", None) is not None:     # drawn again after the change
         image.plots = state.plots
+    image.frame = Frame.from_row(state.row)          # may be set by hand (PLAN.md 7.11)
+    if getattr(state, "images", None) is not None:    # images of the evaluation modules after the change
+        image.stress_map = state.images.get(Path(STRESS_FIELD_TIF).stem)
     image._boxes.clear()
     update_overview(image)
 

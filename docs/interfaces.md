@@ -180,8 +180,10 @@ frame.to_sample(y_px, x_px) -> (x_px, z_px)   # image points (full image coordin
   frame they raise `FrameMissing`. In an evaluation module only that module is skipped (logged,
   its columns stay empty for the image; plots that need its values are skipped too); in any stage
   before the evaluation the image fails with a clear message (the pores themselves would differ).
-- No frame: `sample.frame: none`, or `edge_lines` finds the sample touching the image border (a
-  cut-out from the inside of the sample) – a warning, the image runs on.
+- No frame: `sample.frame: none`, or `edge_lines` finds no frame (sample touching the image border,
+  e.g. a cut-out from the inside of the sample, or any other problem with the edges) – a warning,
+  the image runs on. The frame can be set by hand in the viewer (PLAN.md 7.11); `wedge_deg` is
+  then NaN (no own line of the inner edge).
 
 ---
 

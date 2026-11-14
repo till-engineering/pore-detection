@@ -29,7 +29,7 @@ sum over the pores is the numerator of phi_q. Image stress_field.tif: the field 
 rectangle (float32, row 0 = outer edge, column 0 = left edge; the viewer shows it as a layer).
 
 Values per image only (no values over the ID yet). Areas cancel in phi: px and µm give the same.
-Needs the sample frame (sample.frame), else the image fails.
+Needs the sample frame (sample.frame); without one this module is skipped for the image.
 """
 
 from pathlib import Path

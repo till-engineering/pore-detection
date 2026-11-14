@@ -799,6 +799,38 @@ pixelgenau deckungsgleich.
 - Ergebnisname `<ID>_<Aufnahme>`; Werte pro Bild (Launcher, `per_image`) hängen an der Aufnahme.
 - `output.draw_on: pores | sample`: Bild für Overlays, Rahmenbild und Viewer (`images.json`: `draw_path`).
 
+### 7.11 Proben-KOS von Hand setzen (beschlossen und umgesetzt 2026-11-14)
+
+Anlass: `edge_lines` findet das KOS nicht immer zuverlässig. Im Viewer lässt es sich deshalb von Hand
+setzen. Nur das KOS-Rechteck, der Proben-Rand (ROI) bleibt automatisch. KOS-Rechteck und Bereich des
+Spannungsfelds sind dasselbe (ξ, ζ = 0 … 1).
+
+- **Werkzeug „⟂“** in der Werkzeugleiste, 5 Klicks, Geraden statt Ecken (Ecken sind abgerundet):
+  1. 2 Klicks auf eine Längskante: Gerade, Richtung von x.
+  2. 1 Klick auf die andere Längskante: Parallele, ergibt die Dicke.
+  3. 1 Klick links und 1 Klick rechts: Senkrechte, ergibt die Länge.
+- **Rechter Winkel erzwungen** (das KOS-Modell bleibt unverändert). Die obere Kante ist immer außen.
+  Das Programm sortiert selbst, welche Längskante oben und welche Seite links liegt. Ursprung =
+  Unterkante ∩ linke Kante.
+- **Bedienung:** Live-Vorschau der Geraden, das alte KOS ist blass zu sehen. Rechtsklick oder Rücktaste
+  nimmt den letzten Klick zurück, Esc bricht ab (altes KOS bleibt). Übernommen wird erst nach dem 5. Klick.
+  Klicks, die Dicke oder Länge < 2 px ergeben, werden nicht angenommen (Hinweis in der Statuszeile).
+- **Verhalten wie die Poren-Korrekturen (7.3):** gilt nur für das aktuelle Ergebnis, ein neuer Lauf nimmt
+  wieder die Automatik. Gemeinsamer Verlauf: Strg+Z macht es rückgängig, „Alle Korrekturen verwerfen“
+  holt das automatische KOS zurück. Eintrag `frame` in `corrections.json`, zählt in `manual_corrections`.
+  Keine eigene Spalte für die Herkunft des KOS.
+- Nach der Übernahme werden neu geschrieben: `frame_*`-Spalten (`frame_wedge_deg` leer, keine eigene
+  Gerade der Unterkante), Auswertungen (Porenindex, `finalize`), Bilder der Auswertungen
+  (`stress_field.tif`, `frame_picture.jpg`; nicht mehr gelieferte werden gelöscht), Plots. Die
+  Poren-Korrekturen bleiben unverändert.
+- **`edge_lines` lässt ein Bild nie mehr fehlschlagen:** Bei jedem Kantenproblem gibt es eine Warnung und
+  kein KOS. Das Bild läuft durch, Module, die das KOS brauchen (Porenindex), werden übersprungen. Im
+  Viewer setzt man dann das KOS von Hand.
+- **Aufbau:** `core/manual_frame.py` (`frame_from_clicks`: 5 Klicks → `SampleFrame`, ohne GUI testbar)
+  → Korrektursitzung `set_frame` (`core/corrections.py`) → Viewer (`render.frame_preview`,
+  Modus `frame` in `image_view.py`, Werkzeug in `window.py`). Der Viewer importiert weiter nichts
+  aus `pore_detection`. Kein neues Datenfeld, darum bleibt die Schnittstellen-Version gleich.
+
 ## 8. Ausgabe
 
 Verbindlich in **`docs/output_format.md`**. Festgelegt:

@@ -42,7 +42,15 @@ TOOLS = {
     "remove": ("−", "reject a counted pore (click on it); a drawn pore is deleted", "#d63370", "click"),
     "draw": ("✎", "draw a missed pore (hold the mouse button and trace its outline)", None, "outline"),
     "area": ("⬚", "reject every counted pore lying completely inside the traced area", "#d63370", "outline"),
+    "frame": ("⟂", "set the sample frame by hand: 2 clicks on the top (or bottom) edge, 1 on the other long "
+                   "edge, 1 on the left and 1 on the right edge (right click / Backspace: one click back, "
+                   "Esc: cancel)", style.FRAME, "frame"),
 }
+# hint in the info bar while the frame tool is clicked, per number of clicks so far
+FRAME_STEPS = ("click 1/5: a point on the top or bottom edge", "click 2/5: a second point on the same edge",
+               "click 3/5: a point on the other long edge (thickness)", "click 4/5: a point on the left or right edge",
+               "click 5/5: a point on the opposite short edge (length)")
+FRAME_FADED = 90            # alpha of the old frame while a new one is clicked
 ADDED = style.ADDED
 STRESS = "#f08c00"          # patch of the stress field layer (the layer itself uses the turbo colour map)
 STRESS_OPACITY = 45         # start value of the stress layer opacity in %
@@ -185,6 +193,7 @@ class ViewerWindow(QMainWindow):
             QShortcut(QKeySequence(key), self, activated=lambda s=step: self.show_image(self._index() + s))
         QShortcut(QKeySequence.StandardKey.Undo, self, activated=self._undo)
         QShortcut(QKeySequence(Qt.Key.Key_Escape), self, activated=lambda: self._set_tool(None))
+        QShortcut(QKeySequence(Qt.Key.Key_Backspace), self, activated=self.view.remove_frame_point)
 
         if len(self.run.images):
             self.show_image(0)
@@ -265,6 +274,8 @@ class ViewerWindow(QMainWindow):
         self.view.hover_left.connect(self._clear_hover)
         self.hover_key = None               # (pore id, rejected) outlined as hover, None = none
         self.view.outlined.connect(self._on_outlined)
+        self.view.frame_clicked.connect(self._on_frame_clicked)
+        self.view.frame_progress.connect(self._on_frame_progress)
         image_area.addWidget(self.view, stretch=1)
         row.addLayout(image_area, stretch=1)
         row.addWidget(self._build_check_column())
@@ -635,6 +646,9 @@ class ViewerWindow(QMainWindow):
         image = self.image
         if image is None:
             return
+        if self.tool == "frame":            # keep the hint of the next click (e.g. after zooming)
+            self._on_frame_progress(len(self.view.frame_points))
+            return
         um = image.scale.um_per_px
         parts = [f"{image.shape[1]} × {image.shape[0]} px",
                  f"{um:.6g} µm/px" if um else "no scale – values in pixels",
@@ -704,7 +718,7 @@ class ViewerWindow(QMainWindow):
         """The pore a click at (x, y) picks: the one under the point, else the nearest within
         PICK_RADIUS_SCREEN_PX on screen. "+" picks only rejected, "−" only counted pores."""
         image = self.image
-        if image is None or self.tool in ("draw", "area"):
+        if image is None or self.tool in ("draw", "area", "frame"):
             return None
         radius = PICK_RADIUS_SCREEN_PX / max(self.view.zoom(), 1e-6)
         return image.nearest_pore(x, y, radius, counted=self.tool != "restore", rejected=self.tool != "remove")
@@ -753,6 +767,18 @@ class ViewerWindow(QMainWindow):
         if self.tool in ("draw", "area") and self.image is not None:
             self._correct(self.tool, points)
 
+    def _on_frame_clicked(self, points: list) -> None:
+        """Five clicks of the frame tool: the session computes and applies the frame."""
+        if self.tool != "frame" or self.image is None:
+            return
+        self._set_tool(None)
+        # scene px -> pixel index (pixel centre = index, as everywhere in pore_detection)
+        self._correct("set_frame", [(x - 0.5, y - 0.5) for x, y in points])
+
+    def _on_frame_progress(self, clicks: int) -> None:
+        if self.tool == "frame":
+            self.info_label.setText(f"Sample frame – {FRAME_STEPS[clicks]}")
+
     # ------------------------------------------------------------------ corrections
 
     def _set_tool(self, tool: str | None) -> None:
@@ -763,12 +789,16 @@ class ViewerWindow(QMainWindow):
         self._clear_hover()
         for key, b in self.tool_buttons.items():
             b.setChecked(key == tool)
+        self._show_frame()                  # faded while the frame tool is active
         if tool is None:
             self.view.set_mode("select")
+            self._update_info()
             return
         _symbol, _tip, color, mode = TOOLS[tool]
         accent = (style.DARK if self.dark else style.LIGHT)["accent"]
         self.view.set_mode(mode, QColor(color or accent))
+        if tool == "frame":
+            self._on_frame_progress(0)
 
     def _correct(self, action: str, *args) -> None:
         """Run one action of the correction session in the background (session opened on first use)."""
@@ -793,6 +823,9 @@ class ViewerWindow(QMainWindow):
     def _on_corrected(self, index: int, future: Future) -> None:
         try:
             state = future.result()
+        except ValueError as error:         # e.g. frame clicks that give no rectangle: nothing changed
+            self.info_label.setText(f"not applied: {error}")
+            return
         except Exception as error:
             self.info_label.setText(f"correction failed: {type(error).__name__}: {error}")
             return
@@ -813,6 +846,11 @@ class ViewerWindow(QMainWindow):
         self._render(fit=False)
         self._update_detail_source()
         self._show_plots()
+        self._heat = None                   # the frame may have changed: stress layer again
+        self._update_frame_row()
+        self._update_stress_row()
+        self._show_frame()
+        self._show_stress()
         gone = self.selected and not (image.pore_labels(self.selected_rejected) == self.selected).any()
         self._select(0 if gone else self.selected, rejected=self.selected_rejected)
         self._update_info()
@@ -825,7 +863,7 @@ class ViewerWindow(QMainWindow):
         self.frame_row.setEnabled(frame is not None)
         if frame is None:
             self.frame_row.count.setText("none")
-            self.frame_row.setToolTip("no sample frame in this run (sample.frame: none)")
+            self.frame_row.setToolTip("no sample frame for this image – set one with the tool ⟂")
         else:
             self.frame_row.count.setText(format_number(frame.thickness_um, "µm") if frame.thickness_um is not None
                                          else format_number(frame.thickness_px, "px"))
@@ -836,7 +874,10 @@ class ViewerWindow(QMainWindow):
         if image is None or image.frame is None or not self.frame_row.check.isChecked():
             self.view.set_frame([], [], [], QColor())
             return
-        self.view.set_frame(*frame_graphics(image.frame), QColor(style.FRAME))
+        color = QColor(style.FRAME)
+        if self.tool == "frame":            # the old frame stays visible, faded, while a new one is clicked
+            color.setAlpha(FRAME_FADED)
+        self.view.set_frame(*frame_graphics(image.frame), color)
 
     def _update_stress_row(self) -> None:
         """Stress layer: field name as its count; not selectable without a map (no pore_index, no frame)."""

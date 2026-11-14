@@ -4,7 +4,9 @@ The whole sample is in the image and lies roughly horizontal (tilt well below 45
 is the outer surface, the bottom edge the inner one (PLAN.md 7.5). A sample cut by the image
 border (e.g. a cut-out from the inside of the sample) has no frame: a warning, no frame (None) –
 the image runs on, evaluation modules that need the frame are skipped. Every other problem of the
-edges makes the image fail.
+edges (too few points on a side, edges in the wrong place ...) is handled the same way: a warning
+with the reason, no frame. The image never fails because of the frame - the frame can then be set
+by hand in the viewer (PLAN.md 7.11).
 
 1. Outline of the sample (largest outer contour of the mask); every outline point gets its
    outward normal from the neighbouring points (+-normal_window_px along the outline).
@@ -44,6 +46,14 @@ class EdgeLines(FrameDetector):
     }
 
     def detect_frame(self, info, roi_mask):
+        try:
+            return self._detect(info, roi_mask)
+        except ValueError as error:
+            log.warning("%s: no sample frame (%s) - modules that need one are skipped; set it by hand "
+                        "in the viewer", info.name, error)
+            return None
+
+    def _detect(self, info, roi_mask):
         outline = self._outline(roi_mask)
         if outline is None:
             log.warning("%s: sample touches the image border – no sample frame, modules that need one "
