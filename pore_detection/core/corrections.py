@@ -9,7 +9,9 @@ Tools (coordinates in pixels of the full image):
                     to the sample and passes no filter
     area(points)    counted pores lying completely inside are rejected (drawn ones are erased)
     set_frame(points)  five clicks set the sample frame by hand (core/manual_frame.py, PLAN.md 7.11);
-                    the frame columns, the evaluation and the plots follow it
+                    the frame columns, the evaluation and the plots follow it. Every counted pore with
+                    a pixel outside the rectangle is rejected (drawn ones too, they are kept); only the
+                    newest frame counts, pores an earlier frame rejected come back first
     undo(), reset() the last / all corrections of the image are taken back
 
 A pore is addressed by a point (within SEARCH_RADIUS_PX), as in Pore_Detection_V2. After every
@@ -33,12 +35,13 @@ import yaml
 
 from . import geometry, io, plotting, registry, writer
 from .config import Config
-from .manual_frame import frame_from_clicks
+from .manual_frame import frame_from_clicks, outside
 from .pipeline import (CORE_EXCEL, FRAME_COLUMNS, _bounding_box, _check_scale, _finalize, _merge_results,
                        excel_layout, frame_columns, frame_from_columns, write_id_plots)
 from .types import FrameMissing, ImageContext, LabeledPores, SampleFrame
 
 MANUAL = "manual"               # filter name of pores rejected by hand
+FRAME_REASON = "outside the sample frame"       # reason of pores rejected by a frame set by hand
 SEARCH_RADIUS_PX = 3            # a click this close to a pore still hits it
 
 
@@ -75,10 +78,12 @@ class _Labels:
     removed: set[int] = field(default_factory=set)      # rejected by hand
     drawn: set[int] = field(default_factory=set)
     frame: SampleFrame | None = None            # sample frame (automatic or set by hand), None = none
+    outside: dict[int, bool] = field(default_factory=dict)  # rejected by the frame set by hand ->
+                                                # was counted by hand before (comes back so)
 
     def copy(self) -> "_Labels":
         return _Labels(self.labels.copy(), self.rejected_labels.copy(), dict(self.rejected),
-                       set(self.added), set(self.removed), set(self.drawn), self.frame)
+                       set(self.added), set(self.removed), set(self.drawn), self.frame, dict(self.outside))
 
 
 @dataclass(frozen=True)
@@ -168,10 +173,15 @@ class Session:
                                _rejected_dict(writer.read_table(self.folder / writer.REJECTED_JSON)),
                                frame=frame_from_columns(self.row))
         saved_path = self.folder / writer.CORRECTIONS_JSON
-        if saved_path.exists():                     # corrected earlier while the viewer was open
+        if store._automatic.get(image):             # corrected before in this viewer: the exact state again
+            with store.lock:                        # (who was rejected by the frame is not in the files)
+                self.current = self._from_automatic(store._lists.get(image, []))[0]
+        elif saved_path.exists():                   # corrected earlier while the viewer was open
             saved = json.loads(saved_path.read_text(encoding="utf-8"))
             self.current.added, self.current.removed = set(saved["added"]), set(saved["removed"])
             self.current.drawn = set(saved["drawn"])
+            self.current.outside = {p: p in self.current.drawn for p, why in self.current.rejected.items()
+                                    if why == (MANUAL, FRAME_REASON)}
         self.state: State | None = None             # after the last action
 
     # --- tools ---
@@ -218,10 +228,14 @@ class Session:
     def _rebuild(self, corrections: list[Correction]) -> State:
         """Start again from the automatic state and apply `corrections`."""
         with self.store.lock:
-            labels, rejected_labels, rejected, frame = self.store._automatic[self.image]
-            self.current = _Labels(_decode(labels), _decode(rejected_labels), dict(rejected), frame=frame)
-            self.store._lists[self.image] = [c for c in corrections if _apply(self.current, c, self.roi)]
+            self.current, self.store._lists[self.image] = self._from_automatic(corrections)
             return self._finish()
+
+    def _from_automatic(self, corrections: list[Correction]) -> tuple["_Labels", list[Correction]]:
+        """The automatic state with `corrections` applied, and those of them that changed something."""
+        labels, rejected_labels, rejected, frame = self.store._automatic[self.image]
+        current = _Labels(_decode(labels), _decode(rejected_labels), dict(rejected), frame=frame)
+        return current, [c for c in corrections if _apply(current, c, self.roi)]
 
     def _remember_automatic(self) -> None:
         """Before the first change the files on disk are the automatic state: keep their bytes."""
@@ -329,7 +343,11 @@ def _apply(state: _Labels, c: Correction, roi: np.ndarray) -> bool:
             return False
         _move(state.rejected_labels, state.labels, pore)
         state.rejected.pop(pore, None)
-        if pore in state.removed:
+        if pore in state.outside:                   # rejected by the frame: back to the state before it
+            state.removed.discard(pore)
+            if state.outside.pop(pore):
+                state.added.add(pore)
+        elif pore in state.removed:
             state.removed.discard(pore)             # back to the automatic state
         else:
             state.added.add(pore)
@@ -337,6 +355,7 @@ def _apply(state: _Labels, c: Correction, roi: np.ndarray) -> bool:
 
     if c.action == "frame":
         state.frame = frame_from_clicks(c.points)
+        _reject_outside(state)
         return True
 
     if c.action == "remove":
@@ -365,6 +384,7 @@ def _apply(state: _Labels, c: Correction, roi: np.ndarray) -> bool:
                     source[pixels] = 0
                     state.labels[pixels] = new      # the drawing swallows touched pores completely
                     state.rejected.pop(int(old), None)
+                    state.outside.pop(int(old), None)
                     for group in (state.added, state.removed, state.drawn):
                         group.discard(int(old))
         state.labels[window][region] = new
@@ -390,6 +410,38 @@ def _apply(state: _Labels, c: Correction, roi: np.ndarray) -> bool:
                 state.removed.add(pore)
         return bool(hit)
     raise ValueError(f"unknown correction {c.action!r}")
+
+
+def _reject_outside(state: _Labels) -> None:
+    """Frame set by hand: only the newest frame counts. Pores an earlier frame rejected come back
+    first (unless restored or changed by hand meanwhile), then every counted pore with a pixel
+    centre outside the rectangle is rejected (filter manual) – drawn ones too, they are kept."""
+    back = [p for p in state.outside if state.rejected.get(p) == (MANUAL, FRAME_REASON)]
+    if back:
+        flat, ids = geometry.pixels(state.rejected_labels)
+        flat = flat[np.isin(ids, back)]
+        state.labels.flat[flat] = state.rejected_labels.flat[flat]
+        state.rejected_labels.flat[flat] = 0
+        for pore in back:
+            state.rejected.pop(pore)
+            state.removed.discard(pore)
+            if state.outside[pore]:
+                state.added.add(pore)
+    state.outside = {}
+
+    flat, ids = geometry.pixels(state.labels)
+    y, x = np.divmod(flat, state.labels.shape[1])
+    hit = np.unique(ids[outside(state.frame, y, x)])
+    if hit.size == 0:
+        return
+    flat = flat[np.isin(ids, hit)]
+    state.rejected_labels.flat[flat] = state.labels.flat[flat]
+    state.labels.flat[flat] = 0
+    for pore in map(int, hit):
+        state.outside[pore] = pore in state.added
+        state.rejected[pore] = (MANUAL, FRAME_REASON)
+        state.added.discard(pore)
+        state.removed.add(pore)
 
 
 def _label_at(labels: np.ndarray, x: float, y: float, radius: int = SEARCH_RADIUS_PX) -> int:

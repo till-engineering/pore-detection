@@ -823,6 +823,12 @@ Spannungsfelds sind dasselbe (ξ, ζ = 0 … 1).
   Gerade der Unterkante), Auswertungen (Porenindex, `finalize`), Bilder der Auswertungen
   (`stress_field.tif`, `frame_picture.jpg`; nicht mehr gelieferte werden gelöscht), Plots. Die
   Poren-Korrekturen bleiben unverändert.
+- **Poren außerhalb werden verworfen** (beschlossen 2026-11-15): Jede gezählte Pore mit mindestens einem
+  Pixel (Pixelmitte) außerhalb des KOS-Rechtecks, auch nur angeschnittene, wird verworfen: Filter `manual`,
+  Grund „outside the sample frame“, zählt in `removed`. Von Hand gezeichnete Poren ebenso (sie bleiben
+  erhalten). Nur der neueste Rahmen zählt: Poren, die ein früherer Rahmen verworfen hat, kommen zuerst
+  zurück (in ihren Zustand davor), dann wird nach dem neuen Rahmen verworfen. Mit „+“ lässt sich eine
+  einzelne Pore zurückholen. Gilt nur für den Rahmen von Hand, nicht für das automatische KOS.
 - **`edge_lines` lässt ein Bild nie mehr fehlschlagen:** Bei jedem Kantenproblem gibt es eine Warnung und
   kein KOS. Das Bild läuft durch, Module, die das KOS brauchen (Porenindex), werden übersprungen. Im
   Viewer setzt man dann das KOS von Hand.

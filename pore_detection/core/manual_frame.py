@@ -53,3 +53,9 @@ def frame_from_clicks(points) -> SampleFrame:
     angle = math.degrees(math.atan2(-x_axis[0], x_axis[1]))     # counter-clockwise as seen
     return SampleFrame((float(origin[0]), float(origin[1])), float(angle), float(thickness), float(length),
                        float(np.nan))
+
+
+def outside(frame: SampleFrame, y_px, x_px) -> np.ndarray:
+    """True for every point (pixel centre, full image px) outside the frame rectangle."""
+    x, z = frame.to_sample(y_px, x_px)
+    return (x < 0) | (x > frame.length_px) | (z < 0) | (z > frame.thickness_px)
