@@ -31,6 +31,26 @@ cd E:\Arbeit\Pore_Detection
 | Synthetische Testbilder erzeugen | `syntetic_test/generate.py` | `syntetic_test/synth_config.yaml` | `syntetic_test/output/` |
 | Pipeline auf synthetischen Bildern prüfen | `syntetic_test/evaluate.py` | Config im Hauptordner | Werte im Terminal |
 
+## Viele IDs auf einmal (Überordner)
+
+In der Config `input.folders: true` setzen und `input.path` (bzw. im Launcher das Eingabefeld) auf
+einen Überordner zeigen lassen, in dem die ID-Ordner liegen:
+
+```
+<Überordner>/
+  193193/   img01.tif, img02.tif, ...
+  193194/   ...
+```
+
+Jeder Unterordner wird nacheinander als eigener Lauf gerechnet, die Ergebnisse liegen wie bei einem
+einzelnen Lauf in `<output.dir>/<ID>_results/`. Ordner ohne Bilder, `output.dir` selbst und
+`*_results`-Ordner werden übersprungen. Bestehende Ergebnisse einer ID werden überschrieben.
+Scheitert eine ID, steht das im Log und es geht mit der nächsten weiter; „Cancel“ hört nach dem
+aktuellen Bild auf, die restlichen IDs bleiben unangetastet. Die Eingaben pro Bild (Reiter
+„Evaluations“) sind dann ausgeblendet, alle Bilder bekommen die Werte der Config. Nach dem Lauf
+öffnet sich kein Viewer – mit **„Open results…“** einen `<ID>_results`-Ordner wählen. Der Knopf
+öffnet auch Ergebnisse früherer Läufe.
+
 Jedes Skript zeigt mit `--help` seine Optionen. Häufige:
 
 - `evaluate.py --no-run`: nur neu auswerten, die Pipeline läuft nicht nochmal

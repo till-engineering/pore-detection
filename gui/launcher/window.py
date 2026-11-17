@@ -5,6 +5,10 @@ is read again at every start, so a change in the file – or another config move
 applies to the next run without restarting the launcher. The launcher never
 writes the config: paths and the inputs of the tab "Evaluations" (evaluations.py) are passed to
 the run only, and recorded in config_used.yaml.
+
+input.folders (parent folder of many IDs): the path is the parent folder, the per-image inputs are
+hidden and no viewer opens after the run. "Open results…" opens the viewer on any existing
+<ID>_results folder – after such a run, or for results of earlier runs.
 """
 
 import logging
@@ -19,6 +23,7 @@ from PySide6.QtWidgets import (QCheckBox, QFileDialog, QGridLayout, QGroupBox, Q
                                QTabWidget, QVBoxLayout, QWidget)
 
 from gui.launcher.evaluations import EvaluationsTab
+from gui.viewer.data import CONFIG_USED, IMAGES_JSON
 from gui.viewer.window import ViewerWindow
 from pore_detection import (LOG_FORMAT, PROJECT_DIR, Config, Corrections, RunAborted, RunResult, config_path,
                             find_recordings, load_config, resolve_path, run)
@@ -78,6 +83,8 @@ class LauncherWindow(QMainWindow):
         self._total = 0                   # images in the ID folder, from the progress reports
         self._gui_settings: dict = {}     # config.gui of the last run, passed to the viewer
         self._viewer: ViewerWindow | None = None
+        self._folders: bool | None = None  # input.folders of the config (None: not read yet)
+        self._run_folders = False         # input.folders of the last run
 
         # paths and evaluation inputs, prefilled from config.yaml
         self.input_edit, self.output_edit = QLineEdit(), QLineEdit()
@@ -90,15 +97,15 @@ class LauncherWindow(QMainWindow):
         except Exception as error:  # broken config: the launcher still opens and shows it
             self.input_edit.setPlaceholderText(f"config not readable: {error}")
         self.input_edit.textChanged.connect(self._list_images)
-        self._list_images()
         paths = QGroupBox("Paths")
         grid = QGridLayout(paths)
+        self.input_label = QLabel("ID folder (input)")
         for row, (label, edit, title) in enumerate([
-                ("ID folder (input)", self.input_edit, "Choose ID folder"),
-                ("Output folder", self.output_edit, "Choose output folder")]):
+                (self.input_label, self.input_edit, None),
+                (QLabel("Output folder"), self.output_edit, "Choose output folder")]):
             browse = QPushButton("Browse…")
-            browse.clicked.connect(lambda _=False, e=edit, t=title: self._browse(e, t))
-            grid.addWidget(QLabel(label), row, 0)
+            browse.clicked.connect(lambda _=False, e=edit, t=title: self._browse(e, t or self._input_title()))
+            grid.addWidget(label, row, 0)
             grid.addWidget(edit, row, 1)
             grid.addWidget(browse, row, 2)
 
@@ -110,6 +117,9 @@ class LauncherWindow(QMainWindow):
         self.viewer_button.setEnabled(False)
         self.viewer_button.setToolTip("show the results of the last run")
         self.viewer_button.clicked.connect(self._open_viewer)
+        self.results_button = QPushButton("Open results…")
+        self.results_button.setToolTip("open the viewer on an existing <ID>_results folder")
+        self.results_button.clicked.connect(self._open_results)
         self.start_button.clicked.connect(self._start)
         self.cancel_button.clicked.connect(self._cancel)
         buttons = QHBoxLayout()
@@ -120,6 +130,7 @@ class LauncherWindow(QMainWindow):
         self.open_viewer_check.setChecked(True)
         buttons.addWidget(self.open_viewer_check)
         buttons.addWidget(self.viewer_button)
+        buttons.addWidget(self.results_button)
 
         self.progress_bar = QProgressBar()
         self.status_label = QLabel("ready")
@@ -157,12 +168,15 @@ class LauncherWindow(QMainWindow):
         self._watcher = QFileSystemWatcher([str(PROJECT_DIR)])
         self._watcher.fileChanged.connect(self._show_config)
         self._watcher.directoryChanged.connect(self._show_config)
-        self._show_config()
+        self._show_config()                 # also sets the input mode (input.folders) and lists the images
 
     @Slot()
     def _list_images(self) -> None:
         """Recordings in the ID folder for the per-image inputs: file names, with input.views the
-        recording names (only names are read, no images)."""
+        recording names (only names are read, no images). Parent folder: no list."""
+        if self._folders:
+            self.evaluations.set_images([])
+            return
         try:
             text = self.input_edit.text().strip()
             config = load_config()
@@ -185,7 +199,9 @@ class LauncherWindow(QMainWindow):
         self.config_view.setPlainText(text)
         self._tabs.setTabText(self._config_tab, f"Config ({path.name if path else 'error'}, read-only)")
         try:                                # unchanged evaluation inputs follow the config
-            self.evaluations.refresh(load_config().to_dict())
+            config = load_config()
+            self.evaluations.refresh(config.to_dict())
+            self._set_mode(bool(config.input.folders))
         except Exception:
             pass                            # broken config: shown in the config view, reported at start
         # watch only the current config; editors often replace the file on save, which ends the
@@ -195,6 +211,18 @@ class LauncherWindow(QMainWindow):
             self._watcher.removePaths(old)
         if path is not None and str(path) not in self._watcher.files() and path.exists():
             self._watcher.addPath(str(path))
+
+    def _set_mode(self, folders: bool) -> None:
+        """input.folders: the input path is a parent folder, every subfolder an ID folder."""
+        changed = folders != self._folders
+        self._folders = folders
+        self.input_label.setText("Parent folder (input, subfolders = IDs)" if folders else "ID folder (input)")
+        self.evaluations.set_folders(folders)
+        if changed:
+            self._list_images()
+
+    def _input_title(self) -> str:
+        return "Choose parent folder (subfolders = ID folders)" if self._folders else "Choose ID folder"
 
     # --- run ---
 
@@ -218,6 +246,7 @@ class LauncherWindow(QMainWindow):
             return
         config = Config(data)
         self._gui_settings = config.to_dict()["gui"]
+        self._run_folders = bool(config.input.folders)
         input_path = Path(self.input_edit.text().strip())
         output_dir = Path(self.output_edit.text().strip())
 
@@ -285,7 +314,7 @@ class LauncherWindow(QMainWindow):
         self._worker.deleteLater()
         self._thread = self._worker = None
         self._set_running(False)
-        if self._last_result is not None:
+        if self._last_result is not None and not self._run_folders:   # parent folder: "Open results…"
             self.viewer_button.setEnabled(True)
             if self.open_viewer_check.isChecked():
                 self._open_viewer()
@@ -298,23 +327,46 @@ class LauncherWindow(QMainWindow):
         self.input_edit.setEnabled(not running)
         self.output_edit.setEnabled(not running)
         self.evaluations.setEnabled(not running)
+        self.results_button.setEnabled(not running and self._viewer is None)
 
     # --- viewer ---
 
     @Slot()
     def _open_viewer(self) -> None:
+        """Viewer on the results of the last run."""
         if self._viewer is not None:
             self._viewer.raise_()
             self._viewer.activateWindow()
             return
+        self._show_viewer(self._last_result.results_dir, self._gui_settings)
+
+    @Slot()
+    def _open_results(self) -> None:
+        """Viewer on an existing <ID>_results folder chosen in a dialog."""
+        start = self.output_edit.text().strip()
+        folder = QFileDialog.getExistingDirectory(self, "Choose an <ID>_results folder", start)
+        if not folder:
+            return
+        results_dir = Path(folder)
+        missing = [name for name in (IMAGES_JSON, CONFIG_USED) if not (results_dir / name).is_file()]
+        if missing:
+            self._message(f"not a results folder (an <ID>_results folder of a run):\n{results_dir}\n\n"
+                          f"missing: {', '.join(missing)}")
+            return
         try:
-            results_dir = self._last_result.results_dir
+            gui_settings = load_config().to_dict()["gui"]
+        except Exception:                   # broken config: viewer with its defaults
+            gui_settings = {}
+        self._show_viewer(results_dir, gui_settings)
+
+    def _show_viewer(self, results_dir: Path, gui_settings: dict) -> None:
+        try:
             try:
                 corrections = Corrections(results_dir)     # manual corrections (PLAN.md 7.3)
             except Exception:
                 corrections = None
                 log.warning("corrections not available: %s", traceback.format_exc())
-            self._viewer = ViewerWindow(results_dir, self._gui_settings, corrections, parent=self)
+            self._viewer = ViewerWindow(results_dir, gui_settings, corrections, parent=self)
         except Exception:
             self._message(f"cannot open the viewer:\n{traceback.format_exc()}")
             return

@@ -20,6 +20,8 @@ def main() -> int:
         nonlocal bar
         if bar is None:
             bar = tqdm(total=total, unit="image")
+        elif bar.total != total:            # input.folders: the next ID folder
+            bar.reset(total=total)
         bar.n = index
         bar.set_description(f"{name} {stage}" if name else stage)
         bar.refresh()

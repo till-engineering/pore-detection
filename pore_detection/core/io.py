@@ -17,6 +17,16 @@ def image_id_of(folder: Path) -> str:
     return Path(folder).resolve().name
 
 
+def find_id_folders(parent: Path, output_dir: Path) -> list[Path]:
+    """ID folders of a parent folder (input.folders): its direct subfolders, natural order.
+
+    Left out: the output folder (it may lie inside the parent folder) and every <ID>_results folder."""
+    output_dir = Path(output_dir).resolve()
+    folders = [path for path in Path(parent).iterdir()
+               if path.is_dir() and not path.name.endswith("_results") and path.resolve() != output_dir]
+    return sorted(folders, key=_natural_key)
+
+
 def find_images(folder: Path, extensions) -> list[Path]:
     """Images directly inside `folder` (no subfolders), natural order (img2 before img10)."""
     extensions = {ext.lower() for ext in extensions}

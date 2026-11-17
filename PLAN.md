@@ -288,7 +288,7 @@ class GaussFilter(Filter):
 
 ```yaml
 runtime:        # device, gpu_memory_fraction, tile_size, tile_batch_size, threads, prefetch
-input:          # path (ID-Ordner), extensions, gray_weights, views
+input:          # path (ID-Ordner bzw. Überordner), folders, extensions, gray_weights, views
 sample:         # roi · scale · frame: je genau ein Verfahren
 preprocessing:  # Kette von Vorfiltern (Graustufen)
 detection:      # genau ein Verfahren
@@ -311,6 +311,9 @@ run(config, input_path=None, output_dir=None, progress=None, cancel=None) -> Run
 - `progress`: Callback (Bild x von n, aktuelle Stufe) – CLI zeigt `tqdm`, Launcher einen Balken
 - `cancel`: Event zum Abbrechen; wirkt **zwischen** Bildern
 - `RunResult`: Anzahl erfolgreich / fehlgeschlagen, Liste der Fehler, Ausgabeordner, Laufzeit
+- `input.folders: true`: `input_path` ist ein Überordner, jeder Unterordner ein ID-Ordner und ein Lauf für
+  sich (`<ID>_results/` wie sonst; leere Ordner, `output.dir` und `*_results` übersprungen). Eine
+  gescheiterte ID wird geloggt, die nächste folgt; `RunResult` zählt alle Bilder, `results_dir` = Ausgabeordner
 
 ---
 
@@ -421,6 +424,8 @@ anzupassen**.
 - Pipeline läuft in einem Hintergrund-Thread
 - Nach Abschluss: Viewer mit `<ID>_results/` öffnen (gibt Ergebnisordner + `gui`-Einstellungen mit).
   Checkbox „Open viewer after the run“ (an = öffnet automatisch), zusätzlich Knopf „Open viewer“
+- Knopf „Open results…“: Viewer auf einem bestehenden `<ID>_results/` (Ordnerdialog), auch für frühere Läufe
+- `input.folders: true`: Eingabe = Überordner, Tabellen pro Bild ausgeblendet, nach dem Lauf kein Viewer
 - Solange ein Viewer offen ist, ist „Start“ gesperrt (ein neuer Lauf überschreibt `<ID>_results/`)
 - Ruft nur `run()` der öffentlichen API auf
 

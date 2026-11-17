@@ -1,4 +1,5 @@
-"""Run: process the images of one ID folder one by one through all stages.
+"""Run: process the images of one ID folder one by one through all stages (with input.folders:
+every ID folder of a parent folder, one after another, each as a run of its own).
 
 Per image: load -> sample (ROI, scale, sample frame) -> crop to the bounding box of the sample -> gray -> filters /
 detector / mask steps (tileable steps on tiles in parallel threads) -> labeling -> label steps
@@ -53,7 +54,7 @@ class RunResult:
     succeeded: int
     failed: int
     errors: list[ImageError]
-    results_dir: Path
+    results_dir: Path           # <ID>_results; with input.folders the output folder
     duration_s: float
     cancelled: bool
     device: str                 # "cuda" or "cpu"
@@ -106,7 +107,12 @@ class _Done:
 
 def run(config: Config, input_path=None, output_dir=None,
         progress: Progress | None = None, cancel: Event | None = None) -> RunResult:
-    """Process all images of one ID folder. Paths: None = value from config.yaml."""
+    """Process all images of one ID folder; with input.folders every ID folder of the parent folder,
+    each into its own <ID>_results as a run of its own. Paths: None = value from the config.
+
+    Parent folder: folders without images are skipped, an ID that fails is logged and the next one
+    follows; RunAborted (affects all IDs) stops the whole run. The result counts the images of all
+    IDs, results_dir is then the output folder."""
     start = time.perf_counter()
     setup_logging(config)
     input_dir = _resolve(input_path if input_path is not None else config.input.path)
@@ -114,7 +120,6 @@ def run(config: Config, input_path=None, output_dir=None,
     if not input_dir.is_dir():
         raise RunAborted(f"input folder not found: {input_dir}")
 
-    image_id = io.image_id_of(input_dir)
     steps = _Steps.from_config(config)
     if steps.plots and not plotting.available():
         raise RunAborted("plots are configured but matplotlib is not installed "
@@ -122,9 +127,54 @@ def run(config: Config, input_path=None, output_dir=None,
     gpu_wanted = any(step.tileable and tiling.gpu_path(step) for step in steps.filters + steps.detection)
     device = select_device(config.runtime.device, gpu_wanted)
     gpu = tiling.Gpu(config.runtime.gpu_memory_fraction, config.runtime.tile_batch_size) if device == "cuda" else None
+    threads = os.cpu_count() if config.runtime.threads == "auto" else config.runtime.threads
+    if not config.input.folders:
+        return _run_id(config, steps, input_dir, output_dir, device, gpu, threads, progress, cancel, start)
+
+    folders = []
+    for folder in io.find_id_folders(input_dir, output_dir):
+        if io.find_images(folder, config.input.extensions):
+            folders.append(folder)
+        else:
+            log.warning("folder %s skipped: no images", folder.name)
+    log.info("parent folder %s: %d ID folders", input_dir, len(folders))
+    succeeded, failed, errors, cancelled = 0, 0, [], False
+    for number, folder in enumerate(folders, 1):
+        if cancel is not None and cancel.is_set():    # before the ID: its old results stay untouched
+            cancelled = True
+            log.info("run cancelled after %d of %d ID folders", number - 1, len(folders))
+            break
+        label = f"ID {number} of {len(folders)} ({folder.name})"
+        id_progress = None
+        if progress is not None:
+            def id_progress(index, total, stage, name, label=label):
+                progress(index, total, stage if name else f"{label} {stage}", f"{label} · {name}" if name else "")
+        try:
+            result = _run_id(config, steps, folder, output_dir, device, gpu, threads, id_progress, cancel,
+                             time.perf_counter())
+        except RunAborted:
+            raise
+        except Exception as error:
+            log.exception("ID %s failed", folder.name)
+            errors.append(ImageError(folder.name, "ID", "-", f"{type(error).__name__}: {error}"))
+            failed += 1
+            continue
+        succeeded, failed, errors = succeeded + result.succeeded, failed + result.failed, errors + result.errors
+        if result.cancelled:
+            cancelled = True
+            break
+
+    duration = time.perf_counter() - start
+    log.info("%d ID folders: %d images succeeded, %d failed (%.1f s)", len(folders), succeeded, failed, duration)
+    return RunResult(succeeded, failed, errors, output_dir, duration, cancelled, device)
+
+
+def _run_id(config: Config, steps: _Steps, input_dir: Path, output_dir: Path, device: str, gpu: tiling.Gpu | None,
+            threads: int, progress: Progress | None, cancel: Event | None, start: float) -> RunResult:
+    """All images of one ID folder -> <output_dir>/<ID>_results/."""
+    image_id = io.image_id_of(input_dir)
     views = config.input.views
     files, ignored = io.find_recordings(input_dir, config.input.extensions, views)
-    threads = os.cpu_count() if config.runtime.threads == "auto" else config.runtime.threads
     log.info("ID %s: %d images in %s, device %s, %d threads", image_id, len(files), input_dir,
              gpu_name() if gpu else device, threads)
     if ignored:

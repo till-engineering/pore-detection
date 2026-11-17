@@ -11,7 +11,8 @@ is open.
 
 Parameters a module may set per image (Step.image_params, e.g. the test data of pore_index) get no
 field but a table with one row per image of the ID folder (image_inputs.py); they are passed as
-per_image of the module.
+per_image of the module. With input.folders (parent folder of many IDs) the tables are hidden and
+every image gets the values of the config.
 """
 
 from PySide6.QtCore import Signal
@@ -120,6 +121,8 @@ class EvaluationsTab(QWidget):
         self._names: dict[int, str] = {}
         self._tables: dict[int, ImageInputs] = {}  # module index -> inputs per image
         self._images: list[str] = []                # file names (with input.views: recordings) in the ID folder
+        self._folders = False                       # input.folders: no per-image tables
+        self._table_labels: dict[int, QLabel] = {}  # module index -> heading of its table
         self.reset_button = QPushButton("Reset to config")
         self.reset_button.clicked.connect(self.reset)
         self.hint = QLabel()
@@ -176,6 +179,7 @@ class EvaluationsTab(QWidget):
         self._labels.clear()
         self._names.clear()
         self._tables.clear()
+        self._table_labels.clear()
         methods = {info.name: info for info in list_methods()["evaluation"]}
         shown = 0
         for index, entry in enumerate(entries):
@@ -203,8 +207,11 @@ class EvaluationsTab(QWidget):
                 table = ImageInputs(per_image, params, info.params)
                 table.set_images(self._images)
                 self._tables[index] = table
-                form.addRow(QLabel("Per image (empty = config):"))
+                self._table_labels[index] = QLabel("Per image (empty = config):")
+                form.addRow(self._table_labels[index])
                 form.addRow(table)
+                table.setVisible(not self._folders)
+                self._table_labels[index].setVisible(not self._folders)
             self._form_layout.addWidget(box)
             shown += 1
         if not shown:
@@ -232,6 +239,13 @@ class EvaluationsTab(QWidget):
         for table in self._tables.values():
             table.set_images(self._images)
 
+    def set_folders(self, folders: bool) -> None:
+        """input.folders: hide the per-image tables (the run uses the config values for every image)."""
+        self._folders = folders
+        for index, table in self._tables.items():
+            table.setVisible(not folders)
+            self._table_labels[index].setVisible(not folders)
+
     # --- run ---
 
     def apply(self, config: dict) -> tuple[dict, list[str]]:
@@ -251,7 +265,7 @@ class EvaluationsTab(QWidget):
                 raise ValueError(f"{self._names[index]}.{key}: {error}") from None
             entries[index][key] = value
             changes.append(f"{self._names[index]}.{key} = {value!r} (config.yaml: {field.default!r})")
-        for index, table in self._tables.items():
+        for index, table in ({} if self._folders else self._tables).items():
             try:
                 per_image = table.per_image()
             except ValueError as error:
