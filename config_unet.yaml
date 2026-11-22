@@ -157,4 +157,6 @@ logging:
   file: null                # null = console only
 
 gui:
-  theme: system
+  theme: system            # system | light | dark
+  check_patch_px: 200      # check window: edge of the patch / tile in image px
+  check_tile_overlap: 0.1   # check window, mode tiles: overlap, share of the tile edge

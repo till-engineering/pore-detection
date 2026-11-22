@@ -1,13 +1,16 @@
 """Critical pores (Pareto): the pores sorted by their contribution A g^q to the pore index phi_q.
 
-Bars: the `top` pores with the largest contribution (pore number as in the viewer's pore list),
-colored by zone (outer / inner); line on a second axis: cumulative share of the sum over all pores
+Bars: the `top` pores with the largest contribution, colored by zone (outer / inner); line on a second axis: cumulative share of the sum over all pores
 in %. Shows whether a few large pores near the surface decide phi_q or many small ones – and which
 pores to check in the viewer (artefacts count as well).
 
 Right of it the sample (straightened, outer surface on top, a little embedding resin around it)
 with the same pores numbered (thin line to the pore, size by contribution, the 3 largest red) – so one sees where the pores that matter lie. Needs the
 sample frame; without it, and over the whole ID, only the Pareto part is drawn.
+
+Numbers of one image: the rank by contribution, 1 = largest, up to `top` – the same on the axis and
+on the sample. Display only: pore_id (pores.json, viewer) stays as it is. Over the whole ID the
+labels stay image/pore_id.
 
 The contributions come from the evaluation module pore_index (weighted_area_q…_px2, computed with
 its pore_stress); q must be one of its q_values. Over the whole ID: the critical pores of all
@@ -33,6 +36,16 @@ LEADER_LW = 0.6
 TURNS_DEG = (0, 30, -30, 60, -60, 90, -90, 135, -135, 180)     # tried directions, relative to "outwards"
 LABEL_ROOM = 0.07                           # free border around the sample picture, share of its long side
 ALL_Q_DIR = "all_q"                         # subfolder of plots/ for the plots of every q (all_q: true)
+RANK_AXIS = "pore no., 1 = largest"         # axis label of one image: numbers are ranks, not pore_id
+
+
+def ranks(weighted: np.ndarray) -> list[str]:
+    """Display numbers of the pores of one image: rank by contribution, 1 = largest (same order as
+    the bars). Only for the plot – pore_id is not changed."""
+    labels = [""] * len(weighted)
+    for rank, i in enumerate(np.argsort(weighted)[::-1], 1):
+        labels[i] = str(rank)
+    return labels
 
 
 @register("critical_pores")
@@ -48,18 +61,19 @@ class CriticalPores(Plot):
 
     def plot(self, ax, image, pores, picture=None):
         weighted = pores[self._column(pores)].to_numpy(dtype=float)
-        labels = [str(int(i)) for i in pores["pore_id"]]
+        labels = ranks(weighted)
         zeta = pores["zeta"].to_numpy(dtype=float)
         if picture is not None:
             grid = ax.figure.add_gridspec(1, 2, width_ratios=[1.2, 1], wspace=0.32)
             ax.set_subplotspec(grid[0])
             self._sample(ax.figure.add_subplot(grid[1]), picture, pores, weighted, zeta)
-        summary = self._draw(ax, weighted, labels, zeta, "pore")
+        summary = self._draw(ax, weighted, labels, zeta, RANK_AXIS)
         ax.set_title(f"Critical pores for Φ_q, q = {self.q:g} ({len(weighted)} pores){summary}")
 
     def _sample(self, ax, picture, pores, weighted, zeta) -> None:
         """The straightened sample, the top pores numbered next to them with a thin line to the pore
-        (the pore itself stays free): number size by contribution, the 3 largest in red. Each number
+        (the pore itself stays free): number = rank as on the bar axis, size by contribution, the 3
+        largest in red. Each number
         takes the first place (direction, line length) where it overlaps no number placed before and
         no numbered pore – the largest contributions first."""
         ax.imshow(picture.rgb, interpolation="antialiased")
@@ -91,7 +105,7 @@ class CriticalPores(Plot):
         for rank, i, pore_id in shown:
             x, y = position.loc[pore_id, ["x", "y"]]
             size = LABEL_PT[0] + (LABEL_PT[1] - LABEL_PT[0]) * np.sqrt(weighted[i] / top_share)
-            text = str(pore_id)
+            text = str(rank + 1)                                      # rank, as on the bar axis
             half = (0.31 * size * len(text) + 1, 0.4 * size + 1)          # half width / height of the number
             away = np.array([x, y]) - centre                           # labels point outwards (y down)
             away = away / (np.linalg.norm(away) or 1.0) * (1, -1)

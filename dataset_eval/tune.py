@@ -121,7 +121,7 @@ class Prepared:
 def score_image(prepared: Prepared, config: Config) -> dict:
     """Detection + postprocessing with config on one prepared image; pixel scores and porosity."""
     ctx = prepared.ctx
-    mask = registry.create("detection", config.detection).detect(ctx, prepared.gray)
+    mask = registry.create("detection", config.detection).detect_mask(ctx, prepared.gray)
     for entry in config.postprocessing.mask_steps:
         mask = registry.create("postprocessing.mask_steps", entry).process(ctx, mask)
     mask = mask & ctx.roi_mask

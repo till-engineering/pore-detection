@@ -7,7 +7,8 @@ steps of the run one after another; only its core area is kept, so the overlap a
 border effects of all steps together.
 
 Tiles whose core area contains no sample pixel are not computed: filters leave the image
-unchanged there, steps that produce a mask set it to False.
+unchanged there, steps that produce a mask set it to False, a detector with a score map
+(Detector.score_column) sets the score to 0.
 
 GPU (device "cuda", at least one step of the run has a GPU path): the free GPU memory is
 measured; if the whole image fits, it is computed in one piece, otherwise the tiles are passed
@@ -158,9 +159,12 @@ class _Tiles:
     def __init__(self, steps: list[Step], ctx: ImageContext, data: np.ndarray, tile_size: int):
         self.ctx, self.data, self.tile_size = ctx, data, tile_size
         self.overlap = sum(step.tile_overlap_px for step in steps)
-        self.to_mask = not isinstance(steps[-1], Filter)
+        last = steps[-1]
+        self.score = isinstance(last, Detector) and last.score_column is not None     # float32 score map
+        self.to_mask = not isinstance(last, Filter) and not self.score
         height, width = data.shape
-        self.result = np.empty((height, width), dtype=bool if self.to_mask else data.dtype)
+        dtype = bool if self.to_mask else np.float32 if self.score else data.dtype
+        self.result = np.empty((height, width), dtype=dtype)
         self.starts = []
         for y0 in range(0, height, tile_size):
             for x0 in range(0, width, tile_size):
@@ -168,7 +172,8 @@ class _Tiles:
                 if ctx.roi_mask[y0:y1, x0:x1].any():
                     self.starts.append((y0, x0))
                 else:  # no sample in this tile: not computed
-                    self.result[y0:y1, x0:x1] = False if self.to_mask else data[y0:y1, x0:x1]
+                    self.result[y0:y1, x0:x1] = (False if self.to_mask else 0.0 if self.score
+                                                 else data[y0:y1, x0:x1])
 
     def _end(self, y0: int, x0: int) -> tuple[int, int]:
         return min(y0 + self.tile_size, self.data.shape[0]), min(x0 + self.tile_size, self.data.shape[1])

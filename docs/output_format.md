@@ -123,7 +123,9 @@ only. Every sheet starts with `image`, one row per image, header row frozen.
 - List cells are written as text.
 
 `pores.json`: column `pore_id` + all `per_pore` columns of the evaluation modules, joined on
-`pore_id`.
+`pore_id`. With a detector that has a score map (`Detector.score_column`) also its column, e.g.
+`unet_score` of the U-Net: mean pore probability over the pixels of the pore (counted pores only;
+empty for pores drawn by hand or counted again with "+" from the automatic rejected ones).
 
 ## 5. ID values
 

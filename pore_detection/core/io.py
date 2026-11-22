@@ -27,6 +27,13 @@ def find_id_folders(parent: Path, output_dir: Path) -> list[Path]:
     return sorted(folders, key=_natural_key)
 
 
+def find_results_folders(parent: Path) -> list[Path]:
+    """<ID>_results folders directly inside `parent` (the output folder of a parent folder run),
+    natural order as the ID folders of the run."""
+    folders = [path for path in Path(parent).iterdir() if path.is_dir() and path.name.endswith("_results")]
+    return sorted(folders, key=_natural_key)
+
+
 def find_images(folder: Path, extensions) -> list[Path]:
     """Images directly inside `folder` (no subfolders), natural order (img2 before img10)."""
     extensions = {ext.lower() for ext in extensions}

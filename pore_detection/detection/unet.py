@@ -9,6 +9,10 @@ model_dir: folder of a trained model (weights.pt + model.yaml with encoder, norm
 overlap and the threshold found on the validation images); relative paths start at the project folder.
 threshold: auto = the one of model.yaml, or a number 0..1 (pore probability at or above it = pore).
 
+Score map (Detector.score_column): the detector returns the probability, core cuts it at the
+threshold and writes the mean probability of every counted pore to pores.json as unet_score
+(the check window of the viewer goes through the pores by it).
+
 Tileable: core cuts the image into tiles with the model's overlap_px; inside a tile the network runs
 on windows of the training patch size (patch_px) and keeps only their centres. GPU (detect_gpu) in
 float16, the window batch is halved when the GPU memory runs out. Pores only inside the sample.
@@ -17,6 +21,8 @@ The model is valid for the magnification of its training images (no scaling).
 
 import threading
 from pathlib import Path
+
+import numpy as np
 
 from ..core import unet_model
 from ..core.config import PROJECT_DIR
@@ -38,6 +44,7 @@ class Unet(Detector):
         "threshold": "auto (threshold of model.yaml, best on the validation images) or pore probability 0..1",
     }
     tileable = True
+    score_column = "unet_score"
 
     def __init__(self, **params):
         super().__init__(**params)
@@ -46,15 +53,15 @@ class Unet(Detector):
         recipe = unet_model.read_recipe(self.folder)
         unet_model._libraries()                     # missing torch / smp: clear message at the start
         self.tile_overlap_px = recipe["overlap_px"]
-        self.cut = recipe["threshold"] if self.threshold == "auto" else float(self.threshold)
+        self.score_threshold = recipe["threshold"] if self.threshold == "auto" else float(self.threshold)
 
     def detect(self, ctx, image):
         recipe, model = unet_model.load(self.folder, "cpu")
         with _cpu_lock:
             prob = unet_model.predict(model, recipe, ctx.original, "cpu", CPU_BATCH)
-        return (prob >= self.cut) & ctx.roi_mask
+        return prob.astype(np.float32, copy=False)          # core cuts it at score_threshold
 
     def detect_gpu(self, ctxs, items):
         recipe, model = unet_model.load(self.folder, "cuda")
-        return [(unet_model.predict(model, recipe, ctx.original, "cuda", GPU_BATCH) >= self.cut) & ctx.roi_mask
+        return [unet_model.predict(model, recipe, ctx.original, "cuda", GPU_BATCH).astype(np.float32, copy=False)
                 for ctx in ctxs]

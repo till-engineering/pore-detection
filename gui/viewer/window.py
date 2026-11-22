@@ -1,12 +1,16 @@
 """Viewer: shows the results of one run. Layout and behaviour: PLAN.md, sections 7.2 and 7.3.
 
 Opened by the launcher right after a run. Reads only the output files (see data.py). Manual
-corrections go through the correction object the launcher hands over (pore_detection.Corrections,
-not imported here); without it the viewer is read-only.
+corrections go through the correction objects the launcher hands over (pore_detection.Corrections,
+not imported here, one per <ID>_results); without them the viewer is read-only.
+
+Several <ID>_results folders (input.folders): the images of all IDs in a row, browsed as one list.
+Header, errors, ID values, settings and corrections always belong to the ID of the shown image.
 """
 
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
+from typing import Callable
 
 import numpy as np
 from PySide6.QtCore import QEvent, QObject, Qt, Signal
@@ -17,6 +21,7 @@ from PySide6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QDialog, Q
                                QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from . import style
+from .check import CheckWindow
 from .data import MANUAL, Image, Run, apply_state, load_image
 from .image_view import ImageView
 from .loupe import Loupe, loupe_box
@@ -136,16 +141,25 @@ class _Signals(QObject):
 
 
 class ViewerWindow(QMainWindow):
-    def __init__(self, results_dir: Path, gui_settings: dict, corrections=None, parent=None):
+    def __init__(self, results_dirs: Path | list[Path], gui_settings: dict,
+                 corrections: Callable[[Path], object] | None = None, parent=None):
+        """results_dirs: one <ID>_results folder, or several (input.folders) shown one after the other.
+        corrections: results_dir -> pore_detection.Corrections or None (that ID read-only), called once
+        when an ID is shown first; None = all read-only."""
         super().__init__(parent)
-        self.corrections = corrections      # pore_detection.Corrections or None (read-only)
+        self.make_corrections = corrections
+        self.stores: dict[int, object] = {}  # run number -> Corrections or None, made when the ID is shown first
+        self.corrections = None             # of the shown ID (None = read-only)
         self.worker = ThreadPoolExecutor(1, thread_name_prefix="corrections")   # one action at a time
         self.session = None                 # correction session of the shown image (opened on first use)
         self.tool: str | None = None
         self.selected_rejected = False      # the selected pore is a rejected one
         self._heat = None                   # (image, pixmap, transform, low, high) of the stress layer
-        self.run = Run.load(results_dir)
-        self.setWindowTitle(f"Pore Detection – Viewer – {self.run.results_dir.name}")
+        dirs = [results_dirs] if isinstance(results_dirs, (str, Path)) else list(results_dirs)
+        self.runs = [Run.load(path) for path in dirs]
+        # one entry per image of all IDs: (run number, index in its run); the viewer index points here
+        self.entries = [(number, i) for number, run in enumerate(self.runs) for i in range(len(run.images))]
+        self.run_no, self.run = 0, self.runs[0]     # ID of the shown image
         self.resize(1500, 950)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
 
@@ -158,9 +172,10 @@ class ViewerWindow(QMainWindow):
         self.signals.loaded.connect(self._on_loaded)
         self.signals.corrected.connect(self._on_corrected)
 
-        # theme: the toggle only lasts while the viewer is open
+        # theme from config.gui (no toggle); the system scheme comes back when the viewer closes
         self.hints = QApplication.styleHints()
         self.scheme_before = self.hints.colorScheme()
+        self.gui_settings = gui_settings        # also check_patch_px / check_tile_overlap (check window)
         theme = gui_settings.get("theme", "system")
         self.dark = theme == "dark" or (theme == "system" and self.scheme_before == Qt.ColorScheme.Dark)
 
@@ -173,11 +188,12 @@ class ViewerWindow(QMainWindow):
         self.stage = self._build_stage()
         grid.addWidget(self.stage, 0, 0)
         grid.addWidget(self._build_right_column(), 0, 1)
-        grid.addWidget(self._build_plots(), 1, 0)
+        self.plots = self._build_plots()
+        grid.addWidget(self.plots, 1, 0)
         grid.addWidget(self._build_pore_list(), 1, 1, Qt.AlignmentFlag.AlignTop)
         grid.setColumnStretch(0, 1)
         page.setWidget(content)
-        self.page = page
+        self.page, self.content_grid = page, grid
         page.viewport().installEventFilter(self)
 
         central = QWidget()
@@ -195,9 +211,10 @@ class ViewerWindow(QMainWindow):
         QShortcut(QKeySequence(Qt.Key.Key_Escape), self, activated=lambda: self._set_tool(None))
         QShortcut(QKeySequence(Qt.Key.Key_Backspace), self, activated=self.view.remove_frame_point)
 
-        if len(self.run.images):
+        if self.entries:
             self.show_image(0)
         else:
+            self._enter_run(0)
             self.name_label.setText("no image succeeded – see Errors")
             self.prev_button.setEnabled(False)
             self.next_button.setEnabled(False)
@@ -221,27 +238,66 @@ class ViewerWindow(QMainWindow):
         self.position_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.position_label.setMinimumWidth(56)
         self.name_label = QLabel(objectName="imageName")
+        self.id_label = QLabel(objectName="hint")   # several IDs: the ID of the shown image
+        self.id_label.setVisible(len(self.runs) > 1)
         for widget in (self.prev_button, self.position_label, self.next_button):
             row.addWidget(widget)
         row.addSpacing(14)
+        row.addWidget(self.id_label)
         row.addWidget(self.name_label)
         row.addStretch()
 
-        for i, (title, entry) in enumerate(self.run.chain()):
-            if i:
-                row.addWidget(QLabel("→", objectName="arrow"))
-            chip = QLabel(str(entry.get("name", "?")), objectName="chip")
-            params = "\n".join(f"{k}: {v}" for k, v in entry.items() if k != "name") or "no parameters"
-            chip.setToolTip(f"{title}\n{params}")
-            row.addWidget(chip)
+        self.chain_row = QHBoxLayout()      # chips of the shown ID (filled by _enter_run)
+        self.chain_row.setSpacing(6)
+        row.addLayout(self.chain_row)
         row.addSpacing(16)
-        buttons = [("ID values", self._show_id_values), (f"Errors ({len(self.run.errors)})", self._show_errors),
-                   ("Settings", self._show_settings), ("Light / dark", self._toggle_theme)]
-        for text, slot in buttons:
-            button = QPushButton(text)
+        self.errors_button = QPushButton()
+        self.check_button = QPushButton("Check")
+        self.check_button.setToolTip("go through this image patch by patch and correct it (check window)")
+        buttons = [(QPushButton("ID values"), self._show_id_values), (self.errors_button, self._show_errors),
+                   (QPushButton("Settings"), self._show_settings), (self.check_button, self._open_check)]
+        for button, slot in buttons:
             button.clicked.connect(slot)
             row.addWidget(button)
         return header
+
+    def _fill_chain(self) -> None:
+        """Main methods of the shown ID as chips."""
+        while self.chain_row.count():
+            widget = self.chain_row.takeAt(0).widget()
+            if widget is not None:
+                widget.deleteLater()
+        for i, (title, entry) in enumerate(self.run.chain()):
+            if i:
+                self.chain_row.addWidget(QLabel("→", objectName="arrow"))
+            chip = QLabel(str(entry.get("name", "?")), objectName="chip")
+            params = "\n".join(f"{k}: {v}" for k, v in entry.items() if k != "name") or "no parameters"
+            chip.setToolTip(f"{title}\n{params}")
+            self.chain_row.addWidget(chip)
+
+    def _enter_run(self, run_no: int) -> None:
+        """Switch to another ID: its corrections (made when first shown), header, tools and plot grid."""
+        self.run_no, self.run = run_no, self.runs[run_no]
+        if run_no not in self.stores:
+            self.stores[run_no] = (self.make_corrections(self.run.results_dir)
+                                   if self.make_corrections is not None else None)
+        self.corrections = self.stores[run_no]
+        self.session = None
+        name = self.run.results_dir.name
+        self.setWindowTitle(f"Pore Detection – Viewer – {name}")
+        self.id_label.setText(f"ID {name.removesuffix('_results')} ({run_no + 1} / {len(self.runs)})   ·")
+        self.errors_button.setText(f"Errors ({len(self.run.errors)})")
+        self._fill_chain()
+        editable = self.corrections is not None
+        for b in [*self.tool_buttons.values(), self.undo_button, self.reset_button]:
+            b.setEnabled(editable)
+        self.tools.setToolTip("" if editable else "corrections not available")
+        if not editable and self.tool is not None:
+            self._set_tool(None)
+        if self.run.plot_names() != self.plot_names:    # other plots in this ID's config: new grid
+            old, self.plots = self.plots, self._build_plots()
+            self.content_grid.replaceWidget(old, self.plots)
+            old.deleteLater()
 
     def _build_stage(self) -> QFrame:
         """Value strip on top; tools | image | optical check; info bar with opacity below."""
@@ -331,11 +387,7 @@ class ViewerWindow(QMainWindow):
         layout.addWidget(QFrame(objectName="toolLine"))
         self.undo_button = button("↶", "undo the last correction of this image (Ctrl+Z)", self._undo)
         self.reset_button = button("🗑", "discard all corrections of this image", self._reset)
-        editable = self.corrections is not None
-        for b in [*self.tool_buttons.values(), self.undo_button, self.reset_button]:
-            b.setEnabled(editable)
-        if not editable:
-            tools.setToolTip("corrections not available")
+        self.tools = tools                  # enabled per ID (_enter_run)
         return tools
 
     def _build_check_column(self) -> QWidget:
@@ -480,7 +532,7 @@ class ViewerWindow(QMainWindow):
         grid.setSpacing(16)
         self.plot_views: dict[str, PlotView] = {}
         self.plot_switches: dict[str, QCheckBox] = {}   # second view of a plot (Plot.variant), e.g. normalized
-        names = self.run.plot_names()
+        names = self.plot_names = self.run.plot_names()
         if not names:
             hint = QLabel("no plots in this run (config: plots)", objectName="hint")
             hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -543,15 +595,19 @@ class ViewerWindow(QMainWindow):
         return self.index
 
     def show_image(self, index: int) -> None:
-        if not 0 <= index < len(self.run.images):
+        """index: position in the images of all IDs (self.entries)."""
+        if not 0 <= index < len(self.entries):
             return
         self.index, self.image, self.selected, self.selected_rejected = index, None, 0, False
         self.session = None                 # opened again on first use (the store keeps the corrections)
-        row = self.run.row(index)
-        self.position_label.setText(f"{index + 1} / {len(self.run.images)}")
+        run_no, local = self.entries[index]
+        if run_no != self.run_no or run_no not in self.stores:
+            self._enter_run(run_no)
+        row = self.run.row(local)
+        self.position_label.setText(f"{index + 1} / {len(self.entries)}")
         self.name_label.setText(row["image"])
         self.prev_button.setEnabled(index > 0)
-        self.next_button.setEnabled(index < len(self.run.images) - 1)
+        self.next_button.setEnabled(index < len(self.entries) - 1)
         for key, _label, unit in KEY_FIGURES:
             self.tile_values[key].setText(format_number(row.get(key), unit))
 
@@ -573,10 +629,14 @@ class ViewerWindow(QMainWindow):
     def _load(self, index: int) -> Future:
         """Load an image in the background (once); the result arrives via signals.loaded."""
         if index not in self.loading:
+            run_no, local = self.entries[index]
+            run = self.runs[run_no]
+
             def job():
-                if self.corrections is not None:
-                    self.corrections.flush()    # never read files that are still being written
-                return load_image(self.run, index)
+                store = self.stores.get(run_no)     # None: ID not shown yet, nothing written
+                if store is not None:
+                    store.flush()               # never read files that are still being written
+                return load_image(run, local)
             future = self.loader.submit(job)
             future.add_done_callback(lambda f, i=index: self.signals.loaded.emit(i, f))
             self.loading[index] = future
@@ -607,7 +667,7 @@ class ViewerWindow(QMainWindow):
         self._update_scale_check()
         self._update_info()
         for neighbour in (index + 1, index - 1):    # preload: next first, then previous
-            if 0 <= neighbour < len(self.run.images):
+            if 0 <= neighbour < len(self.entries):   # across IDs as well
                 self._load(neighbour)
 
     def _layers(self) -> Layers:
@@ -804,12 +864,12 @@ class ViewerWindow(QMainWindow):
         """Run one action of the correction session in the background (session opened on first use)."""
         if self.corrections is None or self.image is None:
             return
-        index, name = self.index, self.image.name
+        index, name, store = self.index, self.image.name, self.corrections
         self.info_label.setText("correcting …" if self.session is not None else "preparing corrections …")
 
         def job():
-            if self.session is None or self.session.image != name:
-                self.session = self.corrections.session(name)
+            if self.session is None or self.session.store is not store or self.session.image != name:
+                self.session = store.session(name)
             return getattr(self.session, action)(*args)
         future = self.worker.submit(job)
         future.add_done_callback(lambda f: self.signals.corrected.emit(index, f))
@@ -829,7 +889,8 @@ class ViewerWindow(QMainWindow):
         except Exception as error:
             self.info_label.setText(f"correction failed: {type(error).__name__}: {error}")
             return
-        self.run.set_row(index, state.row)
+        run_no, local = self.entries[index]
+        self.runs[run_no].set_row(local, state.row)
         cached = self.loading.get(index)
         image = self.image if index == self.index and self.image is not None else (
             cached.result() if cached is not None and cached.done() and not cached.exception() else None)
@@ -1020,7 +1081,7 @@ class ViewerWindow(QMainWindow):
             form.addRow(QLabel("no ID values (run cancelled or no image succeeded)"))
         for key, value in (self.run.id_values or {}).items():
             form.addRow(key, QLabel(format_number(value)))
-        self._dialog("ID values", body)
+        self._dialog(f"ID values – {self.run.results_dir.name}", body)
 
     def _show_errors(self) -> None:
         errors = self.run.errors
@@ -1030,12 +1091,12 @@ class ViewerWindow(QMainWindow):
             for c, value in enumerate(values):
                 table.setItem(r, c, QTableWidgetItem(str(value)))
         table.resizeColumnsToContents()
-        self._dialog(f"Errors ({len(errors)})", table)
+        self._dialog(f"Errors ({len(errors)}) – {self.run.results_dir.name}", table)
 
     def _show_settings(self) -> None:
         text = QPlainTextEdit(self.run.config_text)
         text.setReadOnly(True)
-        self._dialog("Settings used (config_used.yaml)", text)
+        self._dialog(f"Settings used (config_used.yaml) – {self.run.results_dir.name}", text)
 
     # ------------------------------------------------------------------ theme, closing
 
@@ -1048,14 +1109,32 @@ class ViewerWindow(QMainWindow):
             if self.selected:
                 self._select(self.selected)
 
-    def _toggle_theme(self) -> None:
-        self.dark = not self.dark
-        self._apply_theme()
+    # ------------------------------------------------------------------ check window
+
+    def _open_check(self) -> None:
+        """Modal check window on the shown image (docs/plan_check_window.md); afterwards the image is
+        loaded again if something was corrected."""
+        if self.image is None:
+            return
+        self._set_tool(None)
+        self.worker.submit(lambda: None).result()      # a running correction of the viewer first
+        accent = (style.DARK if self.dark else style.LIGHT)["accent"]
+        dialog = CheckWindow(self.image, self.corrections, self.gui_settings, accent, parent=self)
+        dialog.exec()
+        if not dialog.changed:
+            return
+        run_no, local = self.entries[self.index]
+        if dialog.row is not None:
+            self.runs[run_no].set_row(local, dialog.row)
+        self.loading.pop(self.index, None)          # read again from the files (after the writes)
+        self._heat = None
+        self.show_image(self.index)
 
     def closeEvent(self, event) -> None:
         self.loader.shutdown(wait=False, cancel_futures=True)
         self.worker.shutdown(wait=True)             # finish a running correction
-        if self.corrections is not None:
-            self.corrections.close()                # wait for the files
+        for store in self.stores.values():
+            if store is not None:
+                store.close()                       # wait for the files
         self.hints.setColorScheme(self.scheme_before)
         super().closeEvent(event)

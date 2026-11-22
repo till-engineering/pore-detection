@@ -48,8 +48,14 @@ einzelnen Lauf in `<output.dir>/<ID>_results/`. Ordner ohne Bilder, `output.dir`
 Scheitert eine ID, steht das im Log und es geht mit der nächsten weiter; „Cancel“ hört nach dem
 aktuellen Bild auf, die restlichen IDs bleiben unangetastet. Die Eingaben pro Bild (Reiter
 „Evaluations“) sind dann ausgeblendet, alle Bilder bekommen die Werte der Config. Nach dem Lauf
-öffnet sich kein Viewer – mit **„Open results…“** einen `<ID>_results`-Ordner wählen. Der Knopf
-öffnet auch Ergebnisse früherer Läufe.
+öffnet der Viewer (Haken „Open viewer after the run“ bzw. Knopf „Open viewer“) die `<ID>_results`
+aller IDs dieses Laufs. Später mit **„Open results…“** den Ausgabeordner wählen: Der Viewer öffnet alle
+`<ID>_results`-Ordner darin (Reihenfolge wie beim Lauf) und blättert mit ‹ › durch die Bilder aller
+IDs hintereinander, auch über ID-Grenzen hinweg vorgeladen. Im Kopf steht die ID des gezeigten
+Bildes; Errors, ID values, Settings und Korrekturen gehören immer zu dieser ID (Korrekturen landen
+in deren `<ID>_results`). Wird statt des Ausgabeordners ein einzelner `<ID>_results`-Ordner gewählt,
+öffnet nur dieser. Ohne `input.folders` erwartet der Knopf wie bisher einen `<ID>_results`-Ordner.
+Der Knopf öffnet auch Ergebnisse früherer Läufe.
 
 Jedes Skript zeigt mit `--help` seine Optionen. Häufige:
 

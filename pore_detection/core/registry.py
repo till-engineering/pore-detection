@@ -84,6 +84,12 @@ def discover() -> None:
     _discovered = True
 
 
+def method_class(stage: str, name: str) -> type[Step] | None:
+    """The class registered under `name` (not instantiated), None if unknown."""
+    discover()
+    return _methods[stage].get(name)
+
+
 def create(stage: str, entry: Config) -> Step:
     """Instantiate the method selected by a config entry ({name: ..., <params>})."""
     discover()

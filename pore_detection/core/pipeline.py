@@ -15,7 +15,7 @@ import os
 import sys
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from threading import Event
 from typing import Callable, Iterator
@@ -58,6 +58,7 @@ class RunResult:
     duration_s: float
     cancelled: bool
     device: str                 # "cuda" or "cpu"
+    id_results: list[Path] = field(default_factory=list)   # <ID>_results written by this run, in run order
 
 
 @dataclass
@@ -138,7 +139,7 @@ def run(config: Config, input_path=None, output_dir=None,
         else:
             log.warning("folder %s skipped: no images", folder.name)
     log.info("parent folder %s: %d ID folders", input_dir, len(folders))
-    succeeded, failed, errors, cancelled = 0, 0, [], False
+    succeeded, failed, errors, cancelled, id_results = 0, 0, [], False, []
     for number, folder in enumerate(folders, 1):
         if cancel is not None and cancel.is_set():    # before the ID: its old results stay untouched
             cancelled = True
@@ -160,13 +161,14 @@ def run(config: Config, input_path=None, output_dir=None,
             failed += 1
             continue
         succeeded, failed, errors = succeeded + result.succeeded, failed + result.failed, errors + result.errors
+        id_results.append(result.results_dir)
         if result.cancelled:
             cancelled = True
             break
 
     duration = time.perf_counter() - start
     log.info("%d ID folders: %d images succeeded, %d failed (%.1f s)", len(folders), succeeded, failed, duration)
-    return RunResult(succeeded, failed, errors, output_dir, duration, cancelled, device)
+    return RunResult(succeeded, failed, errors, output_dir, duration, cancelled, device, id_results)
 
 
 def _run_id(config: Config, steps: _Steps, input_dir: Path, output_dir: Path, device: str, gpu: tiling.Gpu | None,
@@ -257,7 +259,7 @@ def _run_id(config: Config, steps: _Steps, input_dir: Path, output_dir: Path, de
 
     duration = time.perf_counter() - start
     log.info("%d of %d images succeeded, %d failed (%.1f s)", len(rows), len(files), len(errors), duration)
-    return RunResult(len(rows), len(errors), errors, results_dir, duration, cancelled, device)
+    return RunResult(len(rows), len(errors), errors, results_dir, duration, cancelled, device, [results_dir])
 
 
 def _process_image(config: Config, steps: _Steps, load: Callable[[], tuple[ImageInfo, np.ndarray, np.ndarray]],
@@ -302,6 +304,9 @@ def _process_image(config: Config, steps: _Steps, load: Callable[[], tuple[Image
         gray = _run_chain(steps.filters, ctx, gray, config, pool, gpu, at)
         mask = _run_chain(steps.detection, ctx, gray, config, pool, gpu, at)
         del gray
+        detector, score_map = steps.detection[-1], None
+        if detector.score_column is not None:   # score map of the detector -> mask (Detector.score_column)
+            score_map, mask = mask, mask >= detector.score_threshold
         mask = mask & ctx.roi_mask              # never a pore in the embedding medium
 
         at("postprocessing.labeling", steps.labeler)
@@ -312,6 +317,10 @@ def _process_image(config: Config, steps: _Steps, load: Callable[[], tuple[Image
             at("postprocessing.label_steps", step)
             _check_scale(step, ctx)
             pores = step.process(ctx, pores)
+        scores = None
+        if score_map is not None:               # mean score of every counted pore, map not kept
+            scores = pore_scores(pores.labels, score_map, detector.score_column)
+            del score_map
 
         at("evaluation")
         evaluators = [step.for_image(recording.key) for step in steps.evaluators]     # per-image inputs
@@ -327,6 +336,7 @@ def _process_image(config: Config, steps: _Steps, load: Callable[[], tuple[Image
                 log.warning("%s: evaluation %s skipped – no sample frame", info.name, step.name)
         at("evaluation")
         per_image, per_pore, images = _merge_results(results)
+        per_pore = add_scores(per_pore, scores)
 
         full_labels = _to_full(pores.labels, info, top, left)
         full_rejected = _to_full(pores.rejected_labels, info, top, left)
@@ -348,6 +358,31 @@ def _process_image(config: Config, steps: _Steps, load: Callable[[], tuple[Image
         picture = lambda: plotting.sample_picture(drawing, full_labels, frame)      # noqa: E731 – only if needed
         writer.write_plots(results_dir / info.name, plotting.render(steps.plots, row, per_pore, picture))
     return _Done(info.name, row, write, excel_layout(steps.evaluators, results))
+
+
+SCORE_BAND_PX = 1024     # rows per step of pore_scores (bounded memory on large images)
+
+
+def pore_scores(labels: np.ndarray, score_map: np.ndarray, column: str) -> pd.DataFrame:
+    """Mean score of every counted pore: pore_id + `column` (rounded to 4 digits)."""
+    size = int(labels.max()) + 1 if labels.size else 1
+    sums, counts = np.zeros(size), np.zeros(size)
+    for y in range(0, len(labels), SCORE_BAND_PX):
+        band = labels[y:y + SCORE_BAND_PX].ravel()
+        sums += np.bincount(band, weights=score_map[y:y + SCORE_BAND_PX].ravel(), minlength=size)
+        counts += np.bincount(band, minlength=size)
+    ids = np.flatnonzero(counts[1:]) + 1
+    return pd.DataFrame({"pore_id": ids.astype(np.int32), column: np.round(sums[ids] / counts[ids], 4)})
+
+
+def add_scores(per_pore: pd.DataFrame, scores: pd.DataFrame | None) -> pd.DataFrame:
+    """Score column(s) joined to the per-pore table on pore_id; without per-pore columns of the
+    evaluation modules the scores alone."""
+    if scores is None:
+        return per_pore
+    if len(per_pore.columns) == 1 and len(per_pore) == 0:
+        return scores
+    return per_pore.merge(scores, on="pore_id", how="left")
 
 
 def _to_full(labels: np.ndarray | None, info: ImageInfo, top: int, left: int) -> np.ndarray:

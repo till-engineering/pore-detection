@@ -22,7 +22,7 @@ area of its own image.
 import numpy as np
 
 from ..core.registry import register
-from .critical_pores import INNER, OUTER, CriticalPores
+from .critical_pores import INNER, OUTER, RANK_AXIS, CriticalPores, ranks
 
 AREA_FILL, STRESS_FILL = "#ced4da", "#495057"   # light / dark gray: the zone colors stay for the frames
 FRAME_LW = 1.4
@@ -38,7 +38,7 @@ class CriticalPoresSplit(CriticalPores):
 
     def plot(self, ax, image, pores, picture=None):
         weighted = pores[self._column(pores)].to_numpy(dtype=float)
-        labels = [str(int(i)) for i in pores["pore_id"]]
+        labels = ranks(weighted)                # 1 = largest contribution, as in critical_pores
         zeta = pores["zeta"].to_numpy(dtype=float)
         measuring = np.full(len(pores), float(image[MEASURING[0]]) + float(image[MEASURING[1]]))
         if picture is not None:
@@ -46,7 +46,7 @@ class CriticalPoresSplit(CriticalPores):
             ax.set_subplotspec(grid[0])
             self._sample(ax.figure.add_subplot(grid[1]), picture, pores, weighted, zeta)
         summary = self._draw_split(ax, weighted, pores["area_px2"].to_numpy(dtype=float), measuring,
-                                   labels, zeta, "pore")
+                                   labels, zeta, RANK_AXIS)
         ax.set_title(f"Critical pores for Φ_q, q = {self.q:g}, area | stress ({len(weighted)} pores){summary}")
 
     def plot_id(self, ax, images, pores):

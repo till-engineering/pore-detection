@@ -1,6 +1,6 @@
 # Interfaces
 
-> Binding specification of all data passed between modules. Interface version: 0.16 (draft)
+> Binding specification of all data passed between modules. Interface version: 0.17 (draft)
 >
 > Rule: a module only receives and returns the types defined here. If a new method needs
 > data that is not defined here, this document and `core/types.py` are changed first.
@@ -33,6 +33,10 @@
 > Changes 0.15 → 0.16: optional `input.views` (two views of one recording, `<recording>_<view>`): the
 > stage `sample` gets the sample view as original, all later stages the pores view; the key of `per_image`
 > and of `for_image()` is then the recording instead of the file name. The types are unchanged.
+> Changes 0.16 → 0.17: optional `Detector.score_column` / `score_threshold`: the detector returns a float32
+> score map 0..1 instead of the mask; core cuts it (`>= score_threshold`) and writes the mean score of every
+> counted pore to `pores.json` under `score_column` (U-Net: `unet_score`). `Detector.detect_mask()` for
+> tools that call a detector directly.
 
 ---
 
@@ -215,6 +219,8 @@ class Filter(Step):
 
 # --- detection: exactly one, delivers everything that may be a pore ---
 class Detector(Step):
+    score_column: str | None = None   # optional: detect returns a float32 score map 0..1 instead of the mask
+    score_threshold: float = 0.5      # core: mask = score >= score_threshold; mean per pore -> pores.json
     def detect(self, ctx: ImageContext, image: ndarray) -> ndarray: ...    # gray in, (H, W) bool out
 
 # --- postprocessing ---

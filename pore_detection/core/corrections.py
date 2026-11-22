@@ -37,7 +37,7 @@ from . import geometry, io, plotting, registry, writer
 from .config import Config
 from .manual_frame import frame_from_clicks, outside
 from .pipeline import (CORE_EXCEL, FRAME_COLUMNS, _bounding_box, _check_scale, _finalize, _merge_results,
-                       excel_layout, frame_columns, frame_from_columns, write_id_plots)
+                       add_scores, excel_layout, frame_columns, frame_from_columns, write_id_plots)
 from .types import FrameMissing, ImageContext, LabeledPores, SampleFrame
 
 MANUAL = "manual"               # filter name of pores rejected by hand
@@ -121,6 +121,9 @@ class Corrections:
         self._automatic: dict[str, tuple[bytes, bytes, dict, SampleFrame | None]] = {}   # image -> automatic
                                                     # state (TIFF bytes, rejected, frame)
         self._image_names: dict[str, set[str]] = {}    # image -> names of evaluation images written so far
+        self._scores: dict[str, pd.DataFrame | None] = {}  # image -> score column of the detector (pore_id +
+                                                    # score) as first read; a new pore (drawn, restored from
+                                                    # the automatic rejected ones) has none
         self._lists: dict[str, list[Correction]] = {}
         self.lock = threading.Lock()                # one action at a time
         self._writer = ThreadPoolExecutor(1, thread_name_prefix="corrections")
@@ -183,6 +186,9 @@ class Session:
             self.current.outside = {p: p in self.current.drawn for p, why in self.current.rejected.items()
                                     if why == (MANUAL, FRAME_REASON)}
         self.state: State | None = None             # after the last action
+        if image not in store._scores:              # the detector's score per pore (Detector.score_column)
+            store._scores[image] = _score_table(writer.read_table(self.folder / writer.PORES_JSON),
+                                                store.config.detection)
 
     # --- tools ---
 
@@ -290,6 +296,8 @@ class Session:
             except FrameMissing:            # as in the run: only this module is left out
                 pass
         per_image, per_pore, images = _merge_results(results)
+        scores = self.store._scores.get(self.image)
+        per_pore = add_scores(per_pore, None if scores is None else scores[scores["pore_id"].isin(ids)])
         self.store.layout.update(excel_layout(self.store.evaluators, results))
         keep = {k: v for k, v in self.row.items() if k in ("image", "path", "draw_path", "pixel_size_um",
                                                              "scale_label", "scale_bar_px", "scale_box_px",
@@ -325,6 +333,14 @@ class Session:
         return State(state.labels, state.rejected_labels, _rejected_table(state.rejected), per_pore, row,
                      frozenset(state.added), frozenset(state.removed),
                      len(self.store._lists.get(self.image, [])), True)
+
+
+def _score_table(per_pore: pd.DataFrame, detection: Config) -> pd.DataFrame | None:
+    """pore_id + score column of the run's detector, if it has one and pores.json carries it."""
+    column = getattr(registry.method_class("detection", detection.name), "score_column", None)
+    if column is None or column not in per_pore.columns:
+        return None
+    return per_pore[["pore_id", column]].copy()
 
 
 def _rejected_table(rejected: dict) -> pd.DataFrame:

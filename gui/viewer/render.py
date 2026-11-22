@@ -30,6 +30,7 @@ class Layers:
     removed: bool          # rejected by hand
     added: bool            # counted by hand
     opacity: float         # of the pore overlays, 0..1
+    fill: bool = True      # light tint inside the pores; False = only the fine border (check window)
 
 
 def compose(base: np.ndarray, masks: dict[str, np.ndarray], sample: np.ndarray, layers: Layers) -> np.ndarray:
@@ -42,15 +43,16 @@ def compose(base: np.ndarray, masks: dict[str, np.ndarray], sample: np.ndarray, 
         for name, color in (("rejected", REJECTED_COLOR), ("removed", REMOVED_COLOR),
                             ("pores", PORE_COLOR), ("added", ADDED_COLOR)):
             if getattr(layers, name):
-                _mark(rgb, masks[name], color, layers.opacity)
+                _mark(rgb, masks[name], color, layers.opacity, layers.fill)
     return rgb
 
 
-def _mark(rgb: np.ndarray, mask: np.ndarray, color: np.ndarray, opacity: float) -> None:
-    """Light tint inside, fine opaque border: the pore itself stays visible."""
+def _mark(rgb: np.ndarray, mask: np.ndarray, color: np.ndarray, opacity: float, fill: bool = True) -> None:
+    """Light tint inside (if fill), fine opaque border: the pore itself stays visible."""
     if not mask.any():
         return
-    _tint(rgb, mask, color, PORE_FILL_ALPHA * opacity)
+    if fill:
+        _tint(rgb, mask, color, PORE_FILL_ALPHA * opacity)
     border = mask & ~cv2.erode(mask.view(np.uint8), BORDER_KERNEL).view(bool)
     _tint(rgb, border, color, opacity)
 

@@ -7,8 +7,11 @@ writes the config: paths and the inputs of the tab "Evaluations" (evaluations.py
 the run only, and recorded in config_used.yaml.
 
 input.folders (parent folder of many IDs): the path is the parent folder, the per-image inputs are
-hidden and no viewer opens after the run. "Open results…" opens the viewer on any existing
-<ID>_results folder – after such a run, or for results of earlier runs.
+hidden; after the run the viewer shows the <ID>_results of all IDs of the run in a row. "Open
+results…" opens the viewer on any existing
+<ID>_results folder – after such a run, or for results of earlier runs. With input.folders in the
+config it asks for the output folder instead and opens every <ID>_results folder in it: one viewer,
+the images of all IDs in a row (as the run went through the ID folders).
 """
 
 import logging
@@ -26,7 +29,7 @@ from gui.launcher.evaluations import EvaluationsTab
 from gui.viewer.data import CONFIG_USED, IMAGES_JSON
 from gui.viewer.window import ViewerWindow
 from pore_detection import (LOG_FORMAT, PROJECT_DIR, Config, Corrections, RunAborted, RunResult, config_path,
-                            find_recordings, load_config, resolve_path, run)
+                            find_recordings, find_results_folders, load_config, resolve_path, run)
 
 log = logging.getLogger("pore_detection")
 
@@ -72,6 +75,20 @@ class _RunWorker(QObject):
             self.finished.emit(result)
 
 
+def _is_results_folder(folder: Path) -> bool:
+    """An <ID>_results folder of a run: the files the viewer needs are there."""
+    return all((folder / name).is_file() for name in (IMAGES_JSON, CONFIG_USED))
+
+
+def _corrections(results_dir: Path) -> Corrections | None:
+    """Manual corrections of one <ID>_results (PLAN.md 7.3); None = that ID read-only in the viewer."""
+    try:
+        return Corrections(results_dir)
+    except Exception:
+        log.warning("corrections not available for %s: %s", results_dir.name, traceback.format_exc())
+        return None
+
+
 class LauncherWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -84,7 +101,6 @@ class LauncherWindow(QMainWindow):
         self._gui_settings: dict = {}     # config.gui of the last run, passed to the viewer
         self._viewer: ViewerWindow | None = None
         self._folders: bool | None = None  # input.folders of the config (None: not read yet)
-        self._run_folders = False         # input.folders of the last run
 
         # paths and evaluation inputs, prefilled from config.yaml
         self.input_edit, self.output_edit = QLineEdit(), QLineEdit()
@@ -115,10 +131,11 @@ class LauncherWindow(QMainWindow):
         self.viewer_button = QPushButton("Open viewer")
         self.cancel_button.setEnabled(False)
         self.viewer_button.setEnabled(False)
-        self.viewer_button.setToolTip("show the results of the last run")
+        self.viewer_button.setToolTip("show the results of the last run (input.folders: of all its IDs)")
         self.viewer_button.clicked.connect(self._open_viewer)
         self.results_button = QPushButton("Open results…")
-        self.results_button.setToolTip("open the viewer on an existing <ID>_results folder")
+        self.results_button.setToolTip("open the viewer on an existing <ID>_results folder "
+                                       "(input.folders: on all <ID>_results folders of an output folder)")
         self.results_button.clicked.connect(self._open_results)
         self.start_button.clicked.connect(self._start)
         self.cancel_button.clicked.connect(self._cancel)
@@ -246,7 +263,6 @@ class LauncherWindow(QMainWindow):
             return
         config = Config(data)
         self._gui_settings = config.to_dict()["gui"]
-        self._run_folders = bool(config.input.folders)
         input_path = Path(self.input_edit.text().strip())
         output_dir = Path(self.output_edit.text().strip())
 
@@ -314,7 +330,7 @@ class LauncherWindow(QMainWindow):
         self._worker.deleteLater()
         self._thread = self._worker = None
         self._set_running(False)
-        if self._last_result is not None and not self._run_folders:   # parent folder: "Open results…"
+        if self._last_result is not None and self._last_result.id_results:   # no ID written: nothing to show
             self.viewer_button.setEnabled(True)
             if self.open_viewer_check.isChecked():
                 self._open_viewer()
@@ -333,40 +349,51 @@ class LauncherWindow(QMainWindow):
 
     @Slot()
     def _open_viewer(self) -> None:
-        """Viewer on the results of the last run."""
+        """Viewer on the results of the last run; input.folders: on the <ID>_results of all its IDs."""
         if self._viewer is not None:
             self._viewer.raise_()
             self._viewer.activateWindow()
             return
-        self._show_viewer(self._last_result.results_dir, self._gui_settings)
+        self._show_viewer(self._last_result.id_results, self._gui_settings)
 
     @Slot()
     def _open_results(self) -> None:
-        """Viewer on an existing <ID>_results folder chosen in a dialog."""
+        """Viewer on an existing <ID>_results folder chosen in a dialog; with input.folders in the
+        config on all <ID>_results folders of the chosen output folder."""
+        self._show_config()                 # input.folders as in the file right now
+        try:
+            config = load_config()
+            gui_settings, folders = config.to_dict()["gui"], bool(config.input.folders)
+        except Exception:                   # broken config: viewer with its defaults, one ID
+            gui_settings, folders = {}, False
         start = self.output_edit.text().strip()
-        folder = QFileDialog.getExistingDirectory(self, "Choose an <ID>_results folder", start)
+        title = "Choose the output folder (all <ID>_results in it)" if folders else "Choose an <ID>_results folder"
+        folder = QFileDialog.getExistingDirectory(self, title, start)
         if not folder:
             return
-        results_dir = Path(folder)
-        missing = [name for name in (IMAGES_JSON, CONFIG_USED) if not (results_dir / name).is_file()]
-        if missing:
-            self._message(f"not a results folder (an <ID>_results folder of a run):\n{results_dir}\n\n"
-                          f"missing: {', '.join(missing)}")
+        chosen = Path(folder)
+        if not folders or _is_results_folder(chosen):   # a single <ID>_results chosen: only that one
+            if not _is_results_folder(chosen):
+                missing = [name for name in (IMAGES_JSON, CONFIG_USED) if not (chosen / name).is_file()]
+                self._message(f"not a results folder (an <ID>_results folder of a run):\n{chosen}\n\n"
+                              f"missing: {', '.join(missing)}")
+                return
+            self._show_viewer([chosen], gui_settings)
             return
-        try:
-            gui_settings = load_config().to_dict()["gui"]
-        except Exception:                   # broken config: viewer with its defaults
-            gui_settings = {}
-        self._show_viewer(results_dir, gui_settings)
+        candidates = find_results_folders(chosen)
+        results_dirs = [path for path in candidates if _is_results_folder(path)]
+        for path in candidates:
+            if path not in results_dirs:
+                self.log_view.appendPlainText(f"skipped {path.name}: not a complete results folder")
+        if not results_dirs:
+            self._message(f"no <ID>_results folders in:\n{chosen}")
+            return
+        self.log_view.appendPlainText(f"viewer: {len(results_dirs)} ID results in {chosen}")
+        self._show_viewer(results_dirs, gui_settings)
 
-    def _show_viewer(self, results_dir: Path, gui_settings: dict) -> None:
+    def _show_viewer(self, results_dirs: Path | list[Path], gui_settings: dict) -> None:
         try:
-            try:
-                corrections = Corrections(results_dir)     # manual corrections (PLAN.md 7.3)
-            except Exception:
-                corrections = None
-                log.warning("corrections not available: %s", traceback.format_exc())
-            self._viewer = ViewerWindow(results_dir, gui_settings, corrections, parent=self)
+            self._viewer = ViewerWindow(results_dirs, gui_settings, _corrections, parent=self)
         except Exception:
             self._message(f"cannot open the viewer:\n{traceback.format_exc()}")
             return

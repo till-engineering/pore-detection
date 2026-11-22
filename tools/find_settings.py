@@ -118,7 +118,7 @@ class Mark:
     def check(self, detector) -> tuple[bool, float]:
         """(correct, agreement of the detected pore with the expected one, IoU 0..1 – 0 for
         microstructure and wrong marks)."""
-        found = detector.detect(self.ctx, self.gray) & self.ctx.roi_mask
+        found = detector.detect_mask(self.ctx, self.gray) & self.ctx.roi_mask
         inside = np.count_nonzero(found & self.inside)
         if self.kind == "microstructure":
             return inside == 0, 0
@@ -265,7 +265,7 @@ class Finder:
             self.overlay.remove()
             self.overlay = None
         elif self.best is not None:
-            found = detector_with(self.config, self.best).detect(self.ctx, self.gray) & self.ctx.roi_mask
+            found = detector_with(self.config, self.best).detect_mask(self.ctx, self.gray) & self.ctx.roi_mask
             layer = np.zeros((*found.shape, 4), np.float32)
             layer[found] = (1.0, 0.85, 0.0, 0.6)                # detected pores: yellow
             self.overlay = self.ax.imshow(layer, interpolation="nearest")

@@ -93,9 +93,20 @@ class Filter(Step):
 # --- detection: exactly one, delivers everything that may be a pore ---
 
 class Detector(Step):
+    # optional score map: with a column name set, detect / detect_gpu return the (H, W) float32 score
+    # 0..1 per pixel instead of the mask; core takes score >= score_threshold as the mask and writes the
+    # mean score of every counted pore to pores.json under this name (e.g. "unet_score")
+    score_column: str | None = None
+    score_threshold: float = 0.5
+
     def detect(self, ctx: ImageContext, image: np.ndarray) -> np.ndarray:
-        """Gray (H, W) float32 in, (H, W) bool out."""
+        """Gray (H, W) float32 in, (H, W) bool out (with score_column: float32 score 0..1)."""
         raise NotImplementedError
+
+    def detect_mask(self, ctx: ImageContext, image: np.ndarray) -> np.ndarray:
+        """detect() as a (H, W) bool mask, also with a score map – for tools that call a detector directly."""
+        result = self.detect(ctx, image)
+        return result >= self.score_threshold if self.score_column is not None else result
 
 
 # --- postprocessing ---

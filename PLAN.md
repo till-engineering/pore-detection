@@ -313,7 +313,8 @@ run(config, input_path=None, output_dir=None, progress=None, cancel=None) -> Run
 - `RunResult`: Anzahl erfolgreich / fehlgeschlagen, Liste der Fehler, Ausgabeordner, Laufzeit
 - `input.folders: true`: `input_path` ist ein Überordner, jeder Unterordner ein ID-Ordner und ein Lauf für
   sich (`<ID>_results/` wie sonst; leere Ordner, `output.dir` und `*_results` übersprungen). Eine
-  gescheiterte ID wird geloggt, die nächste folgt; `RunResult` zählt alle Bilder, `results_dir` = Ausgabeordner
+  gescheiterte ID wird geloggt, die nächste folgt; `RunResult` zählt alle Bilder, `results_dir` = Ausgabeordner,
+  `id_results` = die geschriebenen `<ID>_results/` in Laufreihenfolge (ohne Überordner: nur der eine)
 
 ---
 
@@ -425,7 +426,10 @@ anzupassen**.
 - Nach Abschluss: Viewer mit `<ID>_results/` öffnen (gibt Ergebnisordner + `gui`-Einstellungen mit).
   Checkbox „Open viewer after the run“ (an = öffnet automatisch), zusätzlich Knopf „Open viewer“
 - Knopf „Open results…“: Viewer auf einem bestehenden `<ID>_results/` (Ordnerdialog), auch für frühere Läufe
-- `input.folders: true`: Eingabe = Überordner, Tabellen pro Bild ausgeblendet, nach dem Lauf kein Viewer
+- `input.folders: true`: Eingabe = Überordner, Tabellen pro Bild ausgeblendet, nach dem Lauf Viewer auf
+  den `<ID>_results/` aller IDs des Laufs (`RunResult.id_results`). „Open results…“ fragt dann nach dem Ausgabeordner und öffnet **alle** `<ID>_results/` darin in einem
+  Viewer: ‹ › blättert durch die Bilder aller IDs hintereinander (wie der Lauf durch die ID-Ordner),
+  Kopf, Errors, ID values, Settings und Korrekturen gehören zur ID des gezeigten Bildes
 - Solange ein Viewer offen ist, ist „Start“ gesperrt (ein neuer Lauf überschreibt `<ID>_results/`)
 - Ruft nur `run()` der öffentlichen API auf
 
@@ -779,7 +783,8 @@ Auswertungsmodul `evaluation/pore_index.py` (Stufe `evaluation`, braucht das Pro
   pro Dekade“); Werte > 100 % sind möglich, wenn die Poren enger als eine Dekade liegen. Im Histogramm
   auf einer **zweiten y-Achse rechts** (andere Einheit als die Balken).
 - **`critical_pores`** (2026-10-18): Pareto der maßgebenden Poren – Balken = Beitrag A g^q der Top-Poren
-  (Nummer wie in der Porenliste, Farbe = Zone außen/innen), Summenkurve auf zweiter Achse; Parameter
+  (pro Bild nur zur Darstellung neu durchnummeriert: 1 = größter Beitrag bis `top`, auf Achse und Probenbild
+  gleich; `pore_id` bleibt unverändert, über die ganze ID weiter Bild/Pore; Farbe = Zone außen/innen), Summenkurve auf zweiter Achse; Parameter
   `q` (einer der q_values) und `top`. Über die ID: Poren aller Schliffe, beschriftet Bild/Pore.
   Rechts daneben die **Probe** (gerade ausgerichtet über das KOS, Außenseite oben, auf die Probe
   zugeschnitten mit schmalem Rand Einbettmittel), die Top-Poren eingekreist und mit ihrer Nummer
