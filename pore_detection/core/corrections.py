@@ -12,6 +12,8 @@ Tools (coordinates in pixels of the full image):
                     the frame columns, the evaluation and the plots follow it. Every counted pore with
                     a pixel outside the rectangle is rejected (drawn ones too, they are kept); only the
                     newest frame counts, pores an earlier frame rejected come back first
+    set_scale(um_per_px)  scale set by hand: replaces the detected one for the evaluation (values in
+                    µm, frame columns); detection and filters keep the result of the run
     undo(), reset() the last / all corrections of the image are taken back
 
 A pore is addressed by a point (within SEARCH_RADIUS_PX), as in Pore_Detection_V2. After every
@@ -48,11 +50,14 @@ SEARCH_RADIUS_PX = 3            # a click this close to a pore still hits it
 @dataclass(frozen=True)
 class Correction:
     action: str                                 # restore | remove | draw | area | frame (x, y = new origin)
-    x: float
+    x: float                                    # | scale (x, y unused)
     y: float
     points: tuple[tuple[float, float], ...] = ()
+    um_per_px: float | None = None              # scale set by hand (action scale)
 
     def to_dict(self) -> dict:
+        if self.action == "scale":
+            return {"action": self.action, "um_per_px": float(self.um_per_px)}
         data = {"action": self.action, "x": round(float(self.x), 2), "y": round(float(self.y), 2)}
         if self.points:
             data["points"] = [[round(float(px), 2), round(float(py), 2)] for px, py in self.points]
@@ -80,10 +85,13 @@ class _Labels:
     frame: SampleFrame | None = None            # sample frame (automatic or set by hand), None = none
     outside: dict[int, bool] = field(default_factory=dict)  # rejected by the frame set by hand ->
                                                 # was counted by hand before (comes back so)
+    pixel_size_um: float | None = None          # scale (detected or set by hand), None = unknown
+    scale_by_hand: bool = False
 
     def copy(self) -> "_Labels":
         return _Labels(self.labels.copy(), self.rejected_labels.copy(), dict(self.rejected),
-                       set(self.added), set(self.removed), set(self.drawn), self.frame, dict(self.outside))
+                       set(self.added), set(self.removed), set(self.drawn), self.frame, dict(self.outside),
+                       self.pixel_size_um, self.scale_by_hand)
 
 
 @dataclass(frozen=True)
@@ -118,8 +126,8 @@ class Corrections:
         self.evaluators = [registry.create("evaluation", e) for e in config.evaluation]
         self.plots = [registry.create("plots", e) for e in config.plots]
         self.layout: dict[str, str | None] = dict(CORE_EXCEL)   # column -> sheet of the results Excel
-        self._automatic: dict[str, tuple[bytes, bytes, dict, SampleFrame | None]] = {}   # image -> automatic
-                                                    # state (TIFF bytes, rejected, frame)
+        self._automatic: dict[str, tuple] = {}     # image -> automatic state (TIFF bytes, rejected, frame,
+                                                    # pixel size, scale set by hand)
         self._image_names: dict[str, set[str]] = {}    # image -> names of evaluation images written so far
         self._scores: dict[str, pd.DataFrame | None] = {}  # image -> score column of the detector (pore_id +
                                                     # score) as first read; a new pore (drawn, restored from
@@ -174,7 +182,8 @@ class Session:
         self.current = _Labels(_read(self.folder / writer.LABELS_TIF, cv2.IMREAD_UNCHANGED),
                                _read(self.folder / writer.REJECTED_LABELS_TIF, cv2.IMREAD_UNCHANGED),
                                _rejected_dict(writer.read_table(self.folder / writer.REJECTED_JSON)),
-                               frame=frame_from_columns(self.row))
+                               frame=frame_from_columns(self.row), pixel_size_um=_number(self.row.get("pixel_size_um")),
+                               scale_by_hand=_flag(self.row.get("scale_by_hand")))
         saved_path = self.folder / writer.CORRECTIONS_JSON
         if store._automatic.get(image):             # corrected before in this viewer: the exact state again
             with store.lock:                        # (who was rejected by the frame is not in the files)
@@ -186,6 +195,9 @@ class Session:
             self.current.outside = {p: p in self.current.drawn for p, why in self.current.rejected.items()
                                     if why == (MANUAL, FRAME_REASON)}
         self.state: State | None = None             # after the last action
+        self.defer_plots = False                    # True (check window): actions draw no plots, render_plots()
+                                                    # draws those of the image and the ID once at the end
+        self.plots_stale = False                    # actions since the plots were last drawn
         if image not in store._scores:              # the detector's score per pore (Detector.score_column)
             store._scores[image] = _score_table(writer.read_table(self.folder / writer.PORES_JSON),
                                                 store.config.detection)
@@ -209,6 +221,13 @@ class Session:
         points = tuple((float(px), float(py)) for px, py in points)
         origin_y, origin_x = frame_from_clicks(points).origin_px
         return self._do(Correction("frame", origin_x, origin_y, points))
+
+    def set_scale(self, um_per_px: float) -> State:
+        """Scale set by hand in µm per px; ValueError if it is not a positive number (nothing changes)."""
+        value = float(um_per_px)
+        if not value > 0 or value == float("inf"):
+            raise ValueError("the scale must be a positive number of µm per px")
+        return self._do(Correction("scale", 0.0, 0.0, um_per_px=value))
 
     def undo(self) -> State:
         corrections = self.store._lists.get(self.image, [])
@@ -239,8 +258,9 @@ class Session:
 
     def _from_automatic(self, corrections: list[Correction]) -> tuple["_Labels", list[Correction]]:
         """The automatic state with `corrections` applied, and those of them that changed something."""
-        labels, rejected_labels, rejected, frame = self.store._automatic[self.image]
-        current = _Labels(_decode(labels), _decode(rejected_labels), dict(rejected), frame=frame)
+        labels, rejected_labels, rejected, frame, pixel_size_um, scale_by_hand = self.store._automatic[self.image]
+        current = _Labels(_decode(labels), _decode(rejected_labels), dict(rejected), frame=frame,
+                          pixel_size_um=pixel_size_um, scale_by_hand=scale_by_hand)
         return current, [c for c in corrections if _apply(current, c, self.roi)]
 
     def _remember_automatic(self) -> None:
@@ -248,7 +268,8 @@ class Session:
         if self.image not in self.store._automatic:
             self.store._automatic[self.image] = ((self.folder / writer.LABELS_TIF).read_bytes(),
                                                  (self.folder / writer.REJECTED_LABELS_TIF).read_bytes(),
-                                                 dict(self.current.rejected), self.current.frame)
+                                                 dict(self.current.rejected), self.current.frame,
+                                                 self.current.pixel_size_um, self.current.scale_by_hand)
 
     def _unchanged(self) -> State:
         if self.state is None:
@@ -260,8 +281,10 @@ class Session:
         changes), then write everything in the background."""
         snapshot = self.current.copy()
         row, per_pore, images = self._evaluate(snapshot)
-        picture = lambda: plotting.sample_picture(self.drawing, snapshot.labels, frame_from_columns(row))  # noqa: E731
-        plots = plotting.render(self.store.plots, row, per_pore, picture)      # the viewer shows them at once
+        if self.defer_plots:                        # only pores and values now (matplotlib takes seconds)
+            plots, self.plots_stale = None, True
+        else:
+            plots = self._plots(snapshot.labels, row, per_pore)                 # the viewer shows them at once
         self.row = row
         self.state = replace(self._snapshot(row, per_pore, snapshot), plots=plots, images=images)
         corrections = [c.to_dict() for c in self.store._lists.get(self.image, [])]
@@ -273,14 +296,38 @@ class Session:
                                                stale))
         return self.state
 
+    def render_plots(self) -> dict[str, bytes] | None:
+        """After deferred actions (defer_plots): draw the plots of the image (written before this
+        returns) and of the ID (written in the background after the pending writes); None = nothing
+        to do. PNG bytes per plot of the image."""
+        with self.store.lock:
+            if not self.plots_stale or self.state is None:
+                return None
+            labels, row, per_pore = self.state.labels, self.row, self.state.per_pore
+            plots = self._plots(labels, row, per_pore)
+            writer.write_plots(self.folder, plots)
+            self.state = replace(self.state, plots=plots)
+            self.plots_stale = False
+            store = self.store
+
+            def id_plots():
+                if (store.results_dir / writer.ID_VALUES_JSON).exists():   # only after a complete run
+                    write_id_plots(store.plots, writer.read_table(store.results_dir / writer.IMAGES_JSON),
+                                   store.results_dir)
+            store._submit(id_plots)
+            return plots
+
+    def _plots(self, labels: np.ndarray, row: dict, per_pore: pd.DataFrame) -> dict[str, bytes]:
+        picture = lambda: plotting.sample_picture(self.drawing, labels, frame_from_columns(row))  # noqa: E731
+        return plotting.render(self.store.plots, row, per_pore, picture)
+
     def _evaluate(self, state: "_Labels"):
         top, bottom, left, right = self.top, self.bottom, self.left, self.right
         labels = state.labels[top:bottom, left:right]
         pixels = geometry.pixels(labels)
         ids = np.flatnonzero(np.bincount(pixels[1], minlength=1)).astype(np.int32)
         ctx = ImageContext(replace(self.info, offset_px=(top, left)), self.original[top:bottom, left:right],
-                           self.roi[top:bottom, left:right], _number(self.row.get("pixel_size_um")),
-                           state.frame)
+                           self.roi[top:bottom, left:right], state.pixel_size_um, state.frame)
         pores = LabeledPores(labels, len(ids), pd.DataFrame({"pore_id": ids}),
                              state.rejected_labels[top:bottom, left:right], _rejected_table(state.rejected))
         pores.__dict__["pixels"] = pixels           # fill the cache: no second pass over the image
@@ -302,19 +349,22 @@ class Session:
         keep = {k: v for k, v in self.row.items() if k in ("image", "path", "draw_path", "pixel_size_um",
                                                              "scale_label", "scale_bar_px", "scale_box_px",
                                                              *FRAME_COLUMNS)}
-        keep.update(frame_columns(state.frame, _number(self.row.get("pixel_size_um"))))
+        keep.update(pixel_size_um=state.pixel_size_um, scale_by_hand=state.scale_by_hand)
+        keep.update(frame_columns(state.frame, state.pixel_size_um))
         row = {**keep, "manual_corrections": len(self.store._lists.get(self.image, [])), **per_image}
         return row, per_pore, images
 
     def _write(self, state: "_Labels", rejected: pd.DataFrame, row: dict, per_pore: pd.DataFrame,
-               images: dict, plots: dict[str, bytes], corrections: list[dict], stale: set[str]) -> None:
-        """Background job: image folder, then images.json, Excel and ID values."""
+               images: dict, plots: dict[str, bytes] | None, corrections: list[dict], stale: set[str]) -> None:
+        """Background job: image folder, then images.json, Excel and ID values (plots None: deferred,
+        neither those of the image nor of the ID are drawn)."""
         store = self.store
         writer.write_pores(self.folder, self.drawing, state.labels, state.rejected_labels, rejected, per_pore,
                            images, store.config.output.save_full_overlay)
         for name in stale:                          # an evaluation image the module no longer returns
             (self.folder / (name if name.endswith(".jpg") else f"{name}.tif")).unlink(missing_ok=True)
-        writer.write_plots(self.folder, plots)
+        if plots is not None:
+            writer.write_plots(self.folder, plots)
         writer.write_corrections(self.folder, self.image, corrections, sorted(state.added), sorted(state.removed),
                                  sorted(state.drawn))
         table = writer.read_table(store.results_dir / writer.IMAGES_JSON)
@@ -325,7 +375,7 @@ class Session:
         if (store.results_dir / writer.ID_VALUES_JSON).exists():       # only after a complete run
             id_values = _finalize(store.evaluators, per_image, store.results_dir)
         writer.write_summary(store.results_dir, self.info.image_id, per_image, errors, id_values, store.layout)
-        if id_values is not None:
+        if id_values is not None and plots is not None:
             write_id_plots(store.plots, per_image, store.results_dir)
 
     def _snapshot(self, row: dict, per_pore: pd.DataFrame, state: "_Labels | None" = None) -> State:
@@ -367,6 +417,12 @@ def _apply(state: _Labels, c: Correction, roi: np.ndarray) -> bool:
             state.removed.discard(pore)             # back to the automatic state
         else:
             state.added.add(pore)
+        return True
+
+    if c.action == "scale":
+        if state.scale_by_hand and state.pixel_size_um == c.um_per_px:
+            return False                            # the same value again: nothing changes
+        state.pixel_size_um, state.scale_by_hand = c.um_per_px, True
         return True
 
     if c.action == "frame":
@@ -522,3 +578,8 @@ def _rejected_dict(table: pd.DataFrame) -> dict[int, tuple[str, str]]:
 
 def _number(value) -> float | None:
     return None if value is None or (isinstance(value, float) and value != value) else float(value)
+
+
+def _flag(value) -> bool:
+    """A True/False column of images.json (missing or empty in older runs = False)."""
+    return isinstance(value, (bool, np.bool_)) and bool(value)

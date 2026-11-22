@@ -23,6 +23,10 @@ in fester Größe nacheinander ansehen und direkt darin korrigieren.
 - „Check“ öffnet ein **modales** Fenster für das gezeigte Bild. Der Viewer ist solange gesperrt.
 - Korrekturen im Fenster gehen nicht live in den Viewer: Fenster schließen („Done“ oder X, beides
   gleich, Korrekturen bleiben immer) → der Viewer lädt das Bild neu.
+- Pro Klick werden nur Poren und Werte neu gerechnet und geschrieben (Poren-Dateien, `images.json`,
+  Excel, ID-Werte), **keine Plots** (`Session.defer_plots`; matplotlib braucht ~30 s pro Klick).
+  Nach dem Schließen zeichnet der Viewer die Plots des Bildes und der ID einmal im Hintergrund
+  (`Session.render_plots`, Hinweis „drawing plots …“) und blendet sie ein.
 
 ### Korrekturfenster
 
@@ -30,8 +34,12 @@ in fester Größe nacheinander ansehen und direkt darin korrigieren.
   Nummer und Score der Pore in der Mitte („Pore 57 · score 0.62“).
 - Werkzeugleiste: „+“, „−“, „✎“, „⬚“, „↶“ (Strg+Z). Kein Zoom, kein Rahmen-Werkzeug, kein Reset.
 - Ausschnitt in fester Größe `gui.check_patch_px` (Standard 1000 × 1000 px), immer ganz sichtbar.
-  - Alle gezählten Poren nur mit feinem rotem Umriss (ohne Füllung), Deckkraft per Regler.
-  - Pore in der Mitte (Modus 1) nicht extra markiert: sie liegt immer in der Mitte des Ausschnitts.
+  - Alle gezählten Poren nur mit feinem rotem Umriss (ohne Füllung), Deckkraft per Regler (Standard 100 %).
+    Die Umrisse liegen als Vektor-Ebene über dem Bild (nicht eingebrannt), genau auf den Pixelkanten,
+    auf dem Bildschirm immer gleich dünn (1 px, etwas blasser).
+  - Pore in der Mitte (Modus 1) genauso dünn, aber neongrün (`#39ff14`, volle Farbe).
+  - Mit „+“ / „−“ leuchtet die Pore, die ein Klick treffen würde, in der Farbe des Werkzeugs auf
+    (breiter, halbtransparenter Rand wie im Viewer).
   - Verworfene Poren per Haken ein-/ausblendbar (Standard an), Farbe wie im Viewer.
   - Von Hand hinzugefügte Poren in der Farbe des Viewers; von Hand entfernte Poren werden gar nicht mehr umrandet.
   - Am Bildrand mit Grau aufgefüllt, die Pore bleibt in der Mitte.

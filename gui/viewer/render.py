@@ -9,7 +9,7 @@ from PySide6.QtGui import QImage, QPixmap, QTransform
 
 PORE_COLOR = np.array([255, 26, 26], dtype=np.float32)       # RGB
 REJECTED_COLOR = np.array([184, 114, 43], dtype=np.float32)  # rejected by a filter
-REMOVED_COLOR = np.array([214, 51, 112], dtype=np.float32)   # rejected by hand
+REMOVED_COLOR = np.array([255, 230, 0], dtype=np.float32)    # rejected by hand (style.REMOVED)
 ADDED_COLOR = np.array([12, 133, 153], dtype=np.float32)     # counted by hand (restored or drawn)
 EMBEDDING_COLOR = np.array([124, 92, 214], dtype=np.float32)
 EMBEDDING_ALPHA = 0.45

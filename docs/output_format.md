@@ -93,6 +93,7 @@ it); the values of the evaluation modules come first, then the columns of core.
 | `path` | source file (with `input.views`: the pores view) |
 | `draw_path` | image the overlays, the frame picture and the viewer show (`output.draw_on`) |
 | `pixel_size_um` | scale in µm per px, `null` = unknown |
+| `scale_by_hand` | `true` = `pixel_size_um` set by hand in the viewer (correction `scale`), else `false` |
 | `scale_label` | text read from the scale label, `null` = none |
 | `scale_bar_px` | measured scale bar `[top, bottom, left, right]` (bottom/right exclusive), `null` = none |
 | `scale_box_px` | scale overlay `[top, bottom, left, right]` = bounding box of `scale_mask`, `null` = none |
@@ -113,7 +114,7 @@ only. Every sheet starts with `image`, one row per image, header row frozen.
 |-------|---------|
 | `Pores` | values of `porosity` (count, areas, porosity), `frame_thickness_*`, `frame_length_*`, `manual_corrections` |
 | *module sheets* | values of each evaluation module on its `excel_sheet` (default: module name), e.g. `Stress` for `pore_index` |
-| `Detection` | `pixel_size_um`, `scale_label`, `frame_angle_deg`, `frame_wedge_deg` |
+| `Detection` | `pixel_size_um`, `scale_label`, `scale_by_hand`, `frame_angle_deg`, `frame_wedge_deg` |
 | `ID` | `id_values` (finalize) |
 | `Errors` | `errors` |
 
@@ -167,5 +168,8 @@ Excel file and `id_values.json`. A new run starts again from the automatic resul
 `frame` (sample frame set by hand from five clicks `points`, PLAN.md 7.11; `x`, `y` = its origin;
 the `frame_*` columns of `images.json` hold the new frame, `frame_wedge_deg` empty; every counted pore
 with a pixel outside the rectangle is rejected with filter `manual`, reason `outside the sample frame`,
-and listed in `removed`; only the newest frame counts).
+and listed in `removed`; only the newest frame counts),
+`scale` (scale set by hand, `{"action": "scale", "um_per_px": 0.5}`, no `x` / `y`; replaces
+`pixel_size_um` for the evaluation, `scale_by_hand` becomes `true`; detection and filters are not
+computed again; only the newest scale counts).
 `added`: pore ids counted by hand, `removed`: rejected by hand, `drawn`: drawn by hand.

@@ -13,7 +13,7 @@ DARK = {
 PORE = "#ff1a1a"
 EMBEDDING = "#7c5cd6"
 REJECTED = "#b8722b"
-REMOVED = "#d63370"
+REMOVED = "#ffe600"        # rejected by hand: bright yellow
 ADDED = "#0c8599"
 FRAME = "#f08c00"          # sample frame (coordinate system)
 
@@ -54,8 +54,9 @@ def stylesheet(c: dict) -> str:
     #toolButton:disabled {{ color: {c['faint']}; background: transparent; border-color: transparent; }}
     #toolButton:checked {{ color: #ffffff; border-color: transparent; font-weight: 600; }}
     #toolButton[tool="restore"]:checked {{ background: {ADDED}; }}
-    #toolButton[tool="remove"]:checked, #toolButton[tool="area"]:checked {{ background: {REMOVED}; }}
+    #toolButton[tool="remove"]:checked, #toolButton[tool="area"]:checked {{ background: {REMOVED}; color: #1a1a1a; }}
     #toolButton[tool="draw"]:checked {{ background: {c['accent']}; }}
+    #toolButton[tool="frame"]:checked {{ background: {FRAME}; }}
     #toolLine {{ background: {c['line']}; min-height: 1px; max-height: 1px; }}
     #loupeColumn {{ background: {c['surface']}; border-left: 1px solid {c['line']}; }}
     #infoBar {{ background: {c['surface2']}; border-top: 1px solid {c['line']}; }}
@@ -63,6 +64,8 @@ def stylesheet(c: dict) -> str:
 
     #tileGrid {{ background: {c['line']}; border-bottom-left-radius: 10px; border-bottom-right-radius: 10px; }}
     #tile {{ background: {c['surface']}; }}
+    #tile[corner="bottomLeft"] {{ border-bottom-left-radius: 9px; }}
+    #tile[corner="bottomRight"] {{ border-bottom-right-radius: 9px; }}
     #tileValue {{ font-family: {MONO}; font-size: 13pt; font-weight: 500; }}
     #tileLabel {{ color: {c['muted']}; font-size: 8.5pt; }}
 
@@ -97,3 +100,10 @@ def stylesheet(c: dict) -> str:
     QToolTip {{ background: {c['surface']}; color: {c['ink']}; border: 1px solid {c['line']}; padding: 4px; }}
     QDialog {{ background: {c['surface']}; }}
     """
+
+
+def tool_icon(name: str, c: dict, tool: str | None = None):
+    """Icon of a tool button in the colours of theme `c`; while checked white on the tool's colour
+    (dark on the yellow of remove / area)."""
+    from .icons import icon
+    return icon(name, c["ink"], c["faint"], "#1a1a1a" if tool in ("remove", "area") else "#ffffff")

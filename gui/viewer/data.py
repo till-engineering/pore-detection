@@ -118,6 +118,7 @@ class Scale:
     label: str | None                           # text read from the scale label
     bar: tuple[int, int, int, int] | None       # measured bar: top, bottom, left, right
     box: tuple[int, int, int, int] | None       # scale overlay (not sample)
+    by_hand: bool = False                       # um_per_px set by hand in the viewer (corrections)
 
     @classmethod
     def from_row(cls, row: dict) -> "Scale":
@@ -129,7 +130,9 @@ class Scale:
             v = value(key)
             return tuple(int(x) for x in v) if v is not None else None
         um = value("pixel_size_um")
-        return cls(float(um) if um is not None else None, value("scale_label"), box("scale_bar_px"), box("scale_box_px"))
+        by_hand = value("scale_by_hand")
+        return cls(float(um) if um is not None else None, value("scale_label"), box("scale_bar_px"), box("scale_box_px"),
+                   isinstance(by_hand, (bool, np.bool_)) and bool(by_hand))
 
 
 @dataclass(frozen=True)
@@ -312,6 +315,7 @@ def apply_state(image: Image, state) -> None:
     if getattr(state, "plots", None) is not None:     # drawn again after the change
         image.plots = state.plots
     image.frame = Frame.from_row(state.row)          # may be set by hand (PLAN.md 7.11)
+    image.scale = Scale.from_row(state.row)          # may be set by hand as well
     if getattr(state, "images", None) is not None:    # images of the evaluation modules after the change
         image.stress_map = state.images.get(Path(STRESS_FIELD_TIF).stem)
     image._boxes.clear()

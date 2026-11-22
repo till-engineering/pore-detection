@@ -461,13 +461,16 @@ anzupassen**.
 4. Layout (Skizze `temporäre Sachen/Layout_grob.png`): oben links Block aus Werkzeugspalte |
    Bild | optische Kontrolle (Lupe der ausgewählten Pore mit Zoom); oben rechts Kennzahlen,
    darunter Masken/Ebenen über dem Bild; unten zwei Plätze für Graphen + Porenliste.
-5. Werkzeugspalte: Zoom +/−/Einpassen; Korrekturwerkzeuge nach 7.3.
+5. Werkzeugspalte: Zoom +/−/Einpassen; Korrekturwerkzeuge nach 7.3. Symbole: Lucide-Icons
+   (`gui/viewer/icons/`, ISC-Lizenz liegt bei), zur Laufzeit in den Farben des Themes eingefärbt
+   (`gui/viewer/icons.py`); Rahmen setzen = `axis-3d`. Seit 2026-11-22, vorher Unicode-Zeichen.
 6. Optische Kontrolle (Lupe): Klick auf eine Pore im Bild oder in der Liste wählt sie aus; Lupe
    zeigt das Original in voller Auflösung mit Umgebung (Regler „Umfeld“), die Pore nur als
    **feine Umrisslinie** (keine Füllung); darunter die Werte der Pore.
-7. Kennzahlen: feste Auswahl, **fest im Code** des Viewers (nicht automatisch, nicht in der
-   Config). Vorerst `porosity_percent`, `pore_count`, `pore_area_px2`, `sample_area_px2`;
-   andere Werte werden später im Code eingetragen.
+7. Kennzahlen: feste Auswahl, **fest im Code** des Viewers (`key_figures`): `porosity_percent`,
+   `pore_count`, Porenindex `phi_q` für das q aus `gui.key_figure_q` (Standard 2; hat der Lauf kein
+   `phi_q` für dieses q, z. B. ohne `pore_index` oder ohne Rahmen: `pore_area_px2`), Probenfläche
+   (`sample_area_px2`, mit Maßstab in mm²). Geändert 2026-11-22.
 8. Die ganze Seite ist **vertikal scrollbar** (wie V2): oben Bild/Lupe/Kennzahlen/Masken, darunter
    die Plots und die Porenliste (rechts). Der Bereich unter dem Bild ist ein **Raster mit zwei
    Spalten nur für Plots**, das je nach Anzahl der Plots nach unten wächst.
@@ -477,9 +480,9 @@ anzupassen**.
     (Probenmaske; dafür schreibt die Pipeline die ROI-Maske zusätzlich in die Ausgabe). Später
     weitere, z. B. verworfene Poren, Maßstab. Keine reine Masken-Ansicht mehr.
     Dazu (7.5) die Ebene **Sample frame** (Proben-KOS als Vektorgrafik).
-    Direkt über den Checkboxen: Knöpfe für das **Grundbild** – Original / Untergrund.
-    - Untergrund = geschätzte Hintergrundhelligkeit eines künftigen Vorfilters
-      (Hintergrundkorrektur); bis dahin ist der Knopf ausgegraut.
+    Grundbild immer das Original (Knöpfe Original / Untergrund entfernt 2026-11-22). Farben:
+    Poren rot, von Hand entfernt grell gelb (`#ffe600`, vorher lila). Die Ebenen-Karte ist nur so
+    hoch wie ihre Zeilen, darunter füllt die Porenliste („Pores by area“) die rechte Spalte.
     - Kontrast (Graustufenbild nach allen Vorfiltern) vorerst **entfernt**: gab es nur als
       Vorschaubild; ggf. später als `contrast.tif` in voller Auflösung.
 11. Plots: Raster mit zwei Spalten, ein Platz pro Plot des Laufs (Reihenfolge der Config). Die
@@ -846,6 +849,19 @@ Spannungsfelds sind dasselbe (ξ, ζ = 0 … 1).
   → Korrektursitzung `set_frame` (`core/corrections.py`) → Viewer (`render.frame_preview`,
   Modus `frame` in `image_view.py`, Werkzeug in `window.py`). Der Viewer importiert weiter nichts
   aus `pore_detection`. Kein neues Datenfeld, darum bleibt die Schnittstellen-Version gleich.
+
+### 7.12 Maßstab von Hand setzen (umgesetzt 2026-11-22)
+
+- Im Viewer unter „Scale – optical check“: Feld „Scale“ (µm/px, Komma oder Punkt) und „Set“ (oder Enter).
+  Der Wert ersetzt den erkannten Maßstab des Bildes.
+- **Korrektur wie die anderen (7.3):** Eintrag `scale` (`um_per_px`) in `corrections.json`, zählt in
+  `manual_corrections`, Strg+Z / „Alle Korrekturen verwerfen“ holt den erkannten zurück, ein neuer Lauf
+  nimmt wieder den erkannten. Es gilt der zuletzt gesetzte Wert.
+- Neu gerechnet werden: `pixel_size_um`, Werte in µm / µm² der Poren und des Bildes, `frame_*_um`,
+  Auswertungen, Plots. Neue Spalte `scale_by_hand` (`true` = von Hand gesetzt, Blatt „Detection“).
+- **Grenze:** Erkennung, Vorverarbeitung und Filter werden nicht neu gerechnet. µm-Parameter dort
+  (z. B. `edge_um`, `max_width_um`) bleiben mit dem erkannten Maßstab gerechnet. Ein Bild, das ohne
+  Maßstab fehlgeschlagen ist, lässt sich so nicht retten.
 
 ## 8. Ausgabe
 

@@ -435,6 +435,7 @@ def _scale_columns(scale: ScaleResult) -> dict:
         "scale_label": scale.label,
         "scale_bar_px": list(scale.bar_px) if scale.bar_px is not None else None,
         "scale_box_px": box,
+        "scale_by_hand": False,         # True after a scale set by hand in the viewer (corrections)
     }
 
 
@@ -442,7 +443,7 @@ def _scale_columns(scale: ScaleResult) -> dict:
 CORE_EXCEL: dict[str, str | None] = {
     "image": writer.PORES_SHEET, "path": None, "draw_path": None,
     "pixel_size_um": writer.DETECTION_SHEET, "scale_label": writer.DETECTION_SHEET,
-    "scale_bar_px": None, "scale_box_px": None,
+    "scale_bar_px": None, "scale_box_px": None, "scale_by_hand": writer.DETECTION_SHEET,
     "frame_origin_px": None, "frame_angle_deg": writer.DETECTION_SHEET, "frame_wedge_deg": writer.DETECTION_SHEET,
     "frame_thickness_px": writer.PORES_SHEET, "frame_thickness_um": writer.PORES_SHEET,
     "frame_length_px": writer.PORES_SHEET, "frame_length_um": writer.PORES_SHEET,

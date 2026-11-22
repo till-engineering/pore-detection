@@ -145,3 +145,4 @@ gui:
   theme: system            # system | light | dark
   check_patch_px: 1000      # check window: edge of the patch / tile in image px
   check_tile_overlap: 0.1   # check window, mode tiles: overlap, share of the tile edge
+  key_figure_q: 2           # viewer, key figures: q of the pore index phi_q (pore area if the run has none)

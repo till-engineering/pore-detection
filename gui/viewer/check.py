@@ -19,28 +19,33 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
 
 import numpy as np
-from PySide6.QtCore import QObject, QRectF, Qt, Signal
-from PySide6.QtGui import QColor, QKeySequence, QPainter, QPen, QShortcut
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFrame, QHBoxLayout, QLabel,
+from PySide6.QtCore import QObject, QRectF, QSize, Qt, Signal
+from PySide6.QtGui import QColor, QKeySequence, QPainter, QPainterPath, QPen, QShortcut
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFrame, QGraphicsPathItem, QHBoxLayout, QLabel,
                                QPushButton, QSlider, QVBoxLayout)
 
 from . import style
 from .data import Image
+from .icons import ICON_PX
 from .image_view import ImageView
-from .render import Layers, compose, to_pixmap
+from .render import outline, to_pixmap
 
 SCORE_COLUMN = "unet_score"     # Detector.score_column of the U-Net
 PAD_GRAY = 128                  # patch area outside the image
 OVERVIEW_PX = 260               # long edge of the overview
 PICK_RADIUS_SCREEN_PX = 12      # "+" / "−": a click this close to a pore (on screen) picks it
 VISITED_COLOR = QColor(40, 190, 70)     # overview: patches already looked at
-OPACITY = 60                    # start value of the outline opacity in %
-# correction tools: key -> (symbol, tooltip, colour of the drawn outline, view mode)
+OPACITY = 100                   # start value of the outline opacity in % (thin vector lines: full by default)
+OUTLINE_PX = 1.0                # outlines of the other pores, screen px at every zoom
+CENTRE_COLOR = "#39ff14"        # outline of the centre pore (score mode): neon green, as thin as the others
+HOVER_ALPHA = 110               # glow of the pore a click would hit (as in the viewer)
+OTHER_ALPHA = 0.7               # the other pores a little paler than the centre pore
+# correction tools: key -> (icon, tooltip, colour of the drawn outline, view mode)
 TOOLS = {
-    "restore": ("+", "count a rejected pore (click on it)", "#0c8599", "click"),
-    "remove": ("−", "reject a counted pore (click on it); a drawn pore is deleted", "#d63370", "click"),
-    "draw": ("✎", "draw a missed pore (hold the mouse button and trace its outline)", None, "outline"),
-    "area": ("⬚", "reject every counted pore lying completely inside the traced area", "#d63370", "outline"),
+    "restore": ("circle-plus", "count a rejected pore (click on it)", "#0c8599", "click"),
+    "remove": ("circle-minus", "reject a counted pore (click on it); a drawn pore is deleted", style.REMOVED, "click"),
+    "draw": ("pencil", "draw a missed pore (hold the mouse button and trace its outline)", None, "outline"),
+    "area": ("square-dashed", "reject every counted pore lying completely inside the traced area", style.REMOVED, "outline"),
 }
 MODES = (("score", "By U-Net score"), ("tiles", "Tiles"))
 KEYS = ("→ / Space  next\n← back\nBackspace  reject the centre pore\nDelete  reject all pores in the patch\n"
@@ -114,6 +119,30 @@ class PatchView(ImageView):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
+        self.outlines: dict[str, QGraphicsPathItem] = {}     # vector outlines over the patch (not burnt in)
+        for z, key in enumerate(("rejected", "added", "pores", "centre")):
+            item = QGraphicsPathItem()
+            item.setZValue(1.4 + 0.01 * z)      # above the image, below hover, selection and drawing
+            self.scene().addItem(item)
+            self.outlines[key] = item
+
+    def set_outline(self, key: str, mask: np.ndarray, color: str, width: float, alpha: float = 1.0) -> None:
+        """Outline of every pore in `mask` along the pixel edges (patch px), `width` screen px."""
+        path = QPainterPath()
+        for line in outline(mask):
+            path.moveTo(line.p1())
+            path.lineTo(line.p2())
+        pen_color = QColor(color)
+        pen_color.setAlphaF(alpha)
+        pen = QPen(pen_color, width)
+        pen.setCosmetic(True)
+        self.outlines[key].setPen(pen)
+        self.outlines[key].setPath(path)
+
+    def set_outline_opacity(self, opacity: float) -> None:
+        for item in self.outlines.values():
+            item.setOpacity(opacity)
+
     def set_mode(self, mode: str, color: QColor | None = None) -> None:
         super().set_mode(mode, color)
         self.setDragMode(ImageView.DragMode.NoDrag)
@@ -137,7 +166,8 @@ def tile_starts(length: int, size: int, overlap: float) -> list[int]:
 
 
 class CheckWindow(QDialog):
-    def __init__(self, image: Image, corrections, settings: dict, accent: str, parent=None):
+    def __init__(self, image: Image, corrections, settings: dict, accent: str, parent=None,
+                 colors: dict | None = None):
         """image: the image the viewer shows (not changed here); corrections: pore_detection.Corrections
         of its ID or None (read-only); settings: config.gui (check_patch_px, check_tile_overlap)."""
         super().__init__(parent)
@@ -145,6 +175,7 @@ class CheckWindow(QDialog):
         self.setModal(True)
         self.resize(1400, 980)
         self.image, self.store, self.accent = image, corrections, QColor(accent)
+        self.colors = colors or style.LIGHT  # theme of the viewer (icon colours)
         self.size_px = int(settings.get("check_patch_px", 1000))
         overlap = float(settings.get("check_tile_overlap", 0.1))
         self.labels, self.rejected_labels = image.labels, image.rejected_labels
@@ -216,6 +247,9 @@ class CheckWindow(QDialog):
         self.view = PatchView()
         self.view.clicked.connect(self._on_clicked)
         self.view.outlined.connect(self._on_outlined)
+        self.view.hovered.connect(self._on_hover)
+        self.view.hover_left.connect(self._clear_hover)
+        self.hover_key: tuple[int, bool] | None = None      # (pore id, rejected) glowing under the mouse
         body.addWidget(self.view, stretch=1)
 
         side = QVBoxLayout()
@@ -233,7 +267,7 @@ class CheckWindow(QDialog):
         self.opacity.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.opacity_label = QLabel(f"{OPACITY} %", objectName="infoValue")
         self.opacity.valueChanged.connect(lambda v: self.opacity_label.setText(f"{v} %"))
-        self.opacity.valueChanged.connect(lambda _: self._render())
+        self.opacity.valueChanged.connect(lambda v: self.view.set_outline_opacity(v / 100))
         row.addWidget(self.opacity, stretch=1)
         row.addWidget(self.opacity_label)
         side.addLayout(row)
@@ -281,8 +315,11 @@ class CheckWindow(QDialog):
         column.setContentsMargins(4, 6, 4, 6)
         column.setSpacing(2)
         self.tool_buttons = {}
-        for key, (symbol, tip, _color, _mode) in TOOLS.items():
-            b = QPushButton(symbol, objectName="toolButton")
+        colors = self.colors
+        for key, (name, tip, _color, _mode) in TOOLS.items():
+            b = QPushButton(objectName="toolButton")
+            b.setIcon(style.tool_icon(name, colors, key))
+            b.setIconSize(QSize(ICON_PX, ICON_PX))
             b.setToolTip(tip)
             b.setCheckable(True)
             b.setProperty("tool", key)
@@ -290,7 +327,9 @@ class CheckWindow(QDialog):
             column.addWidget(b)
             self.tool_buttons[key] = b
         column.addWidget(QFrame(objectName="toolLine"))
-        undo = QPushButton("↶", objectName="toolButton")
+        undo = QPushButton(objectName="toolButton")
+        undo.setIcon(style.tool_icon("undo-2", colors))
+        undo.setIconSize(QSize(ICON_PX, ICON_PX))
         undo.setToolTip("undo the last correction of this image (Ctrl+Z)")
         undo.clicked.connect(lambda: self._correct("undo"))
         column.addWidget(undo)
@@ -389,23 +428,33 @@ class CheckWindow(QDialog):
         return (slice(t0, t1), slice(l0, l1), slice(t0 - self.top, t1 - self.top), slice(l0 - self.left, l1 - self.left))
 
     def _render(self, fit: bool = False) -> None:
+        """The patch as a plain image; the pores as vector outlines above it (thin, on the pixel
+        edges, the same on screen at every size of the window), the centre pore stronger."""
         size = self.size_px
         rows, columns, prow, pcol = self._crop()
         base = np.full((size, size, 3), PAD_GRAY, dtype=np.uint8)
-        sample = np.zeros((size, size), dtype=bool)
-        masks = {name: np.zeros((size, size), dtype=bool) for name in ("pores", "rejected", "added", "removed")}
+        base[prow, pcol] = self.image.original_crop(rows.start, rows.stop, columns.start, columns.stop)
+        self.view.set_image(base, (size, size), fit or self.view.fitted)
+
+        def patch(mask: np.ndarray) -> np.ndarray:
+            full = np.zeros((size, size), dtype=bool)
+            full[prow, pcol] = mask
+            return full
         labels = self.labels[rows, columns]
         rejected = self.rejected_labels[rows, columns]
-        base[prow, pcol] = self.image.original_crop(rows.start, rows.stop, columns.start, columns.stop)
-        sample[prow, pcol] = self.image.roi[rows, columns]
-        masks["pores"][prow, pcol] = labels > 0
-        masks["rejected"][prow, pcol] = (rejected > 0) & ~np.isin(rejected, list(self.removed))
-        masks["added"][prow, pcol] = np.isin(labels, list(self.added)) if self.added else False
-        show_rejected = self.rejected_check.isChecked()
-        rgb = compose(base, masks, sample, Layers(base="original", pores=True, embedding=False, rejected=show_rejected,
-                                                  removed=False, added=True,
-                                                  opacity=self.opacity.value() / 100, fill=False))
-        self.view.set_image(rgb, (size, size), fit or self.view.fitted)
+        centre = (labels == self.centre) if self.centre else np.zeros(labels.shape, dtype=bool)
+        added = np.isin(labels, list(self.added)) & ~centre if self.added else np.zeros(labels.shape, dtype=bool)
+        others = (labels > 0) & ~centre & ~added
+        shown_rejected = (rejected > 0) & ~np.isin(rejected, list(self.removed))    # removed by hand: not drawn
+        if not self.rejected_check.isChecked():
+            shown_rejected[:] = False
+        view = self.view
+        view.set_outline("rejected", patch(shown_rejected), style.REJECTED, OUTLINE_PX, OTHER_ALPHA)
+        view.set_outline("added", patch(added), style.ADDED, OUTLINE_PX, OTHER_ALPHA)
+        view.set_outline("pores", patch(others), style.PORE, OUTLINE_PX, OTHER_ALPHA)
+        view.set_outline("centre", patch(centre), CENTRE_COLOR, OUTLINE_PX)
+        view.set_outline_opacity(self.opacity.value() / 100)
+        self._clear_hover()                 # pores or patch changed: shown again on the next mouse move
 
     def _visited(self) -> list[tuple[int, int]]:
         """(top, left) of every patch shown so far, score mode and tile mode together."""
@@ -460,6 +509,34 @@ class CheckWindow(QDialog):
             return
         self._correct(self.tool, *target)
 
+    def _on_hover(self, x: int, y: int) -> None:
+        """With "+" / "−": the pore a click would hit glows in the tool's colour, as in the viewer."""
+        if self.tool not in ("restore", "remove"):
+            self._clear_hover()
+            return
+        rejected = self.tool == "restore"
+        fx, fy = self._full(x, y)
+        target = self._pick(int(fx), int(fy), rejected=rejected)
+        labels = self.rejected_labels if rejected else self.labels
+        pore = int(labels[target[1], target[0]]) if target is not None else 0
+        key = (pore, rejected) if pore else None
+        if key == self.hover_key:
+            return
+        self.hover_key = key
+        if key is None:
+            self.view.set_hover([], QColor())
+            return
+        rows, columns, prow, pcol = self._crop()
+        mask = np.zeros((self.size_px, self.size_px), dtype=bool)
+        mask[prow, pcol] = labels[rows, columns] == pore
+        color = QColor(TOOLS[self.tool][2] or self.accent)
+        color.setAlpha(HOVER_ALPHA)
+        self.view.set_hover(outline(mask), color)
+
+    def _clear_hover(self) -> None:
+        self.hover_key = None
+        self.view.set_hover([], QColor())
+
     def _on_outlined(self, points: list) -> None:
         if self.tool in ("draw", "area"):
             self._correct(self.tool, [self._full(x, y) for x, y in points])
@@ -511,6 +588,7 @@ class CheckWindow(QDialog):
         def job():
             if self.session is None:
                 self.session = self.store.session(name)
+                self.session.defer_plots = True     # only pores and values per click; plots once at the end
             state = getattr(self.session, action)(*args)
             return state, Boxes.of(state.labels)
         future = self.worker.submit(job)

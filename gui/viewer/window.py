@@ -13,14 +13,14 @@ from pathlib import Path
 from typing import Callable
 
 import numpy as np
-from PySide6.QtCore import QEvent, QObject, Qt, Signal
+from PySide6.QtCore import QEvent, QObject, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QIcon, QKeySequence, QPainter, QPixmap, QShortcut, QTransform
-from PySide6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QDialog, QFormLayout, QFrame,
-                               QGridLayout, QHBoxLayout, QLabel, QMainWindow, QPlainTextEdit, QPushButton,
+from PySide6.QtWidgets import (QApplication, QCheckBox, QDialog, QFormLayout, QFrame,
+                               QGridLayout, QHBoxLayout, QLabel, QLineEdit, QMainWindow, QPlainTextEdit, QPushButton,
                                QScrollArea, QSlider, QTableWidget, QTableWidgetItem, QTreeWidget,
                                QTreeWidgetItem, QVBoxLayout, QWidget)
 
-from . import style
+from . import icons, style
 from .check import CheckWindow
 from .data import MANUAL, Image, Run, apply_state, load_image
 from .image_view import ImageView
@@ -30,24 +30,20 @@ from .plot_view import PlotView
 from .scale_check import ScaleCheck, scale_crop_box
 
 # key figures shown as tiles: (column of images.json, label, unit) – fixed on purpose (PLAN.md 7.2)
-KEY_FIGURES = [
-    ("porosity_percent", "Porosity", "%"),
-    ("pore_count", "Pores", ""),
-    ("pore_area_px2", "Pore area", "px²"),
-    ("sample_area_px2", "Sample area", "px²"),
-]
+KEY_FIGURE_Q = 2                # q of the pore index tile when config.gui has no key_figure_q
 RIGHT_COLUMN_PX = 330
 LOUPE_COLUMN_PX = 300
 PLOT_HEIGHT_PX = 300
+PORE_LIST_MIN_PX = 160      # pore list below the layers: at least this tall
 NO_SELECTION = "Click a pore in the image or in the list."
 PICK_RADIUS_SCREEN_PX = 12  # a click / hover this close to a pore (on screen) picks it
-# correction tools: key -> (symbol, tooltip, colour of the active button / drawn outline, view mode)
+# correction tools: key -> (icon, tooltip, colour of the active button / drawn outline, view mode)
 TOOLS = {
-    "restore": ("+", "count a rejected pore (click on it)", "#0c8599", "click"),
-    "remove": ("−", "reject a counted pore (click on it); a drawn pore is deleted", "#d63370", "click"),
-    "draw": ("✎", "draw a missed pore (hold the mouse button and trace its outline)", None, "outline"),
-    "area": ("⬚", "reject every counted pore lying completely inside the traced area", "#d63370", "outline"),
-    "frame": ("⟂", "set the sample frame by hand: 2 clicks on the top (or bottom) edge, 1 on the other long "
+    "restore": ("circle-plus", "count a rejected pore (click on it)", "#0c8599", "click"),
+    "remove": ("circle-minus", "reject a counted pore (click on it); a drawn pore is deleted", style.REMOVED, "click"),
+    "draw": ("pencil", "draw a missed pore (hold the mouse button and trace its outline)", None, "outline"),
+    "area": ("square-dashed", "reject every counted pore lying completely inside the traced area", style.REMOVED, "outline"),
+    "frame": ("axis-3d", "set the sample frame by hand: 2 clicks on the top (or bottom) edge, 1 on the other long "
                    "edge, 1 on the left and 1 on the right edge (right click / Backspace: one click back, "
                    "Esc: cancel)", style.FRAME, "frame"),
 }
@@ -80,6 +76,29 @@ def column_label(column: str) -> tuple[str, str]:
         if column.endswith(suffix):
             return column[:-len(suffix)].replace("_", " ").capitalize(), unit
     return column.replace("_", " ").capitalize(), ""
+
+
+def key_figures(row: dict, q: float) -> list[tuple[str, str]]:
+    """The four tiles (label, text) of one image: porosity, pores, pore index phi_q (fallback: pore
+    area if the run has no phi for this q), sample area (mm² with a scale, else px²)."""
+    def number(key):
+        value = row.get(key)
+        return None if value is None or (isinstance(value, float) and value != value) else value
+    phi = number("phi_q" + f"{q:g}".replace(".", "_"))         # column name as pore_index.q_name
+    third = ((f"Pore index φ q={q:g}", format_number(phi)) if phi is not None
+             else ("Pore area", format_number(number("pore_area_px2"), "px²")))
+    um, sample = number("pixel_size_um"), number("sample_area_px2")
+    area = (format_number(sample * um * um * 1e-6, "mm²") if um is not None and sample is not None
+            else format_number(sample, "px²"))
+    return [("Porosity", format_number(number("porosity_percent"), "%")),
+            ("Pores", format_number(number("pore_count"))), third, ("Sample area", area)]
+
+
+def hidden_in_strip(column: str) -> bool:
+    """Columns of pores.json left out of the value strip of the selected pore (still in pores.json,
+    the Excel and the pore list): stress at the centroid (stress_max is shown) and the contributions
+    A g^q of pore_index (weighted_area_q…)."""
+    return column == "stress_centroid" or column.startswith("weighted_area_")
 
 
 def card(title: str, body: QWidget | None = None) -> QFrame:
@@ -138,6 +157,7 @@ def dot_icon(color: str) -> QIcon:
 class _Signals(QObject):
     loaded = Signal(int, object)            # image index, Future[Image] (emitted from the loader thread)
     corrected = Signal(int, object)         # image index, Future[State] (emitted from the correction thread)
+    plots_drawn = Signal(int, object)       # image index, Future[plots] after the check window
 
 
 class ViewerWindow(QMainWindow):
@@ -171,11 +191,13 @@ class ViewerWindow(QMainWindow):
         self.signals = _Signals()
         self.signals.loaded.connect(self._on_loaded)
         self.signals.corrected.connect(self._on_corrected)
+        self.signals.plots_drawn.connect(self._on_plots_drawn)
 
         # theme from config.gui (no toggle); the system scheme comes back when the viewer closes
         self.hints = QApplication.styleHints()
         self.scheme_before = self.hints.colorScheme()
         self.gui_settings = gui_settings        # also check_patch_px / check_tile_overlap (check window)
+        self.key_q = float(gui_settings.get("key_figure_q", KEY_FIGURE_Q))     # q of the pore index tile
         theme = gui_settings.get("theme", "system")
         self.dark = theme == "dark" or (theme == "system" and self.scheme_before == Qt.ColorScheme.Dark)
 
@@ -190,7 +212,6 @@ class ViewerWindow(QMainWindow):
         grid.addWidget(self._build_right_column(), 0, 1)
         self.plots = self._build_plots()
         grid.addWidget(self.plots, 1, 0)
-        grid.addWidget(self._build_pore_list(), 1, 1, Qt.AlignmentFlag.AlignTop)
         grid.setColumnStretch(0, 1)
         page.setWidget(content)
         self.page, self.content_grid = page, grid
@@ -289,7 +310,8 @@ class ViewerWindow(QMainWindow):
         self.errors_button.setText(f"Errors ({len(self.run.errors)})")
         self._fill_chain()
         editable = self.corrections is not None
-        for b in [*self.tool_buttons.values(), self.undo_button, self.reset_button]:
+        for b in [*self.tool_buttons.values(), self.undo_button, self.reset_button, self.scale_input,
+                  self.scale_button]:
             b.setEnabled(editable)
         self.tools.setToolTip("" if editable else "corrections not available")
         if not editable and self.tool is not None:
@@ -366,8 +388,12 @@ class ViewerWindow(QMainWindow):
         layout.setContentsMargins(4, 6, 4, 6)
         layout.setSpacing(2)
 
-        def button(text, tip, slot=None, tool=None):
-            b = QPushButton(text, objectName="toolButton")
+        self.icon_buttons: list[tuple[QPushButton, str, str | None]] = []    # coloured in _apply_theme
+
+        def button(name, tip, slot=None, tool=None):
+            b = QPushButton(objectName="toolButton")
+            b.setIconSize(QSize(icons.ICON_PX, icons.ICON_PX))
+            self.icon_buttons.append((b, name, tool))
             b.setToolTip(tip)
             if tool:
                 b.setCheckable(True)
@@ -377,16 +403,16 @@ class ViewerWindow(QMainWindow):
             layout.addWidget(b)
             return b
 
-        button("⊕", "zoom in", lambda: self.view.zoom_by(1.25))
-        button("⊖", "zoom out", lambda: self.view.zoom_by(1 / 1.25))
-        button("⤢", "fit the whole image (double click)", lambda: self.view.fit())
+        button("zoom-in", "zoom in", lambda: self.view.zoom_by(1.25))
+        button("zoom-out", "zoom out", lambda: self.view.zoom_by(1 / 1.25))
+        button("maximize", "fit the whole image (double click)", lambda: self.view.fit())
         layout.addWidget(QFrame(objectName="toolLine"))
         self.tool_buttons = {}
-        for key, (symbol, tip, _color, _mode) in TOOLS.items():
-            self.tool_buttons[key] = button(symbol, tip, lambda _=False, k=key: self._set_tool(k), key)
+        for key, (name, tip, _color, _mode) in TOOLS.items():
+            self.tool_buttons[key] = button(name, tip, lambda _=False, k=key: self._set_tool(k), key)
         layout.addWidget(QFrame(objectName="toolLine"))
-        self.undo_button = button("↶", "undo the last correction of this image (Ctrl+Z)", self._undo)
-        self.reset_button = button("🗑", "discard all corrections of this image", self._reset)
+        self.undo_button = button("undo-2", "undo the last correction of this image (Ctrl+Z)", self._undo)
+        self.reset_button = button("trash-2", "discard all corrections of this image", self._reset)
         self.tools = tools                  # enabled per ID (_enter_run)
         return tools
 
@@ -407,6 +433,19 @@ class ViewerWindow(QMainWindow):
         self.scale_values = QLabel(objectName="mono")
         self.scale_values.setWordWrap(True)
         scale_box.addWidget(self.scale_values)
+        scale_row = QHBoxLayout()               # scale set by hand: replaces the detected one
+        self.scale_input = QLineEdit()
+        self.scale_input.setPlaceholderText("µm/px")
+        self.scale_input.setToolTip("scale by hand in µm per px; replaces the detected one for all values "
+                                    "of this image (undo takes it back)")
+        self.scale_input.returnPressed.connect(self._set_scale)
+        self.scale_button = QPushButton("Set")
+        self.scale_button.setToolTip(self.scale_input.toolTip())
+        self.scale_button.clicked.connect(self._set_scale)
+        scale_row.addWidget(QLabel("Scale", objectName="hint"))
+        scale_row.addWidget(self.scale_input, stretch=1)
+        scale_row.addWidget(self.scale_button)
+        scale_box.addLayout(scale_row)
         layout.addLayout(scale_box)
 
         layout.addWidget(QLabel("PORE – OPTICAL CHECK", objectName="cardTitle"))
@@ -442,42 +481,26 @@ class ViewerWindow(QMainWindow):
         tiles_grid = QGridLayout(tiles)
         tiles_grid.setContentsMargins(0, 0, 0, 0)
         tiles_grid.setSpacing(1)
-        self.tile_values = {}
-        for i, (key, label, _unit) in enumerate(KEY_FIGURES):
+        self.tile_values, self.tile_labels = [], []
+        for i, (label, _text) in enumerate(key_figures({}, self.key_q)):
             tile = QFrame(objectName="tile")
+            tile.setProperty("corner", {2: "bottomLeft", 3: "bottomRight"}.get(i, ""))  # rounded like the card
             tile_layout = QVBoxLayout(tile)
             tile_layout.setContentsMargins(14, 12, 14, 12)
             tile_layout.setSpacing(2)
             value = QLabel("–", objectName="tileValue")
             tile_layout.addWidget(value)
-            tile_layout.addWidget(QLabel(label, objectName="tileLabel"))
+            name = QLabel(label, objectName="tileLabel")
+            tile_layout.addWidget(name)
             tiles_grid.addWidget(tile, i // 2, i % 2)
-            self.tile_values[key] = value
+            self.tile_values.append(value)
+            self.tile_labels.append(name)
         layout.addWidget(card("Key figures", tiles))
 
         layers = QWidget()
         layers_layout = QVBoxLayout(layers)
         layers_layout.setContentsMargins(10, 12, 10, 12)
         layers_layout.setSpacing(4)
-        layers_layout.addWidget(QLabel("BASE IMAGE", objectName="sectionLabel"))
-        base_row = QHBoxLayout()
-        base_row.setSpacing(6)
-        self.base_group = QButtonGroup(self)
-        for key, text, tip in (("original", "Original", "the micrograph"),
-                               ("background", "Background", "estimated background – needs a background "
-                                                            "correction filter (follows later)")):
-            button = QPushButton(text)
-            button.setCheckable(True)
-            button.setChecked(key == "original")
-            button.setEnabled(key != "background")
-            button.setToolTip(tip)
-            button.setProperty("base", key)
-            self.base_group.addButton(button)
-            base_row.addWidget(button)
-        self.base_group.buttonClicked.connect(self._layers_changed)
-        layers_layout.addLayout(base_row)
-        layers_layout.addSpacing(10)
-        layers_layout.addWidget(QLabel("OVERLAY", objectName="sectionLabel"))
         self.embedding_row = LayerRow("Embedding medium", style.EMBEDDING, checked=False)
         self.frame_row = LayerRow("Sample frame", style.FRAME, checked=True)
         self.rejected_row = LayerRow("Rejected", style.REJECTED, checked=True)
@@ -519,8 +542,8 @@ class ViewerWindow(QMainWindow):
         self.stress_controls.setVisible(False)
         self.stress_row.check.toggled.connect(self.stress_controls.setVisible)
         layers_layout.addWidget(self.stress_controls)
-        layers_layout.addStretch()
-        layout.addWidget(card("Layers", layers), stretch=1)
+        layout.addWidget(card("Layers", layers))            # only as tall as its rows
+        layout.addWidget(self._build_pore_list(), stretch=1)    # the rest of the column down to the image's end
         return column
 
     def _build_plots(self) -> QWidget:
@@ -580,7 +603,7 @@ class ViewerWindow(QMainWindow):
         self.pore_list.setIndentation(0)
         self.pore_list.itemSelectionChanged.connect(self._on_list_selection)
         frame = card("Pores by area", self.pore_list)
-        frame.setFixedSize(RIGHT_COLUMN_PX, PLOT_HEIGHT_PX)
+        frame.setMinimumHeight(PORE_LIST_MIN_PX)
         return frame
 
     def eventFilter(self, watched, event) -> bool:
@@ -608,8 +631,7 @@ class ViewerWindow(QMainWindow):
         self.name_label.setText(row["image"])
         self.prev_button.setEnabled(index > 0)
         self.next_button.setEnabled(index < len(self.entries) - 1)
-        for key, _label, unit in KEY_FIGURES:
-            self.tile_values[key].setText(format_number(row.get(key), unit))
+        self._show_key_figures(row)
 
         # keep only the shown image and its neighbours; others are dropped (a running load just finishes)
         for i in [i for i in self.loading if abs(i - index) > 1]:
@@ -671,7 +693,7 @@ class ViewerWindow(QMainWindow):
                 self._load(neighbour)
 
     def _layers(self) -> Layers:
-        return Layers(base=self.base_group.checkedButton().property("base"), pores=self.pores_check.isChecked(),
+        return Layers(base="original", pores=self.pores_check.isChecked(),
                       embedding=self.embedding_check.isChecked(), rejected=self.rejected_row.check.isChecked(),
                       removed=self.removed_row.check.isChecked(), added=self.added_row.check.isChecked(),
                       opacity=self.opacity.value() / 100)
@@ -711,7 +733,8 @@ class ViewerWindow(QMainWindow):
             return
         um = image.scale.um_per_px
         parts = [f"{image.shape[1]} × {image.shape[0]} px",
-                 f"{um:.6g} µm/px" if um else "no scale – values in pixels",
+                 (f"{um:.6g} µm/px" + (" (by hand)" if image.scale.by_hand else "")) if um
+                 else "no scale – values in pixels",
                  f"zoom {self.view.zoom() * 100:.0f} %"]
         if image.message:
             parts.append(image.message)
@@ -721,9 +744,11 @@ class ViewerWindow(QMainWindow):
         """Scale overlay with the measured bar; below it what was read and what follows from it."""
         image = self.image
         scale = image.scale
+        self.scale_input.setText(f"{scale.um_per_px:.6g}" if scale.by_hand else "")
         if scale.bar is None:
             self.scale_check.show_message("no scale overlay found")
-            self.scale_values.setText(f"Scale: {scale.um_per_px:.6g} µm/px (not from an overlay)"
+            self.scale_values.setText(f"Scale: {scale.um_per_px:.6g} µm/px (set by hand)" if scale.by_hand
+                                      else f"Scale: {scale.um_per_px:.6g} µm/px (not from an overlay)"
                                       if scale.um_per_px else "No scale – values in pixels.")
             return
         top, bottom, left, right = scale_crop_box(scale.box, scale.bar, image.shape)
@@ -736,7 +761,7 @@ class ViewerWindow(QMainWindow):
         lines = [f"Read: {scale.label}" if scale.label else "Read: nothing (label not readable)",
                  f"Bar: {scale.bar[3] - scale.bar[2]} px"]
         if scale.um_per_px:
-            lines.append(f"Scale: {scale.um_per_px:.6g} µm/px")
+            lines.append(f"Scale: {scale.um_per_px:.6g} µm/px" + (" (set by hand)" if scale.by_hand else ""))
         self.scale_values.setText("\n".join(lines))
 
     # ------------------------------------------------------------------ pores
@@ -874,6 +899,16 @@ class ViewerWindow(QMainWindow):
         future = self.worker.submit(job)
         future.add_done_callback(lambda f: self.signals.corrected.emit(index, f))
 
+    def _set_scale(self) -> None:
+        """Scale typed in by hand (µm/px, comma or point): a correction like the others."""
+        text = self.scale_input.text().strip().replace(",", ".")
+        try:
+            value = float(text)
+        except ValueError:
+            self.info_label.setText("not applied: enter the scale as a number of µm per px")
+            return
+        self._correct("set_scale", value)
+
     def _undo(self) -> None:
         self._correct("undo")
 
@@ -900,8 +935,7 @@ class ViewerWindow(QMainWindow):
         if image is not self.image:
             return
         self._clear_hover()                 # pores changed
-        for key, _label, unit in KEY_FIGURES:
-            self.tile_values[key].setText(format_number(state.row.get(key), unit))
+        self._show_key_figures(state.row)
         self._update_counts()
         self._fill_pore_list()
         self._render(fit=False)
@@ -912,11 +946,17 @@ class ViewerWindow(QMainWindow):
         self._update_stress_row()
         self._show_frame()
         self._show_stress()
+        self._update_scale_check()          # the scale may be set by hand
         gone = self.selected and not (image.pore_labels(self.selected_rejected) == self.selected).any()
         self._select(0 if gone else self.selected, rejected=self.selected_rejected)
         self._update_info()
         if not state.hit:
             self.info_label.setText("nothing hit – click closer to a pore" if self.tool else "nothing to undo")
+
+    def _show_key_figures(self, row: dict) -> None:
+        for value, name, (label, text) in zip(self.tile_values, self.tile_labels, key_figures(row, self.key_q)):
+            name.setText(label)
+            value.setText(text)
 
     def _update_frame_row(self) -> None:
         """Frame layer: thickness as its count; not selectable if the run has no frame."""
@@ -1030,12 +1070,13 @@ class ViewerWindow(QMainWindow):
                              image.pore_labels(rejected)[top:bottom, left:right] == pore_id, QColor(color))
 
     def _show_pore_values(self, pore_id: int) -> None:
-        """Value strip above the image: all pores.json columns of the selected pore and its status
+        """Value strip above the image: the pores.json columns of the selected pore (without
+        hidden_in_strip) and its status
         (added by hand, or rejected with filter and reason)."""
         c = style.DARK if self.dark else style.LIGHT
         image = self.image
         table = image.table if image is not None else None
-        columns = [k for k in table.columns if k != "pore_id"] if table is not None else []
+        columns = [k for k in table.columns if k != "pore_id" and not hidden_in_strip(k)] if table is not None else []
 
         def part(name, value):
             return (f"<span style='color:{c['muted']}'>{name}</span>&nbsp;&nbsp;"
@@ -1102,7 +1143,10 @@ class ViewerWindow(QMainWindow):
 
     def _apply_theme(self) -> None:
         self.hints.setColorScheme(Qt.ColorScheme.Dark if self.dark else Qt.ColorScheme.Light)
-        self.setStyleSheet(style.stylesheet(style.DARK if self.dark else style.LIGHT))
+        colors = style.DARK if self.dark else style.LIGHT
+        self.setStyleSheet(style.stylesheet(colors))
+        for b, name, tool in self.icon_buttons:
+            b.setIcon(style.tool_icon(name, colors, tool))
         self._show_pore_values(self.selected)
         if self.image is not None:
             self._update_scale_check()          # accent color of the marker
@@ -1119,7 +1163,8 @@ class ViewerWindow(QMainWindow):
         self._set_tool(None)
         self.worker.submit(lambda: None).result()      # a running correction of the viewer first
         accent = (style.DARK if self.dark else style.LIGHT)["accent"]
-        dialog = CheckWindow(self.image, self.corrections, self.gui_settings, accent, parent=self)
+        dialog = CheckWindow(self.image, self.corrections, self.gui_settings, accent, parent=self,
+                             colors=style.DARK if self.dark else style.LIGHT)
         dialog.exec()
         if not dialog.changed:
             return
@@ -1129,6 +1174,28 @@ class ViewerWindow(QMainWindow):
         self.loading.pop(self.index, None)          # read again from the files (after the writes)
         self._heat = None
         self.show_image(self.index)
+        session = dialog.session
+        if session is not None and session.plots_stale:  # the check window drew no plots: now, once
+            index = self.index
+            self.info_label.setText("drawing plots …")
+            future = self.worker.submit(session.render_plots)
+            future.add_done_callback(lambda f: self.signals.plots_drawn.emit(index, f))
+
+    def _on_plots_drawn(self, index: int, future: Future) -> None:
+        try:
+            plots = future.result()
+        except Exception as error:
+            self.info_label.setText(f"plots failed: {type(error).__name__}: {error}")
+            return
+        cached = self.loading.get(index)
+        image = self.image if index == self.index and self.image is not None else (
+            cached.result() if cached is not None and cached.done() and not cached.exception() else None)
+        if image is not None and plots is not None:
+            image.plots = plots             # an image still loading reads the new files itself
+            if image is self.image:
+                self._show_plots()
+        if index == self.index:
+            self._update_info()
 
     def closeEvent(self, event) -> None:
         self.loader.shutdown(wait=False, cancel_futures=True)
