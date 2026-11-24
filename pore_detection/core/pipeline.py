@@ -67,7 +67,8 @@ class _Steps:
     scale: Step
     frame: Step
     filters: list[Step]         # preprocessing chain (may run on tiles)
-    detection: list[Step]       # detector + mask steps (may run on tiles)
+    detector: Step              # detection (may run on tiles)
+    mask_steps: list[Step]      # postprocessing on the finished bool mask (may run on tiles)
     labeler: Step
     label_steps: list[Step]
     evaluators: list[Step]
@@ -81,8 +82,8 @@ class _Steps:
             scale=registry.create("sample.scale", config.sample.scale),
             frame=registry.create("sample.frame", config.sample.frame),
             filters=[registry.create("preprocessing", e) for e in config.preprocessing],
-            detection=[registry.create("detection", config.detection)]
-                      + [registry.create("postprocessing.mask_steps", e) for e in post.mask_steps],
+            detector=registry.create("detection", config.detection),
+            mask_steps=[registry.create("postprocessing.mask_steps", e) for e in post.mask_steps],
             labeler=registry.create("postprocessing.labeling", post.labeling),
             label_steps=[registry.create("postprocessing.label_steps", e) for e in post.label_steps],
             evaluators=[registry.create("evaluation", e) for e in config.evaluation],
@@ -125,7 +126,7 @@ def run(config: Config, input_path=None, output_dir=None,
     if steps.plots and not plotting.available():
         raise RunAborted("plots are configured but matplotlib is not installed "
                          "(pip install -r requirements.txt, or remove the plots from config.yaml)")
-    gpu_wanted = any(step.tileable and tiling.gpu_path(step) for step in steps.filters + steps.detection)
+    gpu_wanted = any(step.tileable and tiling.gpu_path(step) for step in steps.filters + [steps.detector] + steps.mask_steps)
     device = select_device(config.runtime.device, gpu_wanted)
     gpu = tiling.Gpu(config.runtime.gpu_memory_fraction, config.runtime.tile_batch_size) if device == "cuda" else None
     threads = os.cpu_count() if config.runtime.threads == "auto" else config.runtime.threads
@@ -302,11 +303,12 @@ def _process_image(config: Config, steps: _Steps, load: Callable[[], tuple[Image
         at("gray")
         gray = _to_gray_parallel(ctx.original, config.input.gray_weights, config.runtime.tile_size, pool)
         gray = _run_chain(steps.filters, ctx, gray, config, pool, gpu, at)
-        mask = _run_chain(steps.detection, ctx, gray, config, pool, gpu, at)
+        mask = _run_chain([steps.detector], ctx, gray, config, pool, gpu, at)
         del gray
-        detector, score_map = steps.detection[-1], None
-        if detector.score_column is not None:   # score map of the detector -> mask (Detector.score_column)
+        detector, score_map = steps.detector, None
+        if detector.score_column is not None:   # score map -> bool mask per pixel, before any mask step
             score_map, mask = mask, mask >= detector.score_threshold
+        mask = _run_chain(steps.mask_steps, ctx, mask, config, pool, gpu, at)
         mask = mask & ctx.roi_mask              # never a pore in the embedding medium
 
         at("postprocessing.labeling", steps.labeler)
@@ -395,7 +397,7 @@ def _to_full(labels: np.ndarray | None, info: ImageInfo, top: int, left: int) ->
 
 def _run_chain(chain: list[Step], ctx: ImageContext, data: np.ndarray, config: Config,
                pool: ThreadPoolExecutor, gpu: tiling.Gpu | None, at) -> np.ndarray:
-    """Filters or detection: tileable runs on tiles, other steps on the whole image."""
+    """Filters, detector or mask steps: tileable runs on tiles, other steps on the whole image."""
     for group in tiling.groups(chain):
         for step in group:
             _check_scale(step, ctx)

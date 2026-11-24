@@ -34,7 +34,8 @@
 > stage `sample` gets the sample view as original, all later stages the pores view; the key of `per_image`
 > and of `for_image()` is then the recording instead of the file name. The types are unchanged.
 > Changes 0.16 → 0.17: optional `Detector.score_column` / `score_threshold`: the detector returns a float32
-> score map 0..1 instead of the mask; core cuts it (`>= score_threshold`) and writes the mean score of every
+> score map 0..1 instead of the mask; core cuts it per pixel (`>= score_threshold`) right after the detector, so
+> mask steps always get the bool mask, and writes the mean score of every
 > counted pore to `pores.json` under `score_column` (U-Net: `unet_score`). `Detector.detect_mask()` for
 > tools that call a detector directly.
 
